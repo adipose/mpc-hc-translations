@@ -84,11 +84,13 @@ $up  = (git -C upstream rev-parse --short HEAD).Trim()
 $our = (git rev-parse --short HEAD).Trim()
 $zip = Get-ChildItem (Join-Path $repo "translation-studio-bundle-*.zip") |
        Sort-Object LastWriteTime | Select-Object -Last 1
-# Tag by OUR commit so every build (incl. data/code-only changes where upstream is unchanged) gets
-# its OWN release -- never overwrite a previous one. (The delete only fires on a re-run of the SAME
-# commit.) Upstream sha lives in the title/notes.
-$tag = "build-$our"
-gh release delete $tag --yes --cleanup-tag 2>$null
-gh release create $tag $zip.FullName --title "Studio bundle $our (upstream $up)" --latest `
-    --notes "Local build. Our commit $our, upstream $up. AI suggestions filled via $Backend (>=$Threshold% languages)."
+# Incrementing build number 0.1, 0.2, ... -- every build gets its OWN release (never overwrite a tag).
+# The commit + upstream shas live in the title/notes for traceability. (git tags can't start with a
+# literal dot, so ".N" is tagged "0.N".)
+$minors = @(gh release list --json tagName --jq '.[].tagName' 2>$null |
+            Select-String -Pattern '^0\.(\d+)$' | ForEach-Object { [int]$_.Matches.Groups[1].Value })
+$n = (($minors | Measure-Object -Maximum).Maximum) + 1
+$tag = "0.$n"
+gh release create $tag $zip.FullName --title "Studio bundle $tag (upstream $up)" --latest `
+    --notes "Local build $tag. Our commit $our, upstream $up. AI suggestions via $Backend (>=$Threshold% languages)."
 Write-Host "`nPublished release $tag with $($zip.Name)."
