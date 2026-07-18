@@ -1,11 +1,11 @@
 {
  "schema": 1,
- "version": "f8774bc",
- "generated": "2026-07-18T02:42:37Z",
+ "version": "f893ed1",
+ "generated": "2026-07-18T05:00:46Z",
  "files": {
   "dist/core-enrichment.sqlite": {
-   "sha256": "72a87f53ad2b1ab5ea69c7a6ab783777d49e5d8294fd5ac17b769107a80af66d",
-   "size": 925696
+   "sha256": "1805e53a09ff3a2606421992f92d16d91de5b41a93da2a87de67b86f8c7565b6",
+   "size": 933888
   },
   "dist/control-index.json": {
    "sha256": "07e77ca0bdfe047ec6e34e7b4fbedeb2349d39b17adc5abd9ca04a9e9aaf4609",
