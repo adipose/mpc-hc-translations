@@ -10,9 +10,10 @@
 #   pwsh bundle-build/publish.ps1            # gated: fill + build only if RC/PO changed
 #   pwsh bundle-build/publish.ps1 -Force     # build even with no string change
 #
-# NOTE: a BRAND-NEW upstream string only gets a Meaning + string_id (needed to store a suggestion/hint)
-# once core-enrichment.sqlite is regenerated from the private lab DB. Run that maintainer step first if
-# a sync introduced entirely new strings; ai_fill/generate_hints cover strings already in core-enrichment.
+# New upstream strings are added to core-enrichment (sync_core_strings.py) so they get a string_id and
+# an AI translation from English + siblings immediately; their rich Meaning is filled in later when
+# core-enrichment is regenerated from the private lab DB. THIS is the build command -- it ends by
+# pushing and publishing a GitHub Release. (build_local.ps1 is the compile-only step it calls.)
 param([switch]$Force, [double]$Threshold = 85, [string]$Model = "claude-sonnet-5",
       [ValidateSet("claude-code", "api")][string]$Backend = "claude-code")
 $ErrorActionPreference = "Stop"
@@ -48,6 +49,7 @@ python bundle-build/build_index.py `
     --rc upstream/src/mpc-hc/mpc-hc.rc --resource-h upstream/src/mpc-hc/resource.h `
     --mpcres upstream/src/mpc-hc/mpcresources --out dist/control-index.json
 if ($LASTEXITCODE) { throw "build_index failed" }
+python bundle-build/sync_core_strings.py    # add any new upstream strings to core-enrichment (empty Meaning)
 python bundle-build/ai_fill.py --threshold $Threshold --model $Model --backend $Backend
 if ($LASTEXITCODE) { throw "ai_fill failed" }
 python bundle-build/generate_hints.py --db dist/core-enrichment.sqlite --only-missing --llm --model $Model --backend $Backend
@@ -55,7 +57,7 @@ python bundle-build/report_ai_coverage.py
 python bundle-build/make_manifest.py
 
 Write-Host "== Commit the refreshed data =="
-git add upstream enrichment dist/control-index.json dist/data-manifest.json
+git add upstream enrichment dist/core-enrichment.sqlite dist/control-index.json dist/data-manifest.json
 git diff --cached --quiet
 if ($LASTEXITCODE -ne 0) {
     $up = (git -C upstream rev-parse --short HEAD).Trim()
@@ -74,4 +76,14 @@ Write-Host "== Build the bundle =="
 & (Join-Path $repo "bundle-build\build_local.ps1")
 # build_local regenerates control-index + manifest for the bundle; keep the tree matching the commit.
 git checkout -- dist/control-index.json dist/data-manifest.json 2>$null
-Write-Host "`nPublish complete. Review: git show --stat HEAD   then: git push"
+
+Write-Host "== Push + publish the GitHub Release =="
+git push origin main
+$up  = (git -C upstream rev-parse --short HEAD).Trim()
+$zip = Get-ChildItem (Join-Path $repo "translation-studio-bundle-*.zip") |
+       Sort-Object LastWriteTime | Select-Object -Last 1
+$tag = "build-$up"
+gh release delete $tag --yes --cleanup-tag 2>$null
+gh release create $tag $zip.FullName --title "Studio bundle @ upstream $up" `
+    --notes "Local build. Upstream $up. AI suggestions filled via $Backend (>=$Threshold% languages)."
+Write-Host "`nPublished release $tag with $($zip.Name)."
