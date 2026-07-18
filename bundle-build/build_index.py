@@ -73,7 +73,16 @@ def main():
     dialogs, menus = [], []
     unresolved_dialogs, missing_ctrl = 0, 0
 
+    def rc_undouble(s):
+        # RC stores an embedded double-quote as "" (e.g. ""Skip back/forward""). The app's
+        # rc_text_normalize collapses that for render-matching, but the raw msgid is also used
+        # verbatim as the Dialogs/Menus grid Row -> po->find / enrichment by_key do EXACT compares
+        # against the gettext-unescaped .po msgid ("Skip back/forward"), so the "" form never matches
+        # and the translation/Meaning goes missing. Emit the natural single-" form to match the .po.
+        return s.replace('""', '"')
+
     for (msgctxt, msgid) in td.dialogs:
+        msgid = rc_undouble(msgid)
         if msgctxt.endswith("_CAPTION"):
             dsym = msgctxt[: -len("_CAPTION")]
             if dsym not in dialog_syms:
@@ -92,6 +101,7 @@ def main():
                         "control_sym": csym, "msgctxt": msgctxt, "msgid": msgid})
 
     for (sym, msgid) in td.menus:
+        msgid = rc_undouble(msgid)
         if sym == "POPUP":
             menus.append({"command": None, "sym": "POPUP", "msgctxt": sym, "msgid": msgid})
         else:

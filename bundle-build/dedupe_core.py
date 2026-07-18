@@ -86,7 +86,9 @@ def plan():
         if k in keys: return k                       # already a live form
         nk = normkey(ctx, msgid)
         if nk in exact: return exact[nk]             # canonical live form of this string
-        return (ctx or "", unescape(msgid or ""))    # synthetic (string absent from .pot/control-index)
+        # synthetic (string absent from .pot/control-index, e.g. removed upstream): still collapse
+        # gettext AND RC-doubled ("") escaping so dead-string variants merge into one row
+        return (ctx or "", unescape(msgid or "").replace('""', '"'))
 
     buckets = {}
     for r in strs:
