@@ -81,10 +81,14 @@ git checkout -- dist/control-index.json dist/data-manifest.json 2>$null
 Write-Host "== Push + publish the GitHub Release =="
 git push origin main
 $up  = (git -C upstream rev-parse --short HEAD).Trim()
+$our = (git rev-parse --short HEAD).Trim()
 $zip = Get-ChildItem (Join-Path $repo "translation-studio-bundle-*.zip") |
        Sort-Object LastWriteTime | Select-Object -Last 1
-$tag = "build-$up"
+# Tag by OUR commit so every build (incl. data/code-only changes where upstream is unchanged) gets
+# its OWN release -- never overwrite a previous one. (The delete only fires on a re-run of the SAME
+# commit.) Upstream sha lives in the title/notes.
+$tag = "build-$our"
 gh release delete $tag --yes --cleanup-tag 2>$null
-gh release create $tag $zip.FullName --title "Studio bundle @ upstream $up" `
-    --notes "Local build. Upstream $up. AI suggestions filled via $Backend (>=$Threshold% languages)."
+gh release create $tag $zip.FullName --title "Studio bundle $our (upstream $up)" --latest `
+    --notes "Local build. Our commit $our, upstream $up. AI suggestions filled via $Backend (>=$Threshold% languages)."
 Write-Host "`nPublished release $tag with $($zip.Name)."
