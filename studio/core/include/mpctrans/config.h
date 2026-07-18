@@ -21,6 +21,12 @@ inline constexpr char STUDIO_OWNER[]  = "adipose";
 inline constexpr char STUDIO_REPO[]   = "mpc-hc-translations";
 inline constexpr char STUDIO_BRANCH[] = "main";
 
+// The maintainer's Transifex staging fork of MPC-HC (a fresher Transifex snapshot than clsid2
+// develop). On language load the Studio offers to fill base-empty strings from here.
+inline constexpr char TRANSIFEX_OWNER[]  = "adipose";
+inline constexpr char TRANSIFEX_REPO[]   = "mpc-hc";
+inline constexpr char TRANSIFEX_BRANCH[] = "transifex";
+
 // Per-language translations live as 3 per-resource files here.
 inline constexpr char PO_DIR[]          = "src/mpc-hc/mpcresources/PO";
 inline constexpr const char* RESOURCES[] = { "dialogs", "menus", "strings" };  // mpc-hc.<lang>.<res>.po

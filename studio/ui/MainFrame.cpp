@@ -847,6 +847,7 @@ bool MainFrame::LoadLanguage(const CString& code, bool fromGithub, bool refreshR
     m_lang = code;
     m_checkedOut = true;
     ApplyDrafts();                       // restore this language's locally-saved pending edits
+    if (fromGithub && gotGithub) TransifexOverlay(code);   // offer to fill base-empty strings (online only)
     m_fromGithub = gotGithub;
     m_havePack = false;
     CString pack = m_bundle.lang_dir + L"\\" + code + L".sqlite";
@@ -1051,6 +1052,66 @@ void MainFrame::ApplyDrafts() {
                 break;
             }
     }
+}
+
+// Offer to fill strings the current base .po leaves EMPTY with translations from the maintainer's
+// Transifex staging fork (config::TRANSIFEX_*) — a fresher Transifex snapshot than clsid2 develop.
+// Called from LoadLanguage right after ApplyDrafts, only when the base was just fetched online: an
+// offline load must never touch the network. Fill-empty only — an existing base translation (or one
+// the translator already edited this session) is never overwritten. Asked at most once per language
+// per session (m_txHandled), regardless of the user's answer.
+void MainFrame::TransifexOverlay(const CString& code) {
+    std::string lang = CW2A(code, CP_UTF8);
+    if (m_txHandled.count(lang)) return;
+
+    PoFile txPo[RES_COUNT];
+    bool haveAny = false;
+    try {
+        for (int r = 0; r < RES_COUNT; ++r) {
+            std::string path = std::string(config::PO_DIR) + "/mpc-hc." + lang + "." +
+                               std::string(config::RESOURCES[r]) + ".po";
+            auto bytes = github::fetch_latest(github::Token{}, config::TRANSIFEX_OWNER,
+                                              config::TRANSIFEX_REPO, config::TRANSIFEX_BRANCH, path);
+            if (!bytes) continue;   // absent on the fork for this resource -- normal, skip
+            txPo[r] = PoFile::parse_bytes(*bytes);
+            haveAny = true;
+        }
+    } catch (const std::exception&) {
+        return;   // network error -- silently skip, never nag while offline
+    }
+    if (!haveAny) { m_txHandled.insert(lang); return; }
+
+    struct Fill { int res; std::string ctx, id, msgstr; };
+    std::vector<Fill> fills;
+    for (int r = 0; r < RES_COUNT; ++r)
+        for (const auto& e : txPo[r].entries) {
+            if (e.msgid.empty() || e.msgstr.empty()) continue;
+            const PoEntry* base = m_po[r].find(e.msgctxt, e.msgid);
+            if (base && base->msgstr.empty() && !IsEdited(e.msgctxt, e.msgid))
+                fills.push_back({ r, e.msgctxt, e.msgid, e.msgstr });
+        }
+    m_txHandled.insert(lang);   // mark handled regardless of the user's choice -- never renag
+    if (fills.empty()) return;
+
+    CString msg;
+    msg.Format(L"Transifex has %zu translation(s) for '%s' that are missing from the current base.\n\n"
+              L"Load them as editable drafts?", fills.size(), (LPCWSTR)code);
+    if (MessageBox(msg, L"Transifex overlay", MB_YESNO | MB_ICONQUESTION) != IDYES) return;
+
+    for (const auto& f : fills)
+        for (auto& entry : m_po[f.res].entries)
+            if (entry.msgctxt == f.ctx && entry.msgid == f.id) {
+                entry.msgstr = f.msgstr;
+                m_dirty[f.res].insert({ f.ctx, f.id });
+                break;
+            }
+    SaveDrafts();     // persist as drafts immediately -- same call CommitEdit uses -- so the fills
+                      // survive a later language switch
+    PopulateList();   // refresh the visible list (list-wide, since fills can span multiple resources)
+
+    CString status;
+    status.Format(L"Loaded %zu Transifex translation(s) for '%s' as drafts.", fills.size(), (LPCWSTR)code);
+    SetStatus(status);
 }
 
 void MainFrame::RenderCurrentDialog() {

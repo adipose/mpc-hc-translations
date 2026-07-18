@@ -129,6 +129,10 @@ public:
     // refreshRc=true also (re)fetches the live mpc-hc.rc (the layout); once fetched it persists, so
     // language switches pass refreshRc=false and only swap translations.
     bool LoadLanguage(const CString& code, bool fromGithub, bool refreshRc = false);
+    // Offer to fill base-empty strings from the maintainer's Transifex staging fork (see
+    // config::TRANSIFEX_*). Called once per language per session, only when the base .po was just
+    // fetched online — see LoadLanguage's call site for the exact guard.
+    void TransifexOverlay(const CString& code);
     void SubmitPr();                                // splice edits onto latest -> github::open_translation_pr
     // (Re)position the red locator ring around the selected command-help usage-list entry. Public: the
     // m_cmdHelp scroll/resize subclass (a free WndProc in MainFrame.cpp) calls it on the frame pointer.
@@ -469,6 +473,8 @@ private:
     // in-memory cache of .po fetched from GitHub this session, keyed by language code, so
     // revisiting a language is instant. Get latest (refreshRc) overwrites the current language's entry.
     std::map<std::wstring, std::array<mpctrans::PoFile, RES_COUNT>> m_sessionPo;
+    // TransifexOverlay: languages already offered this session (dedup — ask at most once per language).
+    std::set<std::string> m_txHandled;
     std::thread        m_prefetchThread;   // background bulk-download of all languages
     std::atomic<bool>  m_prefetchCancel{false};
 
