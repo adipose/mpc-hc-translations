@@ -3116,6 +3116,13 @@
    "msgid": "Show chapter marks on seekbar"
   },
   {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC",
+   "msgid": "Time on seekbar:"
+  },
+  {
    "control": 11267,
    "control_sym": "IDC_STATIC8",
    "dialog": 10038,
@@ -3289,6 +3296,55 @@
    "dialog": 10038,
    "msgctxt": "IDD_PPAGETHEME_IDC_STATIC5",
    "msgid": "Language:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC",
+   "msgid": "Custom Preset (4)"
+  },
+  {
+   "control": 22094,
+   "control_sym": "IDC_CUSTOMPRESET_MENU",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CUSTOMPRESET_MENU",
+   "msgid": "Menu"
+  },
+  {
+   "control": 22099,
+   "control_sym": "IDC_CUSTOMPRESET_STATUSBAR",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CUSTOMPRESET_STATUSBAR",
+   "msgid": "Status"
+  },
+  {
+   "control": 22095,
+   "control_sym": "IDC_CUSTOMPRESET_SEEKBAR",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CUSTOMPRESET_SEEKBAR",
+   "msgid": "Seek Bar"
+  },
+  {
+   "control": 22097,
+   "control_sym": "IDC_CUSTOMPRESET_INFO",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CUSTOMPRESET_INFO",
+   "msgid": "Information"
+  },
+  {
+   "control": 22096,
+   "control_sym": "IDC_CUSTOMPRESET_TOOLBAR",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CUSTOMPRESET_TOOLBAR",
+   "msgid": "Controls"
+  },
+  {
+   "control": 22098,
+   "control_sym": "IDC_CUSTOMPRESET_STATS",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CUSTOMPRESET_STATS",
+   "msgid": "Statistics"
   },
   {
    "control": null,
@@ -3621,6 +3677,12 @@
    "msgctxt": "ID_VIEW_PRESETS_NORMAL",
    "msgid": "&Normal",
    "sym": "ID_VIEW_PRESETS_NORMAL"
+  },
+  {
+   "command": 33463,
+   "msgctxt": "ID_VIEW_PRESETS_CUSTOM",
+   "msgid": "C&ustom",
+   "sym": "ID_VIEW_PRESETS_CUSTOM"
   },
   {
    "command": 830,
@@ -4608,5 +4670,5 @@
   }
  ],
  "schema": 1,
- "upstream_sha": "9c6c72eaa8681a71209b55edd8878dd4702390d7"
+ "upstream_sha": "60544135a5c80d25e0ae08ce6862dddaba115cd3"
 }
