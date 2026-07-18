@@ -42,6 +42,14 @@ if ($changed) {
     git -C upstream checkout --quiet --detach FETCH_HEAD
 }
 
+# Next build number 0.1, 0.2, ... -- computed UP FRONT so it can be stamped into the manifest + bundle
+# + zip name + the release tag (one coherent version everywhere). git tags can't start with a literal
+# dot, so ".N" is tagged "0.N". Every build gets its OWN release; we never overwrite a tag.
+$minors = @(gh release list --json tagName --jq '.[].tagName' 2>$null |
+            Select-String -Pattern '^0\.(\d+)$' | ForEach-Object { [int]$_.Matches.Groups[1].Value })
+$tag = "0." + ((($minors | Measure-Object -Maximum).Maximum) + 1)
+Write-Host "== This build is $tag =="
+
 Write-Host "== Data refresh (control-index, AI-fill, hints, coverage, manifest) via $Backend =="
 python -m pip install --quiet polib
 if ($Backend -eq "api") { python -m pip install --quiet anthropic }
@@ -55,7 +63,7 @@ python bundle-build/generate_hints.py --db dist/core-enrichment.sqlite --only-mi
 python bundle-build/ai_fill.py --threshold $Threshold --model $Model --backend $Backend
 if ($LASTEXITCODE) { throw "ai_fill failed" }
 python bundle-build/report_ai_coverage.py
-python bundle-build/make_manifest.py
+python bundle-build/make_manifest.py --version $tag
 
 Write-Host "== Commit the refreshed data =="
 git add upstream enrichment dist/core-enrichment.sqlite dist/control-index.json dist/data-manifest.json
@@ -73,8 +81,8 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
     Write-Host "   no data changes to commit"
 }
 
-Write-Host "== Build the bundle =="
-& (Join-Path $repo "bundle-build\build_local.ps1")
+Write-Host "== Build the bundle $tag =="
+& (Join-Path $repo "bundle-build\build_local.ps1") -Version $tag
 # build_local regenerates control-index + manifest for the bundle; keep the tree matching the commit.
 git checkout -- dist/control-index.json dist/data-manifest.json 2>$null
 
@@ -82,15 +90,7 @@ Write-Host "== Push + publish the GitHub Release =="
 git push origin main
 $up  = (git -C upstream rev-parse --short HEAD).Trim()
 $our = (git rev-parse --short HEAD).Trim()
-$zip = Get-ChildItem (Join-Path $repo "translation-studio-bundle-*.zip") |
-       Sort-Object LastWriteTime | Select-Object -Last 1
-# Incrementing build number 0.1, 0.2, ... -- every build gets its OWN release (never overwrite a tag).
-# The commit + upstream shas live in the title/notes for traceability. (git tags can't start with a
-# literal dot, so ".N" is tagged "0.N".)
-$minors = @(gh release list --json tagName --jq '.[].tagName' 2>$null |
-            Select-String -Pattern '^0\.(\d+)$' | ForEach-Object { [int]$_.Matches.Groups[1].Value })
-$n = (($minors | Measure-Object -Maximum).Maximum) + 1
-$tag = "0.$n"
+$zip = Get-ChildItem (Join-Path $repo "translation-studio-bundle-$tag.zip")
 gh release create $tag $zip.FullName --title "Studio bundle $tag (upstream $up)" --latest `
     --notes "Local build $tag. Our commit $our, upstream $up. AI suggestions via $Backend (>=$Threshold% languages)."
 Write-Host "`nPublished release $tag with $($zip.Name)."

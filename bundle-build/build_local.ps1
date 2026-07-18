@@ -9,7 +9,10 @@
 # `ANTHROPIC_API_KEY=... pwsh bundle-build/publish.ps1` first if you want the data refreshed. This
 # script only COMPILES + ASSEMBLES the distributable bundle from whatever data is committed.
 #
-# Produces: translation-studio-bundle-<upstreamSHA8>.zip  (Studio.exe + artifacts + lang/ + po/).
+# Produces: translation-studio-bundle-<version>.zip  (Studio.exe + artifacts + lang/ + po/), where
+# <version> is -Version if given (the build number, e.g. 0.21) else the upstream SHA8. The build
+# number is stamped into data-manifest.json's `version` so the app can display it (window title).
+param([string]$Version)
 $ErrorActionPreference = "Stop"
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 $dist = Join-Path $repo "dist"
@@ -27,7 +30,8 @@ python bundle-build/build_index.py `
   --rc upstream/src/mpc-hc/mpc-hc.rc --resource-h upstream/src/mpc-hc/resource.h `
   --mpcres upstream/src/mpc-hc/mpcresources --out dist/control-index.json
 if ($LASTEXITCODE) { throw "build_index.py failed" }
-python bundle-build/make_manifest.py
+if ($Version) { python bundle-build/make_manifest.py --version $Version }
+else          { python bundle-build/make_manifest.py }
 
 Write-Host "== 2/4  neutral resource DLL =="
 & (Join-Path $repo "bundle-build\neutral-dll\build_neutral_dll.ps1")
@@ -50,8 +54,9 @@ Copy-Item (Join-Path $repo "enrichment\lang\*.sqlite") (Join-Path $bundle "lang"
 Copy-Item (Join-Path $repo "upstream\src\mpc-hc\mpcresources\PO\*.po") (Join-Path $bundle "po")
 @{ upstream_sha = $sha; built = (Get-Date).ToUniversalTime().ToString("o") } |
     ConvertTo-Json | Set-Content (Join-Path $bundle "manifest.json") -Encoding utf8
-$zip = Join-Path $repo "translation-studio-bundle-$sha8.zip"
+$label = if ($Version) { $Version } else { $sha8 }
+$zip = Join-Path $repo "translation-studio-bundle-$label.zip"
 Remove-Item $zip -ErrorAction SilentlyContinue
 Compress-Archive -Path (Join-Path $bundle "*") -DestinationPath $zip
 Write-Host ""
-Write-Host "DONE -> $zip  ($([math]::Round((Get-Item $zip).Length/1MB,1)) MB), upstream @ $sha8"
+Write-Host "DONE -> $zip  ($([math]::Round((Get-Item $zip).Length/1MB,1)) MB), build $label, upstream @ $sha8"

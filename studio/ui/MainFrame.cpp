@@ -529,6 +529,22 @@ BOOL MainFrame::LoadBundle() {
     try {
         m_index = ControlIndex::load(std::string(CW2A(m_bundle.index_json, CP_UTF8)));
     } catch (const std::exception&) { return FALSE; }
+    // Build version from data-manifest.json (beside the bundle) -> window title, so a user can tell
+    // which build they're running (the release number 0.N; see make_manifest.py --version). Minimal
+    // string extraction to avoid pulling a JSON parser into the UI TU.
+    {
+        CString mpath((fs::path((LPCWSTR)m_bundle.index_json).parent_path() / L"data-manifest.json")
+                          .wstring().c_str());
+        if (exists(mpath)) {
+            std::string s = read_file_lf(mpath);
+            size_t k = s.find("\"version\"");
+            size_t q1 = (k == std::string::npos) ? std::string::npos : s.find('"', s.find(':', k) + 1);
+            size_t q2 = (q1 == std::string::npos) ? std::string::npos : s.find('"', q1 + 1);
+            if (q2 != std::string::npos)
+                SetWindowText(CString(L"MPC-HC Translation Studio  \x2014  build ") +
+                              CString(CA2W(s.substr(q1 + 1, q2 - q1 - 1).c_str(), CP_UTF8)));
+        }
+    }
     if (exists(m_bundle.core_sqlite)) {
         try {
             m_core = CoreEnrichment::open(std::string(CW2A(m_bundle.core_sqlite, CP_UTF8)));
