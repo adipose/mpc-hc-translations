@@ -823,7 +823,11 @@ std::vector<DialogRecord> rc_dialog_records(const std::vector<RcDialog>& dialogs
         r.control = control;
         r.control_sym = control_sym;
         r.msgctxt = msgctxt;
-        r.msgid = msgid;                         // raw literal body, "" escapes intact (NOT normalized)
+        // Collapse RC-doubled "" -> " so the record's msgid matches the gettext-unescaped .po msgid
+        // (po->find is EXACT and does NOT normalize) and build_index.py's control-index.json. Without
+        // this, live-RC dialog rows for strings with embedded quotes (e.g. ""Open DVD/BD"" behavior)
+        // never match the .po and render blank. (bug #1; keeps the RC-INDEX GATE test in parity.)
+        r.msgid = rc_text_normalize(msgid);
         out.push_back(std::move(r));
     };
 
