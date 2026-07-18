@@ -1,0 +1,72 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// Studio's own chrome only. The translated MPC-HC dialogs/menus come from the neutral
+// resource DLL at runtime — never from this file.
+#include "resource.h"
+#include "afxres.h"
+
+IDR_MAINFRAME MENU
+BEGIN
+    POPUP "&File"
+    BEGIN
+        MENUITEM "Submit &PR...",                       ID_FILE_SUBMITPR
+        MENUITEM SEPARATOR
+        MENUITEM "Render dialogs from &RC (Approach C)...", ID_FILE_RENDERRC
+        MENUITEM "Render from &bundle DLL",             ID_FILE_RENDERBUNDLE
+        MENUITEM SEPARATOR
+        MENUITEM "AI &provider...",                     ID_FILE_AI_PROVIDER
+        MENUITEM "Generate AI &suggestions...",         ID_FILE_GENERATE_AI
+        MENUITEM "Generate AI suggestions for &ALL languages...", ID_FILE_GENERATE_AI_ALL
+        MENUITEM "Export AI-prep &context for this string...",       ID_FILE_EXPORT_AI_CTX
+        MENUITEM "Export AI-prep context for current &language...",  ID_FILE_EXPORT_AI_CTX_LANG
+        MENUITEM SEPARATOR
+        MENUITEM "Check for &data updates...",          ID_FILE_CHECK_DATA_UPDATE
+        MENUITEM SEPARATOR
+        MENUITEM "E&xit",                               ID_APP_EXIT
+    END
+    POPUP "&View"
+    BEGIN
+        POPUP "&Theme"
+        BEGIN
+            MENUITEM "MPC-HC &Dark",                     ID_VIEW_THEME_DARK
+            MENUITEM "MPC-HC &Light",                    ID_VIEW_THEME_LIGHT
+            MENUITEM "&Follow Windows",                  ID_VIEW_THEME_SYSTEM
+        END
+    END
+END
+
+1 RT_MANIFEST "Studio.exe.manifest"
+
+/////////////////////////////////////////////////////////////////////////////
+// "Suggest a correction" modal (SuggestFixDlg.cpp). No RC controls — the template just gives
+// CDialog a window + default font; every control is created programmatically in OnInitDialog
+// (SuggestFixDlg sizes/positions itself in code too, so this placeholder size doesn't matter).
+
+IDD_SUGGEST_FIX DIALOGEX 0, 0, 300, 200
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Suggest a correction"
+FONT 9, "Segoe UI"
+BEGIN
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// "AI provider…" modal (AiSettingsDlg.cpp). No RC controls — same empty-template, code-driven
+// style as IDD_SUGGEST_FIX / SuggestFixDlg.
+
+IDD_AI_SETTINGS DIALOGEX 0, 0, 300, 200
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "AI provider"
+FONT 9, "Segoe UI"
+BEGIN
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// PNG (dark-theme checkbox / radio sprite strips — see Theme.cpp draw_check, resource.h)
+
+IDB_DT_CB_96             PNG                     "res\\darktheme\\checkboxes-96.png"
+IDB_DT_CB_120            PNG                     "res\\darktheme\\checkboxes-120.png"
+IDB_DT_CB_144            PNG                     "res\\darktheme\\checkboxes-144.png"
+IDB_DT_CB_192            PNG                     "res\\darktheme\\checkboxes-192.png"
+IDB_DT_RADIO_96          PNG                     "res\\darktheme\\radios-96.png"
+IDB_DT_RADIO_120         PNG                     "res\\darktheme\\radios-120.png"
+IDB_DT_RADIO_144         PNG                     "res\\darktheme\\radios-144.png"
+IDB_DT_RADIO_192         PNG                     "res\\darktheme\\radios-192.png"

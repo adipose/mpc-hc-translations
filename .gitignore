@@ -1,0 +1,86 @@
+# ============================================================
+# mpc-hc-translations — .gitignore
+# Keep: studio/ source, bundle-build/, enrichment/lang/*.sqlite,
+#       the two committed dist/ artifacts, workflows.
+# Exclude: private build inputs not distributed with this repo, secrets,
+#          build outputs, regenerated bundle artifacts.
+# ============================================================
+
+# --- Local-only database files (private, NEVER commit) ---
+*.db
+*.db-wal
+*.db-shm
+*.db.backup*
+translations_v2.db
+
+# --- Secrets / API keys (AI keys stay local; OAuth client_id is public, may be committed) ---
+.env
+config.json
+*.key
+secrets/
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# --- C++ / MSVC build outputs (studio/) ---
+bin/
+obj/
+studio/core/build/
+# msbuild per-project intermediate + output dirs (x64\{Debug,Release}, <Proj>\x64\...)
+studio/**/x64/
+.vs/
+*.obj
+*.lib
+*.exp
+*.ilk
+*.pdb
+*.iobj
+*.ipdb
+*.pch
+*.res
+*.tlog
+*.recipe
+*.exe
+*.dll
+
+# --- Bundle-build OUTPUTS (regenerated build artifacts — not committed) ---
+# EXCEPT the two neutral data artifacts, which ARE committed so a fresh clone is
+# runnable without any private build inputs:
+#   dist/core-enrichment.sqlite — enrichment DB (MPC-HC's own strings + meanings +
+#     layout; regenerating it needs private inputs not distributed here, so it is committed)
+#   dist/control-index.json     — control-layout index (regenerable from the upstream submodule)
+/dist/*
+!/dist/core-enrichment.sqlite
+!/dist/control-index.json
+!/dist/data-manifest.json
+bundle-build/out/
+mpcresources.neutral.dll
+
+# NOTE: enrichment/lang/*.sqlite (per-language packs) ARE committed — not ignored
+#       (they don't match *.db, and *.dll/*.exe rules above don't touch them).
+
+# --- Private build INPUTS (proprietary/internal — kept local, NEVER distributed) ---
+#     These regenerate the committed artifacts above; they are not part of the public repo.
+data/reference-corpus.sqlite.gz
+data/lab-snapshot.sqlite
+
+# --- Archives / bundle zips (build outputs + local analysis archives — never commit) ---
+*.zip
+
+# --- OS / editor junk ---
+.DS_Store
+Thumbs.db
+*.swp
+
+# --- Session scratchpad: agent logs, screenshots, DB backups, working scripts (NEVER commit) ---
+/scratchpad/
+scratchpad/
+# --- Studio local runtime store (per-user, %LOCALAPPDATA%) — never in-repo, listed for safety ---
+ai-suggestions.sqlite
+drafts.json
+
+# --- Local bundle-build output (assembled by build_local.ps1; zip is *.zip above) ---
+/bundle/

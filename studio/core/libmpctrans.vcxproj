@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- libmpctrans: portable C++17 static lib (NO MFC). PO/validate/github/enrichment/control-index.
+     Vendors sqlite3.c + json.hpp under thirdparty/ (see thirdparty/README.md). -->
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64"><Configuration>Debug</Configuration><Platform>x64</Platform></ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64"><Configuration>Release</Configuration><Platform>x64</Platform></ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{A1B2C3D4-0001-4000-8000-000000000001}</ProjectGuid>
+    <RootNamespace>mpctrans</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <PlatformToolset>v143</PlatformToolset>
+    <CharacterSet>Unicode</CharacterSet>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Debug'">true</UseDebugLibraries>
+    <UseDebugLibraries Condition="'$(Configuration)'=='Release'">false</UseDebugLibraries>
+    <WholeProgramOptimization Condition="'$(Configuration)'=='Release'">true</WholeProgramOptimization>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ItemDefinitionGroup>
+    <ClCompile>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <AdditionalIncludeDirectories>include;thirdparty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WIN32;_LIB;UNICODE;_UNICODE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <WarningLevel>Level3</WarningLevel>
+      <!-- sources are UTF-8 (also matches how .po bytes are handled at runtime) -->
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <!-- static CRT to match the Studio exe (one dependency-free binary) -->
+      <RuntimeLibrary Condition="'$(Configuration)'=='Release'">MultiThreaded</RuntimeLibrary>
+      <RuntimeLibrary Condition="'$(Configuration)'=='Debug'">MultiThreadedDebug</RuntimeLibrary>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClInclude Include="include\mpctrans\config.h" />
+    <ClInclude Include="include\mpctrans\po.h" />
+    <ClInclude Include="include\mpctrans\validate.h" />
+    <ClInclude Include="include\mpctrans\github.h" />
+    <ClInclude Include="include\mpctrans\fetch_cache.h" />
+    <ClInclude Include="include\mpctrans\enrichment.h" />
+    <ClInclude Include="include\mpctrans\control_index.h" />
+    <ClInclude Include="include\mpctrans\rc_dialogs.h" />
+    <ClInclude Include="include\mpctrans\drafts.h" />
+    <ClInclude Include="include\mpctrans\corrections.h" />
+    <ClInclude Include="include\mpctrans\http_internal.h" />
+    <ClInclude Include="include\mpctrans\ai_client.h" />
+    <ClInclude Include="include\mpctrans\suggestion_store.h" />
+    <ClInclude Include="include\mpctrans\confidence.h" />
+    <ClInclude Include="include\mpctrans\data_update.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="src\po.cpp" />
+    <ClCompile Include="src\validate.cpp" />
+    <ClCompile Include="src\github.cpp" />
+    <ClCompile Include="src\fetch_cache.cpp" />
+    <ClCompile Include="src\enrichment.cpp" />
+    <ClCompile Include="src\control_index.cpp" />
+    <ClCompile Include="src\rc_dialogs.cpp" />
+    <ClCompile Include="src\drafts.cpp" />
+    <ClCompile Include="src\corrections.cpp" />
+    <ClCompile Include="src\ai_client.cpp" />
+    <ClCompile Include="src\suggestion_store.cpp" />
+    <ClCompile Include="src\confidence.cpp" />
+    <ClCompile Include="src\data_update.cpp" />
+    <ClCompile Include="thirdparty\sqlite3.c">
+      <PreprocessorDefinitions>SQLITE_OMIT_LOAD_EXTENSION;SQLITE_THREADSAFE=0;SQLITE_DEFAULT_MEMSTATUS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+</Project>

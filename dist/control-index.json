@@ -1,0 +1,4612 @@
+{
+ "dialogs": [
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10047,
+   "msgctxt": "IDD_SELECTMEDIATYPE_CAPTION",
+   "msgid": "Select Media Type"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 10047,
+   "msgctxt": "IDD_SELECTMEDIATYPE_IDOK",
+   "msgid": "OK"
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 10047,
+   "msgctxt": "IDD_SELECTMEDIATYPE_IDCANCEL",
+   "msgid": "Cancel"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_STATIC1",
+   "msgid": "Video"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_BUTTON1",
+   "msgid": "Set"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_STATIC",
+   "msgid": "Audio"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_STATIC",
+   "msgid": "Output"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_CHECK1",
+   "msgid": "Record Video"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_CHECK2",
+   "msgid": "Preview"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_CHECK3",
+   "msgid": "Record Audio"
+  },
+  {
+   "control": 11083,
+   "control_sym": "IDC_CHECK4",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_CHECK4",
+   "msgid": "Preview"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_STATIC",
+   "msgid": "V/A Buffers:"
+  },
+  {
+   "control": 11084,
+   "control_sym": "IDC_CHECK5",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_CHECK5",
+   "msgid": "Audio to wav"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10045,
+   "msgctxt": "IDD_CAPTURE_DLG_IDC_BUTTON2",
+   "msgid": "Record"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_CHECK2",
+   "msgid": "Enable built-in audio switcher filter (requires restart)"
+  },
+  {
+   "control": 11084,
+   "control_sym": "IDC_CHECK5",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_CHECK5",
+   "msgid": "Normalize"
+  },
+  {
+   "control": 11263,
+   "control_sym": "IDC_STATIC4",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_STATIC4",
+   "msgid": "Max amplification:"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_STATIC5",
+   "msgid": "%"
+  },
+  {
+   "control": 11085,
+   "control_sym": "IDC_CHECK6",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_CHECK6",
+   "msgid": "Regain volume"
+  },
+  {
+   "control": 11265,
+   "control_sym": "IDC_STATIC6",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_STATIC6",
+   "msgid": "Boost:"
+  },
+  {
+   "control": 11083,
+   "control_sym": "IDC_CHECK4",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_CHECK4",
+   "msgid": "Audio time shift (ms):"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_CHECK1",
+   "msgid": "Enable custom channel mapping"
+  },
+  {
+   "control": 11271,
+   "control_sym": "IDC_STATIC_CM1",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_STATIC_CM1",
+   "msgid": "Speaker configuration for"
+  },
+  {
+   "control": 11272,
+   "control_sym": "IDC_STATIC_CM2",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_STATIC_CM2",
+   "msgid": "input channels:"
+  },
+  {
+   "control": 11273,
+   "control_sym": "IDC_STATIC_CM3",
+   "dialog": 10029,
+   "msgctxt": "IDD_PPAGEAUDIOSWITCHER_IDC_STATIC_CM3",
+   "msgid": "Hold shift for immediate changes when clicking something"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10016,
+   "msgctxt": "IDD_GOTO_DLG_CAPTION",
+   "msgid": "Go To..."
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10016,
+   "msgctxt": "IDD_GOTO_DLG_IDC_STATIC",
+   "msgid": "Enter a timecode using the format [hh:]mm:ss.ms to jump to a specified time. You do not need to enter the separators explicitly."
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10016,
+   "msgctxt": "IDD_GOTO_DLG_IDC_STATIC",
+   "msgid": "Time"
+  },
+  {
+   "control": 12024,
+   "control_sym": "IDC_OK1",
+   "dialog": 10016,
+   "msgctxt": "IDD_GOTO_DLG_IDC_OK1",
+   "msgid": "Go!"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10016,
+   "msgctxt": "IDD_GOTO_DLG_IDC_STATIC",
+   "msgid": "Enter two numbers to jump to a specified frame, the first is the frame number, the second is the frame rate."
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10016,
+   "msgctxt": "IDD_GOTO_DLG_IDC_STATIC",
+   "msgid": "Frame"
+  },
+  {
+   "control": 12025,
+   "control_sym": "IDC_OK2",
+   "dialog": 10016,
+   "msgctxt": "IDD_GOTO_DLG_IDC_OK2",
+   "msgid": "Go!"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10000,
+   "msgctxt": "IDD_OPEN_DLG_CAPTION",
+   "msgid": "Open"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10000,
+   "msgctxt": "IDD_OPEN_DLG_IDC_STATIC",
+   "msgid": "Type the address of a movie or audio file (on the Internet or your computer) and the player will open it for you."
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10000,
+   "msgctxt": "IDD_OPEN_DLG_IDC_STATIC",
+   "msgid": "Open:"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10000,
+   "msgctxt": "IDD_OPEN_DLG_IDC_BUTTON1",
+   "msgid": "Browse..."
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10000,
+   "msgctxt": "IDD_OPEN_DLG_IDC_STATIC1",
+   "msgid": "Dub:"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10000,
+   "msgctxt": "IDD_OPEN_DLG_IDC_BUTTON2",
+   "msgid": "Browse..."
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 10000,
+   "msgctxt": "IDD_OPEN_DLG_IDOK",
+   "msgid": "OK"
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 10000,
+   "msgctxt": "IDD_OPEN_DLG_IDCANCEL",
+   "msgid": "Cancel"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10000,
+   "msgctxt": "IDD_OPEN_DLG_IDC_CHECK1",
+   "msgid": "Add to playlist without opening"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_CAPTION",
+   "msgid": "About"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDC_STATIC",
+   "msgid": "This program is freeware and released under the GNU General Public License."
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDC_STATIC",
+   "msgid": "English translation made by MPC-HC Team"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDC_STATIC",
+   "msgid": "Build information"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDC_STATIC",
+   "msgid": "Version:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDC_STATIC",
+   "msgid": "Build date:"
+  },
+  {
+   "control": 22016,
+   "control_sym": "IDC_LAVFILTERS_VERSION",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDC_LAVFILTERS_VERSION",
+   "msgid": "Not used"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDC_STATIC",
+   "msgid": "Operating system"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDC_STATIC",
+   "msgid": "Name:"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDC_BUTTON1",
+   "msgid": "Copy to clipboard"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 10019,
+   "msgctxt": "IDD_ABOUTBOX_IDOK",
+   "msgid": "OK"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_STATIC",
+   "msgid": "Open options"
+  },
+  {
+   "control": 11040,
+   "control_sym": "IDC_RADIO1",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_RADIO1",
+   "msgid": "Use the same player for each media file"
+  },
+  {
+   "control": 11041,
+   "control_sym": "IDC_RADIO2",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_RADIO2",
+   "msgid": "Open a new player for each media file played"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_STATIC",
+   "msgid": "Title bar"
+  },
+  {
+   "control": 11042,
+   "control_sym": "IDC_RADIO3",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_RADIO3",
+   "msgid": "Display full path"
+  },
+  {
+   "control": 11043,
+   "control_sym": "IDC_RADIO4",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_RADIO4",
+   "msgid": "File name only"
+  },
+  {
+   "control": 11044,
+   "control_sym": "IDC_RADIO5",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_RADIO5",
+   "msgid": "Don't prefix anything"
+  },
+  {
+   "control": 11092,
+   "control_sym": "IDC_CHECK13",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK13",
+   "msgid": "Replace file name with title"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_STATIC",
+   "msgid": "Other"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK3",
+   "msgid": "Tray icon"
+  },
+  {
+   "control": 11087,
+   "control_sym": "IDC_CHECK8",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK8",
+   "msgid": "Store settings in .ini file"
+  },
+  {
+   "control": 11089,
+   "control_sym": "IDC_CHECK10",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK10",
+   "msgid": "Disable \"\"Open Disc\"\" menu"
+  },
+  {
+   "control": 11088,
+   "control_sym": "IDC_CHECK9",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK9",
+   "msgid": "Process priority above normal"
+  },
+  {
+   "control": 11093,
+   "control_sym": "IDC_CHECK14",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK14",
+   "msgid": "Enable cover-art support"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_STATIC",
+   "msgid": "History"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK1",
+   "msgid": "Keep history of recently opened files"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK2",
+   "msgid": "Remember last playlist"
+  },
+  {
+   "control": 22006,
+   "control_sym": "IDC_FILE_POS",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_FILE_POS",
+   "msgid": "Remember File position"
+  },
+  {
+   "control": 22005,
+   "control_sym": "IDC_DVD_POS",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_DVD_POS",
+   "msgid": "Remember DVD position"
+  },
+  {
+   "control": 11085,
+   "control_sym": "IDC_CHECK6",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK6",
+   "msgid": "Remember last window position"
+  },
+  {
+   "control": 11086,
+   "control_sym": "IDC_CHECK7",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK7",
+   "msgid": "Remember last window size"
+  },
+  {
+   "control": 11090,
+   "control_sym": "IDC_CHECK11",
+   "dialog": 10024,
+   "msgctxt": "IDD_PPAGEPLAYER_IDC_CHECK11",
+   "msgid": "Remember last Pan && Scan Zoom"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10025,
+   "msgctxt": "IDD_PPAGEDVD_IDC_STATIC",
+   "msgid": "\"\"Open DVD/BD\"\" behavior"
+  },
+  {
+   "control": 11040,
+   "control_sym": "IDC_RADIO1",
+   "dialog": 10025,
+   "msgctxt": "IDD_PPAGEDVD_IDC_RADIO1",
+   "msgid": "Prompt for location"
+  },
+  {
+   "control": 11041,
+   "control_sym": "IDC_RADIO2",
+   "dialog": 10025,
+   "msgctxt": "IDD_PPAGEDVD_IDC_RADIO2",
+   "msgid": "Always open the default location:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10025,
+   "msgctxt": "IDD_PPAGEDVD_IDC_STATIC",
+   "msgid": "Preferred language for DVD"
+  },
+  {
+   "control": 11042,
+   "control_sym": "IDC_RADIO3",
+   "dialog": 10025,
+   "msgctxt": "IDD_PPAGEDVD_IDC_RADIO3",
+   "msgid": "Menu"
+  },
+  {
+   "control": 11043,
+   "control_sym": "IDC_RADIO4",
+   "dialog": 10025,
+   "msgctxt": "IDD_PPAGEDVD_IDC_RADIO4",
+   "msgid": "Audio"
+  },
+  {
+   "control": 11044,
+   "control_sym": "IDC_RADIO5",
+   "dialog": 10025,
+   "msgctxt": "IDD_PPAGEDVD_IDC_RADIO5",
+   "msgid": "Subtitles"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10025,
+   "msgctxt": "IDD_PPAGEDVD_IDC_STATIC",
+   "msgid": "Additional settings"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10025,
+   "msgctxt": "IDD_PPAGEDVD_IDC_CHECK2",
+   "msgid": "Allow closed captions in \"\"Line 21 Decoder\"\""
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "Audio"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "Volume"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "Min"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "Max"
+  },
+  {
+   "control": 12013,
+   "control_sym": "IDC_STATIC_BALANCE",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC_BALANCE",
+   "msgid": "Balance"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "L"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "R"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "Control"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC5",
+   "msgid": "Volume step:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "%"
+  },
+  {
+   "control": 11265,
+   "control_sym": "IDC_STATIC6",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC6",
+   "msgid": "Speed step:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "Playback"
+  },
+  {
+   "control": 11040,
+   "control_sym": "IDC_RADIO1",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_RADIO1",
+   "msgid": "Play"
+  },
+  {
+   "control": 11041,
+   "control_sym": "IDC_RADIO2",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_RADIO2",
+   "msgid": "Repeat forever"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC1",
+   "msgid": "time(s)"
+  },
+  {
+   "control": 11266,
+   "control_sym": "IDC_STATIC7",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC7",
+   "msgid": "Repeat mode:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "After Playback"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "Zoom and Alignment"
+  },
+  {
+   "control": 11084,
+   "control_sym": "IDC_CHECK5",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_CHECK5",
+   "msgid": "Auto-zoom:"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC2",
+   "msgid": "Auto fit factor:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "min %"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "max %"
+  },
+  {
+   "control": 11263,
+   "control_sym": "IDC_STATIC4",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC4",
+   "msgid": "Vertical Alignment:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "Default track preference"
+  },
+  {
+   "control": 11267,
+   "control_sym": "IDC_STATIC8",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC8",
+   "msgid": "Subtitles:"
+  },
+  {
+   "control": 11268,
+   "control_sym": "IDC_STATIC9",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC9",
+   "msgid": "Audio:"
+  },
+  {
+   "control": 11083,
+   "control_sym": "IDC_CHECK4",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_CHECK4",
+   "msgid": "Allow overriding external splitter choice"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_STATIC",
+   "msgid": "Open settings"
+  },
+  {
+   "control": 11086,
+   "control_sym": "IDC_CHECK7",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_CHECK7",
+   "msgid": "Use worker thread to construct the filter graph"
+  },
+  {
+   "control": 11085,
+   "control_sym": "IDC_CHECK6",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_CHECK6",
+   "msgid": "Report pins which fail to render"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10023,
+   "msgctxt": "IDD_PPAGEPLAYBACK_IDC_CHECK2",
+   "msgid": "Auto-load audio files"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_CHECK3",
+   "msgid": "Override placement"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC1",
+   "msgid": "Horizontal:"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC2",
+   "msgid": "%"
+  },
+  {
+   "control": 11262,
+   "control_sym": "IDC_STATIC3",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC3",
+   "msgid": "Vertical:"
+  },
+  {
+   "control": 11263,
+   "control_sym": "IDC_STATIC4",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC4",
+   "msgid": "%"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC",
+   "msgid": "Delay step"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC",
+   "msgid": "ms"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC",
+   "msgid": "Texture settings (open the video again to see the changes)"
+  },
+  {
+   "control": 11268,
+   "control_sym": "IDC_STATIC9",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC9",
+   "msgid": "Sub pictures to buffer:"
+  },
+  {
+   "control": 22088,
+   "control_sym": "IDC_STATIC21",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC21",
+   "msgid": "Maximum texture resolution:"
+  },
+  {
+   "control": 12021,
+   "control_sym": "IDC_CHECK_NO_SUB_ANIM",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_CHECK_NO_SUB_ANIM",
+   "msgid": "Never animate the subtitles"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC5",
+   "msgid": "Render at"
+  },
+  {
+   "control": 11265,
+   "control_sym": "IDC_STATIC6",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC6",
+   "msgid": "% of the animation"
+  },
+  {
+   "control": 11266,
+   "control_sym": "IDC_STATIC7",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC7",
+   "msgid": "Animate at"
+  },
+  {
+   "control": 11267,
+   "control_sym": "IDC_STATIC8",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC8",
+   "msgid": "% of the video frame rate"
+  },
+  {
+   "control": 12030,
+   "control_sym": "IDC_CHECK_ALLOW_DROPPING_SUBPIC",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_CHECK_ALLOW_DROPPING_SUBPIC",
+   "msgid": "Allow dropping some subpictures if the queue is running late"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC",
+   "msgid": "Renderer Layout"
+  },
+  {
+   "control": 12029,
+   "control_sym": "IDC_CHECK_SUB_AR_COMPENSATION",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_CHECK_SUB_AR_COMPENSATION",
+   "msgid": "Apply aspect ratio compensation for anamorphic videos"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC",
+   "msgid": "Warning"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10026,
+   "msgctxt": "IDD_PPAGESUBTITLES_IDC_STATIC",
+   "msgid": "If you override and enable fullscreen antialiasing somewhere at your videocard's settings, subtitles aren't going to look any better but it will surely eat your CPU."
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_STATIC2",
+   "msgid": "File extensions"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_BUTTON2",
+   "msgid": "Default"
+  },
+  {
+   "control": 12023,
+   "control_sym": "IDC_BUTTON_EXT_SET",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_BUTTON_EXT_SET",
+   "msgid": "Set"
+  },
+  {
+   "control": 11262,
+   "control_sym": "IDC_STATIC3",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_STATIC3",
+   "msgid": "Association"
+  },
+  {
+   "control": 11087,
+   "control_sym": "IDC_CHECK8",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_CHECK8",
+   "msgid": "Use the format-specific icons"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_BUTTON1",
+   "msgid": "Run as &administrator"
+  },
+  {
+   "control": 11126,
+   "control_sym": "IDC_BUTTON7",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_BUTTON7",
+   "msgid": "Set as &default program"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_STATIC",
+   "msgid": "Explorer Context Menu"
+  },
+  {
+   "control": 11085,
+   "control_sym": "IDC_CHECK6",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_CHECK6",
+   "msgid": "Directory"
+  },
+  {
+   "control": 11086,
+   "control_sym": "IDC_CHECK7",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_CHECK7",
+   "msgid": "Playlist"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_STATIC1",
+   "msgid": "Autoplay"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_CHECK1",
+   "msgid": "Video"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_CHECK2",
+   "msgid": "Music"
+  },
+  {
+   "control": 11083,
+   "control_sym": "IDC_CHECK4",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_CHECK4",
+   "msgid": "DVD"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10027,
+   "msgctxt": "IDD_PPAGEFORMATS_IDC_CHECK3",
+   "msgid": "Audio CD"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10028,
+   "msgctxt": "IDD_PPAGETWEAKS_IDC_STATIC",
+   "msgid": "Jump distances (small, medium, large in ms)"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10028,
+   "msgctxt": "IDD_PPAGETWEAKS_IDC_BUTTON1",
+   "msgid": "Default"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10028,
+   "msgctxt": "IDD_PPAGETWEAKS_IDC_CHECK3",
+   "msgid": "Auto-hide the mouse pointer during playback in windowed mode"
+  },
+  {
+   "control": 22059,
+   "control_sym": "IDC_CHECK_LCD",
+   "dialog": 10028,
+   "msgctxt": "IDD_PPAGETWEAKS_IDC_CHECK_LCD",
+   "msgid": "Enable Logitech LCD support (experimental)"
+  },
+  {
+   "control": 11085,
+   "control_sym": "IDC_CHECK6",
+   "dialog": 10028,
+   "msgctxt": "IDD_PPAGETWEAKS_IDC_CHECK6",
+   "msgid": "Prevent minimizing the player when in fullscreen on a non default monitor"
+  },
+  {
+   "control": 11086,
+   "control_sym": "IDC_CHECK7",
+   "dialog": 10028,
+   "msgctxt": "IDD_PPAGETWEAKS_IDC_CHECK7",
+   "msgid": "Open previous/next file in folder on \"\"Skip back/forward\"\" when there is only one item in playlist"
+  },
+  {
+   "control": 22081,
+   "control_sym": "IDC_FASTSEEK_CHECK",
+   "dialog": 10028,
+   "msgctxt": "IDD_PPAGETWEAKS_IDC_FASTSEEK_CHECK",
+   "msgid": "Fast seek (on keyframe)"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_BUTTON1",
+   "msgid": "Add Filter..."
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_BUTTON2",
+   "msgid": "Remove"
+  },
+  {
+   "control": 11040,
+   "control_sym": "IDC_RADIO1",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_RADIO1",
+   "msgid": "Prefer"
+  },
+  {
+   "control": 11041,
+   "control_sym": "IDC_RADIO2",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_RADIO2",
+   "msgid": "Block"
+  },
+  {
+   "control": 11042,
+   "control_sym": "IDC_RADIO3",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_RADIO3",
+   "msgid": "Set merit:"
+  },
+  {
+   "control": 11122,
+   "control_sym": "IDC_BUTTON3",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_BUTTON3",
+   "msgid": "Up"
+  },
+  {
+   "control": 11123,
+   "control_sym": "IDC_BUTTON4",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_BUTTON4",
+   "msgid": "Down"
+  },
+  {
+   "control": 11124,
+   "control_sym": "IDC_BUTTON5",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_BUTTON5",
+   "msgid": "Add Media Type..."
+  },
+  {
+   "control": 11125,
+   "control_sym": "IDC_BUTTON6",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_BUTTON6",
+   "msgid": "Add Sub Type..."
+  },
+  {
+   "control": 11126,
+   "control_sym": "IDC_BUTTON7",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_BUTTON7",
+   "msgid": "Delete"
+  },
+  {
+   "control": 11127,
+   "control_sym": "IDC_BUTTON8",
+   "dialog": 10030,
+   "msgctxt": "IDD_PPAGEEXTERNALFILTERS_IDC_BUTTON8",
+   "msgid": "Reset List"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10010,
+   "msgctxt": "IDD_FILEPROPDETAILS_IDC_STATIC",
+   "msgid": "Type:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10010,
+   "msgctxt": "IDD_FILEPROPDETAILS_IDC_STATIC",
+   "msgid": "Size:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10010,
+   "msgctxt": "IDD_FILEPROPDETAILS_IDC_STATIC",
+   "msgid": "Media length:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10010,
+   "msgctxt": "IDD_FILEPROPDETAILS_IDC_STATIC",
+   "msgid": "Video size:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10010,
+   "msgctxt": "IDD_FILEPROPDETAILS_IDC_STATIC",
+   "msgid": "Created:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10011,
+   "msgctxt": "IDD_FILEPROPCLIP_IDC_STATIC",
+   "msgid": "Clip:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10011,
+   "msgctxt": "IDD_FILEPROPCLIP_IDC_STATIC",
+   "msgid": "Author:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10011,
+   "msgctxt": "IDD_FILEPROPCLIP_IDC_STATIC",
+   "msgid": "Copyright:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10011,
+   "msgctxt": "IDD_FILEPROPCLIP_IDC_STATIC",
+   "msgid": "Rating:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10011,
+   "msgctxt": "IDD_FILEPROPCLIP_IDC_STATIC",
+   "msgid": "Location:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10011,
+   "msgctxt": "IDD_FILEPROPCLIP_IDC_STATIC",
+   "msgid": "Description:"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10017,
+   "msgctxt": "IDD_FAVADD_CAPTION",
+   "msgid": "Add Favorite"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10017,
+   "msgctxt": "IDD_FAVADD_IDC_STATIC1",
+   "msgid": "Choose a name for your shortcut:"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10017,
+   "msgctxt": "IDD_FAVADD_IDC_CHECK1",
+   "msgid": "Remember position"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10017,
+   "msgctxt": "IDD_FAVADD_IDC_CHECK3",
+   "msgid": "Remember A-B repeat marks"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10017,
+   "msgctxt": "IDD_FAVADD_IDC_CHECK2",
+   "msgid": "Relative drive"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 10017,
+   "msgctxt": "IDD_FAVADD_IDOK",
+   "msgid": "OK"
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 10017,
+   "msgctxt": "IDD_FAVADD_IDCANCEL",
+   "msgid": "Cancel"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10018,
+   "msgctxt": "IDD_FAVORGANIZE_CAPTION",
+   "msgid": "Organize Favorites"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10018,
+   "msgctxt": "IDD_FAVORGANIZE_IDC_BUTTON1",
+   "msgid": "Rename"
+  },
+  {
+   "control": 11122,
+   "control_sym": "IDC_BUTTON3",
+   "dialog": 10018,
+   "msgctxt": "IDD_FAVORGANIZE_IDC_BUTTON3",
+   "msgid": "Move Up"
+  },
+  {
+   "control": 11123,
+   "control_sym": "IDC_BUTTON4",
+   "dialog": 10018,
+   "msgctxt": "IDD_FAVORGANIZE_IDC_BUTTON4",
+   "msgid": "Move Down"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10018,
+   "msgctxt": "IDD_FAVORGANIZE_IDC_BUTTON2",
+   "msgid": "Delete"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 10018,
+   "msgctxt": "IDD_FAVORGANIZE_IDOK",
+   "msgid": "OK"
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 10018,
+   "msgctxt": "IDD_FAVORGANIZE_IDCANCEL",
+   "msgid": "Cancel"
+  },
+  {
+   "control": 12321,
+   "control_sym": "ID_APPLY_NOW",
+   "dialog": 10018,
+   "msgctxt": "IDD_FAVORGANIZE_ID_APPLY_NOW",
+   "msgid": "Apply"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_CAPTION",
+   "msgid": "PnS Frame Adjust Presets"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_IDC_BUTTON2",
+   "msgid": "New"
+  },
+  {
+   "control": 11122,
+   "control_sym": "IDC_BUTTON3",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_IDC_BUTTON3",
+   "msgid": "Delete"
+  },
+  {
+   "control": 11123,
+   "control_sym": "IDC_BUTTON4",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_IDC_BUTTON4",
+   "msgid": "Up"
+  },
+  {
+   "control": 11124,
+   "control_sym": "IDC_BUTTON5",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_IDC_BUTTON5",
+   "msgid": "Down"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_IDC_BUTTON1",
+   "msgid": "&Set"
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_IDCANCEL",
+   "msgid": "&Cancel"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_IDOK",
+   "msgid": "&Save"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_IDC_STATIC2",
+   "msgid": "Pos: 0.0 -> 1.0"
+  },
+  {
+   "control": 11262,
+   "control_sym": "IDC_STATIC3",
+   "dialog": 10015,
+   "msgctxt": "IDD_PNSPRESET_DLG_IDC_STATIC3",
+   "msgid": "Zoom: 0.2 -> 3.0"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10032,
+   "msgctxt": "IDD_PPAGEACCELTBL_CAPTION",
+   "msgid": "Shortcut Keys"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10032,
+   "msgctxt": "IDD_PPAGEACCELTBL_IDC_CHECK2",
+   "msgid": "Global Media Keys"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10032,
+   "msgctxt": "IDD_PPAGEACCELTBL_IDC_BUTTON1",
+   "msgid": "Select All"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10032,
+   "msgctxt": "IDD_PPAGEACCELTBL_IDC_BUTTON2",
+   "msgid": "Reset Selected"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10002,
+   "msgctxt": "IDD_MEDIATYPES_DLG_CAPTION",
+   "msgid": "Warning"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10002,
+   "msgctxt": "IDD_MEDIATYPES_DLG_IDC_STATIC1",
+   "msgid": "MPC-HC could not render some of the pins in the graph, you may not have the needed codecs or filters installed on the system."
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10002,
+   "msgctxt": "IDD_MEDIATYPES_DLG_IDC_STATIC2",
+   "msgid": "The following pin(s) failed to find a connectable filter:"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 10002,
+   "msgctxt": "IDD_MEDIATYPES_DLG_IDOK",
+   "msgid": "Close"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10004,
+   "msgctxt": "IDD_SAVE_DLG_CAPTION",
+   "msgid": "Saving..."
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 10004,
+   "msgctxt": "IDD_SAVE_DLG_IDCANCEL",
+   "msgid": "Cancel"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10046,
+   "msgctxt": "IDD_ADDREGFILTER_CAPTION",
+   "msgid": "Select Filter"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10046,
+   "msgctxt": "IDD_ADDREGFILTER_IDC_BUTTON1",
+   "msgid": "Browse..."
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 10046,
+   "msgctxt": "IDD_ADDREGFILTER_IDOK",
+   "msgid": "OK"
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 10046,
+   "msgctxt": "IDD_ADDREGFILTER_IDCANCEL",
+   "msgid": "Cancel"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "Font"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_BUTTON1",
+   "msgid": "Font"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC1",
+   "msgid": "Spacing"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC2",
+   "msgid": "Angle (z,°)"
+  },
+  {
+   "control": 11262,
+   "control_sym": "IDC_STATIC3",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC3",
+   "msgid": "Scale (x,%)"
+  },
+  {
+   "control": 11263,
+   "control_sym": "IDC_STATIC4",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC4",
+   "msgid": "Scale (y,%)"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "Border Style"
+  },
+  {
+   "control": 11040,
+   "control_sym": "IDC_RADIO1",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_RADIO1",
+   "msgid": "Outline"
+  },
+  {
+   "control": 11041,
+   "control_sym": "IDC_RADIO2",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_RADIO2",
+   "msgid": "Opaque box"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC5",
+   "msgid": "Width"
+  },
+  {
+   "control": 11265,
+   "control_sym": "IDC_STATIC6",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC6",
+   "msgid": "Shadow"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "Screen Alignment && Margins"
+  },
+  {
+   "control": 11266,
+   "control_sym": "IDC_STATIC7",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC7",
+   "msgid": "Left"
+  },
+  {
+   "control": 11267,
+   "control_sym": "IDC_STATIC8",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC8",
+   "msgid": "Right"
+  },
+  {
+   "control": 11268,
+   "control_sym": "IDC_STATIC9",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC9",
+   "msgid": "Top"
+  },
+  {
+   "control": 11269,
+   "control_sym": "IDC_STATIC10",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC10",
+   "msgid": "Bottom"
+  },
+  {
+   "control": 12019,
+   "control_sym": "IDC_CHECK_RELATIVETO",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_CHECK_RELATIVETO",
+   "msgid": "Position subtitles relative to the video frame"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "Colors && Transparency"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "0%"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "100%"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "Primary"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "Secondary"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "Outline"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC",
+   "msgid": "Shadow"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_CHECK1",
+   "msgid": "Link alpha channels"
+  },
+  {
+   "control": 22088,
+   "control_sym": "IDC_STATIC21",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC21",
+   "msgid": "8-bit Character Set"
+  },
+  {
+   "control": 22089,
+   "control_sym": "IDC_STATIC22",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC22",
+   "msgid": "OpenType Language"
+  },
+  {
+   "control": 22091,
+   "control_sym": "IDC_STATIC_LIBASS",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_STATIC_LIBASS",
+   "msgid": "Libass Options"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10033,
+   "msgctxt": "IDD_PPAGESUBSTYLE_IDC_CHECK2",
+   "msgid": "Use libass for SSA/ASS"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10059,
+   "msgctxt": "IDD_PPAGEMOUSE_IDC_STATIC",
+   "msgid": "Buttons"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10059,
+   "msgctxt": "IDD_PPAGEMOUSE_IDC_STATIC",
+   "msgid": "Click"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10059,
+   "msgctxt": "IDD_PPAGEMOUSE_IDC_STATIC",
+   "msgid": "Double click"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10059,
+   "msgctxt": "IDD_PPAGEMOUSE_IDC_STATIC",
+   "msgid": "Right click"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10059,
+   "msgctxt": "IDD_PPAGEMOUSE_IDC_BUTTON2",
+   "msgid": "Default"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10036,
+   "msgctxt": "IDD_PPAGEINTERNALFILTERS_IDC_STATIC",
+   "msgid": "If you would like to use the stand-alone versions of these filters or another replacement, disable them here."
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10036,
+   "msgctxt": "IDD_PPAGEINTERNALFILTERS_IDC_STATIC",
+   "msgid": "Source Filters"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10036,
+   "msgctxt": "IDD_PPAGEINTERNALFILTERS_IDC_STATIC",
+   "msgid": "Transform Filters"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10036,
+   "msgctxt": "IDD_PPAGEINTERNALFILTERS_IDC_STATIC",
+   "msgid": "Internal LAV Filters settings"
+  },
+  {
+   "control": 41458,
+   "control_sym": "IDC_SPLITTER_CONF",
+   "dialog": 10036,
+   "msgctxt": "IDD_PPAGEINTERNALFILTERS_IDC_SPLITTER_CONF",
+   "msgid": "Splitter"
+  },
+  {
+   "control": 41459,
+   "control_sym": "IDC_VIDEO_DEC_CONF",
+   "dialog": 10036,
+   "msgctxt": "IDD_PPAGEINTERNALFILTERS_IDC_VIDEO_DEC_CONF",
+   "msgid": "Video decoder"
+  },
+  {
+   "control": 41460,
+   "control_sym": "IDC_AUDIO_DEC_CONF",
+   "dialog": 10036,
+   "msgctxt": "IDD_PPAGEINTERNALFILTERS_IDC_AUDIO_DEC_CONF",
+   "msgid": "Audio decoder"
+  },
+  {
+   "control": 11040,
+   "control_sym": "IDC_RADIO1",
+   "dialog": 10037,
+   "msgctxt": "IDD_PPAGELOGO_IDC_RADIO1",
+   "msgid": "Internal:"
+  },
+  {
+   "control": 11041,
+   "control_sym": "IDC_RADIO2",
+   "dialog": 10037,
+   "msgctxt": "IDD_PPAGELOGO_IDC_RADIO2",
+   "msgid": "External:"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10037,
+   "msgctxt": "IDD_PPAGELOGO_IDC_CHECK1",
+   "msgid": "Apply Monitor Color Profile"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10037,
+   "msgctxt": "IDD_PPAGELOGO_IDC_BUTTON2",
+   "msgid": "Browse..."
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "DirectShow Video"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_BUTTON1",
+   "msgid": "Settings"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "DXVA"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "Subtitles"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "Screenshot"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "Shaders"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "Rotation"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "Audio Renderer"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_BUTTON2",
+   "msgid": "Settings"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "Subtitle Renderer"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "VMR-9 (renderless) and EVR (CP) settings"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "Surface:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_STATIC",
+   "msgid": "Resizer:"
+  },
+  {
+   "control": 22041,
+   "control_sym": "IDC_D3D9DEVICE",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_D3D9DEVICE",
+   "msgid": "Select D3D9 Render Device"
+  },
+  {
+   "control": 33400,
+   "control_sym": "IDC_RESETDEVICE",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_RESETDEVICE",
+   "msgid": "Reinitialize when changing display"
+  },
+  {
+   "control": 22002,
+   "control_sym": "IDC_FULLSCREEN_MONITOR_CHECK",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_FULLSCREEN_MONITOR_CHECK",
+   "msgid": "D3D Fullscreen"
+  },
+  {
+   "control": 22017,
+   "control_sym": "IDC_DSVMR9ALTERNATIVEVSYNC",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_DSVMR9ALTERNATIVEVSYNC",
+   "msgid": "Alternative VSync"
+  },
+  {
+   "control": 12131,
+   "control_sym": "IDC_DSVMR9LOADMIXER",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_DSVMR9LOADMIXER",
+   "msgid": "VMR-9 Mixer Mode"
+  },
+  {
+   "control": 22014,
+   "control_sym": "IDC_EVR_BUFFERS_TXT",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_EVR_BUFFERS_TXT",
+   "msgid": "EVR Buffers:"
+  },
+  {
+   "control": 33404,
+   "control_sym": "IDC_CACHESHADERS",
+   "dialog": 10039,
+   "msgctxt": "IDD_PPAGEOUTPUT_IDC_CACHESHADERS",
+   "msgid": "Cache compiled Shaders"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_CHECK1",
+   "msgid": "Listen on port:"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_STATIC1",
+   "msgid": "Launch in web browser..."
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_CHECK3",
+   "msgid": "Enable compression"
+  },
+  {
+   "control": 11084,
+   "control_sym": "IDC_CHECK5",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_CHECK5",
+   "msgid": "Allow access from localhost only"
+  },
+  {
+   "control": 11085,
+   "control_sym": "IDC_CHECK6",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_CHECK6",
+   "msgid": "Enable preview"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_CHECK2",
+   "msgid": "Print debug information"
+  },
+  {
+   "control": 11083,
+   "control_sym": "IDC_CHECK4",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_CHECK4",
+   "msgid": "Serve pages from:"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_BUTTON1",
+   "msgid": "Browse..."
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_BUTTON2",
+   "msgid": "Deploy..."
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_STATIC",
+   "msgid": "Default page:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10040,
+   "msgctxt": "IDD_PPAGEWEBSERVER_IDC_STATIC",
+   "msgid": "CGI handlers: (.ext1=path1;.ext2=path2;...)"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 10005,
+   "msgctxt": "IDD_SUBTITLEDL_DLG_CAPTION",
+   "msgid": "Download subtitles"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10005,
+   "msgctxt": "IDD_SUBTITLEDL_DLG_IDC_CHECK1",
+   "msgid": "Replace currently loaded subtitles"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 10005,
+   "msgctxt": "IDD_SUBTITLEDL_DLG_IDOK",
+   "msgid": "Download"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10005,
+   "msgctxt": "IDD_SUBTITLEDL_DLG_IDC_BUTTON1",
+   "msgid": "Refresh"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10005,
+   "msgctxt": "IDD_SUBTITLEDL_DLG_IDC_BUTTON2",
+   "msgid": "Abort"
+  },
+  {
+   "control": 11122,
+   "control_sym": "IDC_BUTTON3",
+   "dialog": 10005,
+   "msgctxt": "IDD_SUBTITLEDL_DLG_IDC_BUTTON3",
+   "msgid": "Options"
+  },
+  {
+   "control": 11123,
+   "control_sym": "IDC_BUTTON4",
+   "dialog": 10005,
+   "msgctxt": "IDD_SUBTITLEDL_DLG_IDC_BUTTON4",
+   "msgid": "Search"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10049,
+   "msgctxt": "IDD_FILEPROPRES_IDC_BUTTON1",
+   "msgid": "Save As..."
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_STATIC",
+   "msgid": "Color controls (for VMR-9, EVR and madVR)"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_STATIC",
+   "msgid": "Brightness"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_STATIC",
+   "msgid": "Contrast"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_STATIC",
+   "msgid": "Hue"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_STATIC",
+   "msgid": "Saturation"
+  },
+  {
+   "control": 22004,
+   "control_sym": "IDC_RESET",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_RESET",
+   "msgid": "Reset"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_STATIC",
+   "msgid": "Update check"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_CHECK1",
+   "msgid": "Enable automatic update check"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_STATIC5",
+   "msgid": "Check every:"
+  },
+  {
+   "control": 11265,
+   "control_sym": "IDC_STATIC6",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_STATIC6",
+   "msgid": "day(s)"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_STATIC",
+   "msgid": "Settings management"
+  },
+  {
+   "control": 11133,
+   "control_sym": "IDC_RESET_SETTINGS",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_RESET_SETTINGS",
+   "msgid": "Reset"
+  },
+  {
+   "control": 11134,
+   "control_sym": "IDC_EXPORT_SETTINGS",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_EXPORT_SETTINGS",
+   "msgid": "Export"
+  },
+  {
+   "control": 22077,
+   "control_sym": "IDC_EXPORT_KEYS",
+   "dialog": 10052,
+   "msgctxt": "IDD_PPAGEMISC_IDC_EXPORT_KEYS",
+   "msgid": "Export keys"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_CAPTION",
+   "msgid": "Tuner scan"
+  },
+  {
+   "control": 22025,
+   "control_sym": "ID_START",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_ID_START",
+   "msgid": "Start"
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_IDCANCEL",
+   "msgid": "Cancel"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_IDC_STATIC",
+   "msgid": "Freq. Start"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_IDC_STATIC",
+   "msgid": "Bandwidth"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_IDC_STATIC",
+   "msgid": "Freq. End"
+  },
+  {
+   "control": 22050,
+   "control_sym": "IDC_CHECK_IGNORE_ENCRYPTED",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_IDC_CHECK_IGNORE_ENCRYPTED",
+   "msgid": "Ignore encrypted channels"
+  },
+  {
+   "control": 22030,
+   "control_sym": "ID_SAVE",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_ID_SAVE",
+   "msgid": "Save"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_IDC_STATIC",
+   "msgid": "S"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_IDC_STATIC",
+   "msgid": "Q"
+  },
+  {
+   "control": 22048,
+   "control_sym": "IDC_CHECK_OFFSET",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_IDC_CHECK_OFFSET",
+   "msgid": "Use an offset"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20002,
+   "msgctxt": "IDD_TUNER_SCAN_IDC_STATIC",
+   "msgid": "Symbol Rate"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_STATIC",
+   "msgid": "Default Device"
+  },
+  {
+   "control": 11040,
+   "control_sym": "IDC_RADIO1",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_RADIO1",
+   "msgid": "Analog"
+  },
+  {
+   "control": 11041,
+   "control_sym": "IDC_RADIO2",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_RADIO2",
+   "msgid": "Digital"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_STATIC",
+   "msgid": "Analog settings"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_STATIC1",
+   "msgid": "Video"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_STATIC2",
+   "msgid": "Audio"
+  },
+  {
+   "control": 11262,
+   "control_sym": "IDC_STATIC3",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_STATIC3",
+   "msgid": "Country"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_STATIC",
+   "msgid": "Digital settings (BDA)"
+  },
+  {
+   "control": 11263,
+   "control_sym": "IDC_STATIC4",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_STATIC4",
+   "msgid": "Network Provider"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_STATIC5",
+   "msgid": "Tuner"
+  },
+  {
+   "control": 11265,
+   "control_sym": "IDC_STATIC6",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_STATIC6",
+   "msgid": "Receiver"
+  },
+  {
+   "control": 22078,
+   "control_sym": "IDC_PPAGECAPTURE_ST10",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_PPAGECAPTURE_ST10",
+   "msgid": "Channel switching approach:"
+  },
+  {
+   "control": 22079,
+   "control_sym": "IDC_PPAGECAPTURE_ST11",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_PPAGECAPTURE_ST11",
+   "msgid": "Rebuild filter graph"
+  },
+  {
+   "control": 22080,
+   "control_sym": "IDC_PPAGECAPTURE_ST12",
+   "dialog": 10054,
+   "msgctxt": "IDD_PPAGECAPTURE_IDC_PPAGECAPTURE_ST12",
+   "msgid": "Stop filter graph"
+  },
+  {
+   "control": 22032,
+   "control_sym": "IDC_SYNCVIDEO",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_SYNCVIDEO",
+   "msgid": "Sync video to display"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC1",
+   "msgid": "Frequency adjustment:"
+  },
+  {
+   "control": 22033,
+   "control_sym": "IDC_SYNCDISPLAY",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_SYNCDISPLAY",
+   "msgid": "Sync display to video"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC2",
+   "msgid": "Frequency adjustment:"
+  },
+  {
+   "control": 11262,
+   "control_sym": "IDC_STATIC3",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC3",
+   "msgid": "lines"
+  },
+  {
+   "control": 11263,
+   "control_sym": "IDC_STATIC4",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC4",
+   "msgid": "columns"
+  },
+  {
+   "control": 22040,
+   "control_sym": "IDC_SYNCNEAREST",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_SYNCNEAREST",
+   "msgid": "Present at nearest VSync"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC5",
+   "msgid": "Target sync offset:"
+  },
+  {
+   "control": 11265,
+   "control_sym": "IDC_STATIC6",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC6",
+   "msgid": "ms"
+  },
+  {
+   "control": 11266,
+   "control_sym": "IDC_STATIC7",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC7",
+   "msgid": "Control limits:"
+  },
+  {
+   "control": 11267,
+   "control_sym": "IDC_STATIC8",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC8",
+   "msgid": "+/-"
+  },
+  {
+   "control": 11268,
+   "control_sym": "IDC_STATIC9",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC9",
+   "msgid": "ms"
+  },
+  {
+   "control": 11269,
+   "control_sym": "IDC_STATIC10",
+   "dialog": 10055,
+   "msgctxt": "IDD_PPAGESYNC_IDC_STATIC10",
+   "msgid": "Changes take effect after the playback has been closed and restarted."
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_CHECK1",
+   "msgid": "Launch files in fullscreen"
+  },
+  {
+   "control": 11083,
+   "control_sym": "IDC_CHECK4",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_CHECK4",
+   "msgid": "Hide controls in fullscreen"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_STATIC1",
+   "msgid": "ms"
+  },
+  {
+   "control": 11085,
+   "control_sym": "IDC_CHECK6",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_CHECK6",
+   "msgid": "Hide docked panels"
+  },
+  {
+   "control": 11084,
+   "control_sym": "IDC_CHECK5",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_CHECK5",
+   "msgid": "Exit fullscreen at the end of playback"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_STATIC",
+   "msgid": "Fullscreen monitor"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_CHECK2",
+   "msgid": "Use autochange fullscreen monitor mode"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_BUTTON1",
+   "msgid": "Add"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_BUTTON2",
+   "msgid": "Del"
+  },
+  {
+   "control": 11122,
+   "control_sym": "IDC_BUTTON3",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_BUTTON3",
+   "msgid": "Up"
+  },
+  {
+   "control": 11123,
+   "control_sym": "IDC_BUTTON4",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_BUTTON4",
+   "msgid": "Down"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_CHECK3",
+   "msgid": "Apply default monitor mode on fullscreen exit"
+  },
+  {
+   "control": 41025,
+   "control_sym": "IDC_RESTORERESCHECK",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_RESTORERESCHECK",
+   "msgid": "Restore resolution on program exit"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_STATIC",
+   "msgid": "Delay"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_STATIC2",
+   "msgid": "s"
+  },
+  {
+   "control": 11086,
+   "control_sym": "IDC_CHECK7",
+   "dialog": 10056,
+   "msgctxt": "IDD_PPAGEFULLSCREEN_IDC_CHECK7",
+   "msgid": "Allow separate control window"
+  },
+  {
+   "control": 22046,
+   "control_sym": "IDC_NAVIGATION_INFO",
+   "dialog": 20005,
+   "msgctxt": "IDD_NAVIGATION_DLG_IDC_NAVIGATION_INFO",
+   "msgid": "Info"
+  },
+  {
+   "control": 22043,
+   "control_sym": "IDC_NAVIGATION_SCAN",
+   "dialog": 20005,
+   "msgctxt": "IDD_NAVIGATION_DLG_IDC_NAVIGATION_SCAN",
+   "msgid": "Scan"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_CHECK1",
+   "msgid": "Prefer forced and/or default subtitles tracks"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_CHECK2",
+   "msgid": "Prefer external subtitles over embedded subtitles"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_CHECK3",
+   "msgid": "Ignore embedded subtitles"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_STATIC",
+   "msgid": "Autoload paths"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_BUTTON1",
+   "msgid": "Reset"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_STATIC",
+   "msgid": "Online subtitle search"
+  },
+  {
+   "control": 11083,
+   "control_sym": "IDC_CHECK4",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_CHECK4",
+   "msgid": "Automatically search and download subtitles if none are found locally"
+  },
+  {
+   "control": 11084,
+   "control_sym": "IDC_CHECK5",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_CHECK5",
+   "msgid": "Prefer subtitles for hearing impaired (when indicated by subtitles provider)"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_STATIC1",
+   "msgid": "Ignore files containing any of the following word(s):"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_STATIC2",
+   "msgid": "Languages in order of preference:"
+  },
+  {
+   "control": 22087,
+   "control_sym": "IDC_CHECK_AUTOSAVE_ONLINE_SUBTITLE",
+   "dialog": 20006,
+   "msgctxt": "IDD_PPAGESUBMISC_IDC_CHECK_AUTOSAVE_ONLINE_SUBTITLE",
+   "msgid": "Automatically save downloaded subtitles to the first autoload path folder"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 20011,
+   "msgctxt": "IDD_UPDATE_DIALOG_CAPTION",
+   "msgid": "Update Checker"
+  },
+  {
+   "control": 22053,
+   "control_sym": "IDC_UPDATE_DL_BUTTON",
+   "dialog": 20011,
+   "msgctxt": "IDD_UPDATE_DIALOG_IDC_UPDATE_DL_BUTTON",
+   "msgid": "&Download now"
+  },
+  {
+   "control": 22054,
+   "control_sym": "IDC_UPDATE_LATER_BUTTON",
+   "dialog": 20011,
+   "msgctxt": "IDD_UPDATE_DIALOG_IDC_UPDATE_LATER_BUTTON",
+   "msgid": "Remind me &later"
+  },
+  {
+   "control": 22055,
+   "control_sym": "IDC_UPDATE_IGNORE_BUTTON",
+   "dialog": 20011,
+   "msgctxt": "IDD_UPDATE_DIALOG_IDC_UPDATE_IGNORE_BUTTON",
+   "msgid": "&Ignore this update"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_STATIC",
+   "msgid": "Shaders contain special effects which can be added to the video rendering process."
+  },
+  {
+   "control": 11131,
+   "control_sym": "IDC_BUTTON12",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_BUTTON12",
+   "msgid": "Add shader file"
+  },
+  {
+   "control": 11132,
+   "control_sym": "IDC_BUTTON13",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_BUTTON13",
+   "msgid": "Remove"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_BUTTON1",
+   "msgid": "Add to pre-resize"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_BUTTON2",
+   "msgid": "Add to post-resize"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_STATIC",
+   "msgid": "Shader presets"
+  },
+  {
+   "control": 11122,
+   "control_sym": "IDC_BUTTON3",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_BUTTON3",
+   "msgid": "Load"
+  },
+  {
+   "control": 11123,
+   "control_sym": "IDC_BUTTON4",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_BUTTON4",
+   "msgid": "Save"
+  },
+  {
+   "control": 11124,
+   "control_sym": "IDC_BUTTON5",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_BUTTON5",
+   "msgid": "Delete"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_STATIC",
+   "msgid": "Active pre-resize shaders"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_STATIC",
+   "msgid": "Active post-resize shaders"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10031,
+   "msgctxt": "IDD_PPAGESHADERS_IDC_STATIC5",
+   "msgid": "MPC-VR does not support pre-resize shaders. It will run them after resize, before the post-resize shaders."
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 20013,
+   "msgctxt": "IDD_DEBUGSHADERS_DLG_CAPTION",
+   "msgid": "Debug Shaders"
+  },
+  {
+   "control": 11040,
+   "control_sym": "IDC_RADIO1",
+   "dialog": 20013,
+   "msgctxt": "IDD_DEBUGSHADERS_DLG_IDC_RADIO1",
+   "msgid": "PS 2.0"
+  },
+  {
+   "control": 11041,
+   "control_sym": "IDC_RADIO2",
+   "dialog": 20013,
+   "msgctxt": "IDD_DEBUGSHADERS_DLG_IDC_RADIO2",
+   "msgid": "PS 2.0b"
+  },
+  {
+   "control": 11042,
+   "control_sym": "IDC_RADIO3",
+   "dialog": 20013,
+   "msgctxt": "IDD_DEBUGSHADERS_DLG_IDC_RADIO3",
+   "msgid": "PS 2.0a"
+  },
+  {
+   "control": 11043,
+   "control_sym": "IDC_RADIO4",
+   "dialog": 20013,
+   "msgctxt": "IDD_DEBUGSHADERS_DLG_IDC_RADIO4",
+   "msgid": "PS 3.0"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 20013,
+   "msgctxt": "IDD_DEBUGSHADERS_DLG_IDC_STATIC1",
+   "msgid": "Debug Information"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20014,
+   "msgctxt": "IDD_PPAGEADVANCED_IDC_STATIC",
+   "msgid": "Advanced Settings, do not edit unless you know what you are doing."
+  },
+  {
+   "control": 11040,
+   "control_sym": "IDC_RADIO1",
+   "dialog": 20014,
+   "msgctxt": "IDD_PPAGEADVANCED_IDC_RADIO1",
+   "msgid": "True"
+  },
+  {
+   "control": 11041,
+   "control_sym": "IDC_RADIO2",
+   "dialog": 20014,
+   "msgctxt": "IDD_PPAGEADVANCED_IDC_RADIO2",
+   "msgid": "False"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 20014,
+   "msgctxt": "IDD_PPAGEADVANCED_IDC_BUTTON1",
+   "msgid": "Default"
+  },
+  {
+   "control": 11084,
+   "control_sym": "IDC_CHECK5",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_CHECK5",
+   "msgid": "SaneAR Audio Renderer Enabled"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_STATIC5",
+   "msgid": "Device"
+  },
+  {
+   "control": 11265,
+   "control_sym": "IDC_STATIC6",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_STATIC6",
+   "msgid": "Options"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_CHECK1",
+   "msgid": "Exclusive mode"
+  },
+  {
+   "control": 11083,
+   "control_sym": "IDC_CHECK4",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_CHECK4",
+   "msgid": "Ignore system channel mixer (always ignored in exclusive WASAPI mode)"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_CHECK3",
+   "msgid": "Enable stereo crossfeed (for headphones)"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_BUTTON1",
+   "msgid": "C. Moy"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_BUTTON2",
+   "msgid": "J. Meier"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_STATIC1",
+   "msgid": "Cut-off:"
+  },
+  {
+   "control": 11262,
+   "control_sym": "IDC_STATIC3",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_STATIC3",
+   "msgid": "Level:"
+  },
+  {
+   "control": 11266,
+   "control_sym": "IDC_STATIC7",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_STATIC7",
+   "msgid": "Note"
+  },
+  {
+   "control": 11267,
+   "control_sym": "IDC_STATIC8",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_STATIC8",
+   "msgid": "To minimize audio distortion, it is recommended to keep player volume at around 85% when playing loud lossy-encoded content."
+  },
+  {
+   "control": 11122,
+   "control_sym": "IDC_BUTTON3",
+   "dialog": 10058,
+   "msgctxt": "IDD_PPAGEAUDIORENDERER_IDC_BUTTON3",
+   "msgid": "MPC Audio Renderer Settings"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 20016,
+   "msgctxt": "IDD_CMD_LINE_HELP_CAPTION",
+   "msgid": "Command line help"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 20016,
+   "msgctxt": "IDD_CMD_LINE_HELP_IDOK",
+   "msgid": "OK"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 20017,
+   "msgctxt": "IDD_CRASH_REPORTER_CAPTION",
+   "msgid": "Crash reporter"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20017,
+   "msgctxt": "IDD_CRASH_REPORTER_IDC_STATIC",
+   "msgid": "We are sorry, it seems MPC-HC just crashed. :("
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 20017,
+   "msgctxt": "IDD_CRASH_REPORTER_IDC_CHECK1",
+   "msgid": "Send a bug report to help us diagnose and fix the problem."
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 20017,
+   "msgctxt": "IDD_CRASH_REPORTER_IDC_STATIC1",
+   "msgid": "Optional information"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 20017,
+   "msgctxt": "IDD_CRASH_REPORTER_IDC_STATIC2",
+   "msgid": "Email:"
+  },
+  {
+   "control": 11262,
+   "control_sym": "IDC_STATIC3",
+   "dialog": 20017,
+   "msgctxt": "IDD_CRASH_REPORTER_IDC_STATIC3",
+   "msgid": "Your email address is optional and will only be used if the developers need to contact you for more information."
+  },
+  {
+   "control": 11263,
+   "control_sym": "IDC_STATIC4",
+   "dialog": 20017,
+   "msgctxt": "IDD_CRASH_REPORTER_IDC_STATIC4",
+   "msgid": "Problem description (use English only):"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 20017,
+   "msgctxt": "IDD_CRASH_REPORTER_IDC_BUTTON1",
+   "msgid": "Restart MPC-HC"
+  },
+  {
+   "control": 11121,
+   "control_sym": "IDC_BUTTON2",
+   "dialog": 20017,
+   "msgctxt": "IDD_CRASH_REPORTER_IDC_BUTTON2",
+   "msgid": "Quit MPC-HC"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 20018,
+   "msgctxt": "IDD_PPAGEDPICALC_IDC_STATIC1",
+   "msgid": "Groupbox"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 20018,
+   "msgctxt": "IDD_PPAGEDPICALC_IDC_STATIC2",
+   "msgid": "Autoplay"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 20020,
+   "msgctxt": "IDD_ADDCOMMAND_DLG_CAPTION",
+   "msgid": "Select command"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20020,
+   "msgctxt": "IDD_ADDCOMMAND_DLG_IDC_STATIC",
+   "msgid": "Filter:"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 20020,
+   "msgctxt": "IDD_ADDCOMMAND_DLG_IDOK",
+   "msgid": "OK"
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 20020,
+   "msgctxt": "IDD_ADDCOMMAND_DLG_IDCANCEL",
+   "msgid": "Cancel"
+  },
+  {
+   "control": 11260,
+   "control_sym": "IDC_STATIC1",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC1",
+   "msgid": "Theme"
+  },
+  {
+   "control": 11080,
+   "control_sym": "IDC_CHECK1",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK1",
+   "msgid": "Use Modern Theme"
+  },
+  {
+   "control": 11261,
+   "control_sym": "IDC_STATIC2",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC2",
+   "msgid": "Modern Theme Color:"
+  },
+  {
+   "control": 11263,
+   "control_sym": "IDC_STATIC4",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC4",
+   "msgid": "Seekbar"
+  },
+  {
+   "control": 22089,
+   "control_sym": "IDC_STATIC22",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC22",
+   "msgid": "Modern Seekbar height:"
+  },
+  {
+   "control": 11081,
+   "control_sym": "IDC_CHECK2",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK2",
+   "msgid": "Show chapter marks on seekbar"
+  },
+  {
+   "control": 11267,
+   "control_sym": "IDC_STATIC8",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC8",
+   "msgid": "Seekbar Hover"
+  },
+  {
+   "control": 11270,
+   "control_sym": "IDC_STATIC11",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC11",
+   "msgid": "Hover Position:"
+  },
+  {
+   "control": 22086,
+   "control_sym": "IDC_SEEK_PREVIEW",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_SEEK_PREVIEW",
+   "msgid": "Show video preview"
+  },
+  {
+   "control": 11093,
+   "control_sym": "IDC_CHECK14",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK14",
+   "msgid": "Show time"
+  },
+  {
+   "control": 11266,
+   "control_sym": "IDC_STATIC7",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC7",
+   "msgid": "Preview width (% of screen)"
+  },
+  {
+   "control": 11269,
+   "control_sym": "IDC_STATIC10",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC10",
+   "msgid": "Status Bar Elements"
+  },
+  {
+   "control": 11082,
+   "control_sym": "IDC_CHECK3",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK3",
+   "msgid": "Track Language"
+  },
+  {
+   "control": 11083,
+   "control_sym": "IDC_CHECK4",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK4",
+   "msgid": "Video Info"
+  },
+  {
+   "control": 11091,
+   "control_sym": "IDC_CHECK12",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK12",
+   "msgid": "Audio Info"
+  },
+  {
+   "control": 11084,
+   "control_sym": "IDC_CHECK5",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK5",
+   "msgid": "FPS"
+  },
+  {
+   "control": 11085,
+   "control_sym": "IDC_CHECK6",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK6",
+   "msgid": "A-B Marks"
+  },
+  {
+   "control": 11268,
+   "control_sym": "IDC_STATIC9",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC9",
+   "msgid": "On Screen Display (OSD)"
+  },
+  {
+   "control": 22013,
+   "control_sym": "IDC_SHOW_OSD",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_SHOW_OSD",
+   "msgid": "Show OSD (requires restart)"
+  },
+  {
+   "control": 11265,
+   "control_sym": "IDC_STATIC6",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC6",
+   "msgid": "Font:"
+  },
+  {
+   "control": 22090,
+   "control_sym": "IDC_STATIC23",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC23",
+   "msgid": "Font size:"
+  },
+  {
+   "control": 11092,
+   "control_sym": "IDC_CHECK13",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK13",
+   "msgid": "Display Current Time"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC",
+   "msgid": "Window Behavior"
+  },
+  {
+   "control": 11086,
+   "control_sym": "IDC_CHECK7",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK7",
+   "msgid": "Limit window proportions on resize"
+  },
+  {
+   "control": 11088,
+   "control_sym": "IDC_CHECK9",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK9",
+   "msgid": "Snap to desktop edges"
+  },
+  {
+   "control": 11089,
+   "control_sym": "IDC_CHECK10",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK10",
+   "msgid": "Hide Windowed Controls"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC",
+   "msgid": "Windows Integration"
+  },
+  {
+   "control": 33403,
+   "control_sym": "IDC_CHECK_ENHANCED_TASKBAR",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK_ENHANCED_TASKBAR",
+   "msgid": "Use enhanced taskbar features"
+  },
+  {
+   "control": 11090,
+   "control_sym": "IDC_CHECK11",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_CHECK11",
+   "msgid": "Control via Windows UI (SMTC)"
+  },
+  {
+   "control": 22088,
+   "control_sym": "IDC_STATIC21",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC21",
+   "msgid": "Language"
+  },
+  {
+   "control": 11264,
+   "control_sym": "IDC_STATIC5",
+   "dialog": 10038,
+   "msgctxt": "IDD_PPAGETHEME_IDC_STATIC5",
+   "msgid": "Language:"
+  },
+  {
+   "control": null,
+   "control_sym": "CAPTION",
+   "dialog": 20019,
+   "msgctxt": "IDD_RAR_ENTRY_SELECTOR_CAPTION",
+   "msgid": "Select Media from RAR"
+  },
+  {
+   "control": 1,
+   "control_sym": "IDOK",
+   "dialog": 20019,
+   "msgctxt": "IDD_RAR_ENTRY_SELECTOR_IDOK",
+   "msgid": "Select"
+  },
+  {
+   "control": 2,
+   "control_sym": "IDCANCEL",
+   "dialog": 20019,
+   "msgctxt": "IDD_RAR_ENTRY_SELECTOR_IDCANCEL",
+   "msgid": "Cancel"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC",
+   "msgid": "Toolbar Style"
+  },
+  {
+   "control": 11262,
+   "control_sym": "IDC_STATIC3",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC3",
+   "msgid": "Toolbar Scale:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC",
+   "msgid": "Toolbar Alignment:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC",
+   "msgid": "Active Style:"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC",
+   "msgid": "Custom Button 1"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC",
+   "msgid": "Click"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC",
+   "msgid": "Right click"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC",
+   "msgid": "Custom Button 2"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC",
+   "msgid": "Custom Button 3"
+  },
+  {
+   "control": -1,
+   "control_sym": "IDC_STATIC",
+   "dialog": 20021,
+   "msgctxt": "IDD_PPAGETOOLBAR_IDC_STATIC",
+   "msgid": "Custom Button 4"
+  },
+  {
+   "control": 11120,
+   "control_sym": "IDC_BUTTON1",
+   "dialog": 20022,
+   "msgctxt": "IDD_PPAGETOOLBARLAYOUT_IDC_BUTTON1",
+   "msgid": "Default"
+  },
+  {
+   "control": 11122,
+   "control_sym": "IDC_BUTTON3",
+   "dialog": 20022,
+   "msgctxt": "IDD_PPAGETOOLBARLAYOUT_IDC_BUTTON3",
+   "msgid": "<<"
+  },
+  {
+   "control": 11123,
+   "control_sym": "IDC_BUTTON4",
+   "dialog": 20022,
+   "msgctxt": "IDD_PPAGETOOLBARLAYOUT_IDC_BUTTON4",
+   "msgid": ">>"
+  },
+  {
+   "control": 11124,
+   "control_sym": "IDC_BUTTON5",
+   "dialog": 20022,
+   "msgctxt": "IDD_PPAGETOOLBARLAYOUT_IDC_BUTTON5",
+   "msgid": "^"
+  },
+  {
+   "control": 11125,
+   "control_sym": "IDC_BUTTON6",
+   "dialog": 20022,
+   "msgctxt": "IDD_PPAGETOOLBARLAYOUT_IDC_BUTTON6",
+   "msgid": "v"
+  }
+ ],
+ "menus": [
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&File",
+   "sym": "POPUP"
+  },
+  {
+   "command": 969,
+   "msgctxt": "ID_FILE_OPENQUICK",
+   "msgid": "&Quick Open File...",
+   "sym": "ID_FILE_OPENQUICK"
+  },
+  {
+   "command": 800,
+   "msgctxt": "ID_FILE_OPENMEDIA",
+   "msgid": "&Open File/URL...",
+   "sym": "ID_FILE_OPENMEDIA"
+  },
+  {
+   "command": 801,
+   "msgctxt": "ID_FILE_OPENDVDBD",
+   "msgid": "Open &DVD/BD...",
+   "sym": "ID_FILE_OPENDVDBD"
+  },
+  {
+   "command": 802,
+   "msgctxt": "ID_FILE_OPENDEVICE",
+   "msgid": "Open De&vice...",
+   "sym": "ID_FILE_OPENDEVICE"
+  },
+  {
+   "command": 33208,
+   "msgctxt": "ID_FILE_OPENDIRECTORY",
+   "msgid": "Open Dir&ectory...",
+   "sym": "ID_FILE_OPENDIRECTORY"
+  },
+  {
+   "command": 32774,
+   "msgctxt": "ID_FILE_OPENDISC",
+   "msgid": "O&pen Disc",
+   "sym": "ID_FILE_OPENDISC"
+  },
+  {
+   "command": 33281,
+   "msgctxt": "ID_RECENT_FILES",
+   "msgid": "Recent &Files",
+   "sym": "ID_RECENT_FILES"
+  },
+  {
+   "command": 804,
+   "msgctxt": "ID_FILE_CLOSE_AND_RESTORE",
+   "msgid": "&Close",
+   "sym": "ID_FILE_CLOSE_AND_RESTORE"
+  },
+  {
+   "command": 805,
+   "msgctxt": "ID_FILE_SAVE_COPY",
+   "msgid": "&Save a Copy...",
+   "sym": "ID_FILE_SAVE_COPY"
+  },
+  {
+   "command": 806,
+   "msgctxt": "ID_FILE_SAVE_IMAGE",
+   "msgid": "Save &Image...",
+   "sym": "ID_FILE_SAVE_IMAGE"
+  },
+  {
+   "command": 808,
+   "msgctxt": "ID_FILE_SAVE_THUMBNAILS",
+   "msgid": "Save &Thumbnails...",
+   "sym": "ID_FILE_SAVE_THUMBNAILS"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "S&ubtitles",
+   "sym": "POPUP"
+  },
+  {
+   "command": 809,
+   "msgctxt": "ID_FILE_SUBTITLES_LOAD",
+   "msgid": "&Load Subtitles...",
+   "sym": "ID_FILE_SUBTITLES_LOAD"
+  },
+  {
+   "command": 810,
+   "msgctxt": "ID_FILE_SUBTITLES_SAVE",
+   "msgid": "Save S&ubtitles...",
+   "sym": "ID_FILE_SUBTITLES_SAVE"
+  },
+  {
+   "command": 812,
+   "msgctxt": "ID_FILE_SUBTITLES_DOWNLOAD",
+   "msgid": "&Download Subtitles...",
+   "sym": "ID_FILE_SUBTITLES_DOWNLOAD"
+  },
+  {
+   "command": 814,
+   "msgctxt": "ID_FILE_PROPERTIES",
+   "msgid": "P&roperties",
+   "sym": "ID_FILE_PROPERTIES"
+  },
+  {
+   "command": 20066,
+   "msgctxt": "ID_FILE_OPEN_LOCATION",
+   "msgid": "Open File &Location",
+   "sym": "ID_FILE_OPEN_LOCATION"
+  },
+  {
+   "command": 816,
+   "msgctxt": "ID_FILE_EXIT",
+   "msgid": "E&xit",
+   "sym": "ID_FILE_EXIT"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&View",
+   "sym": "POPUP"
+  },
+  {
+   "command": 817,
+   "msgctxt": "ID_VIEW_CAPTIONMENU",
+   "msgid": "Caption&&Menu",
+   "sym": "ID_VIEW_CAPTIONMENU"
+  },
+  {
+   "command": 818,
+   "msgctxt": "ID_VIEW_SEEKER",
+   "msgid": "See&k Bar",
+   "sym": "ID_VIEW_SEEKER"
+  },
+  {
+   "command": 819,
+   "msgctxt": "ID_VIEW_CONTROLS",
+   "msgid": "&Controls",
+   "sym": "ID_VIEW_CONTROLS"
+  },
+  {
+   "command": 820,
+   "msgctxt": "ID_VIEW_INFORMATION",
+   "msgid": "&Information",
+   "sym": "ID_VIEW_INFORMATION"
+  },
+  {
+   "command": 821,
+   "msgctxt": "ID_VIEW_STATISTICS",
+   "msgid": "&Statistics",
+   "sym": "ID_VIEW_STATISTICS"
+  },
+  {
+   "command": 822,
+   "msgctxt": "ID_VIEW_STATUS",
+   "msgid": "St&atus",
+   "sym": "ID_VIEW_STATUS"
+  },
+  {
+   "command": 823,
+   "msgctxt": "ID_VIEW_SUBRESYNC",
+   "msgid": "Su&bresync",
+   "sym": "ID_VIEW_SUBRESYNC"
+  },
+  {
+   "command": 824,
+   "msgctxt": "ID_VIEW_PLAYLIST",
+   "msgid": "Pla&ylist",
+   "sym": "ID_VIEW_PLAYLIST"
+  },
+  {
+   "command": 825,
+   "msgctxt": "ID_VIEW_CAPTURE",
+   "msgid": "Captu&re",
+   "sym": "ID_VIEW_CAPTURE"
+  },
+  {
+   "command": 33415,
+   "msgctxt": "ID_VIEW_NAVIGATION",
+   "msgid": "Na&vigation",
+   "sym": "ID_VIEW_NAVIGATION"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Presets...",
+   "sym": "POPUP"
+  },
+  {
+   "command": 827,
+   "msgctxt": "ID_VIEW_PRESETS_MINIMAL",
+   "msgid": "&Minimal",
+   "sym": "ID_VIEW_PRESETS_MINIMAL"
+  },
+  {
+   "command": 828,
+   "msgctxt": "ID_VIEW_PRESETS_COMPACT",
+   "msgid": "&Compact",
+   "sym": "ID_VIEW_PRESETS_COMPACT"
+  },
+  {
+   "command": 829,
+   "msgctxt": "ID_VIEW_PRESETS_NORMAL",
+   "msgid": "&Normal",
+   "sym": "ID_VIEW_PRESETS_NORMAL"
+  },
+  {
+   "command": 830,
+   "msgctxt": "ID_VIEW_FULLSCREEN",
+   "msgid": "F&ull Screen",
+   "sym": "ID_VIEW_FULLSCREEN"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Zoom",
+   "sym": "POPUP"
+  },
+  {
+   "command": 813,
+   "msgctxt": "ID_VIEW_ZOOM_25",
+   "msgid": "&25%",
+   "sym": "ID_VIEW_ZOOM_25"
+  },
+  {
+   "command": 832,
+   "msgctxt": "ID_VIEW_ZOOM_50",
+   "msgid": "&50%",
+   "sym": "ID_VIEW_ZOOM_50"
+  },
+  {
+   "command": 833,
+   "msgctxt": "ID_VIEW_ZOOM_100",
+   "msgid": "&100%",
+   "sym": "ID_VIEW_ZOOM_100"
+  },
+  {
+   "command": 834,
+   "msgctxt": "ID_VIEW_ZOOM_200",
+   "msgid": "&200%",
+   "sym": "ID_VIEW_ZOOM_200"
+  },
+  {
+   "command": 968,
+   "msgctxt": "ID_VIEW_ZOOM_AUTOFIT",
+   "msgid": "Auto &Fit",
+   "sym": "ID_VIEW_ZOOM_AUTOFIT"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "R&enderer Settings",
+   "sym": "POPUP"
+  },
+  {
+   "command": 32769,
+   "msgctxt": "ID_VIEW_TEARING_TEST",
+   "msgid": "&Tearing Test",
+   "sym": "ID_VIEW_TEARING_TEST"
+  },
+  {
+   "command": 32784,
+   "msgctxt": "ID_VIEW_DISPLAY_RENDERER_STATS",
+   "msgid": "&Display Statistics",
+   "sym": "ID_VIEW_DISPLAY_RENDERER_STATS"
+  },
+  {
+   "command": 32778,
+   "msgctxt": "ID_VIEW_OSD_DISPLAY_TIME",
+   "msgid": "Display Current T&ime",
+   "sym": "ID_VIEW_OSD_DISPLAY_TIME"
+  },
+  {
+   "command": 32777,
+   "msgctxt": "ID_VIEW_OSD_SHOW_FILENAME",
+   "msgid": "Show &File Name",
+   "sym": "ID_VIEW_OSD_SHOW_FILENAME"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Output Range",
+   "sym": "POPUP"
+  },
+  {
+   "command": 33273,
+   "msgctxt": "ID_VIEW_EVROUTPUTRANGE_0_255",
+   "msgid": "&0 - 255",
+   "sym": "ID_VIEW_EVROUTPUTRANGE_0_255"
+  },
+  {
+   "command": 33274,
+   "msgctxt": "ID_VIEW_EVROUTPUTRANGE_16_235",
+   "msgid": "&16 - 235",
+   "sym": "ID_VIEW_EVROUTPUTRANGE_16_235"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Presentation",
+   "sym": "POPUP"
+  },
+  {
+   "command": 33289,
+   "msgctxt": "ID_VIEW_D3DFULLSCREEN",
+   "msgid": "D3D Fullscreen &Mode",
+   "sym": "ID_VIEW_D3DFULLSCREEN"
+  },
+  {
+   "command": 33263,
+   "msgctxt": "ID_VIEW_FULLSCREENGUISUPPORT",
+   "msgid": "D3D Fullscreen &GUI Support",
+   "sym": "ID_VIEW_FULLSCREENGUISUPPORT"
+  },
+  {
+   "command": 33264,
+   "msgctxt": "ID_VIEW_HIGHCOLORRESOLUTION",
+   "msgid": "10-bit &RGB Output",
+   "sym": "ID_VIEW_HIGHCOLORRESOLUTION"
+  },
+  {
+   "command": 24028,
+   "msgctxt": "ID_VIEW_FORCEINPUTHIGHCOLORRESOLUTION",
+   "msgid": "Force 10-bit RGB &Input",
+   "sym": "ID_VIEW_FORCEINPUTHIGHCOLORRESOLUTION"
+  },
+  {
+   "command": 24029,
+   "msgctxt": "ID_VIEW_FULLFLOATINGPOINTPROCESSING",
+   "msgid": "&Full Floating Point Processing",
+   "sym": "ID_VIEW_FULLFLOATINGPOINTPROCESSING"
+  },
+  {
+   "command": 24043,
+   "msgctxt": "ID_VIEW_HALFFLOATINGPOINTPROCESSING",
+   "msgid": "&Half Floating Point Processing",
+   "sym": "ID_VIEW_HALFFLOATINGPOINTPROCESSING"
+  },
+  {
+   "command": 33290,
+   "msgctxt": "ID_VIEW_DISABLEDESKTOPCOMPOSITION",
+   "msgid": "Disable desktop composition (&Aero)",
+   "sym": "ID_VIEW_DISABLEDESKTOPCOMPOSITION"
+  },
+  {
+   "command": 33265,
+   "msgctxt": "ID_VIEW_ENABLEFRAMETIMECORRECTION",
+   "msgid": "Enable Frame Time &Correction",
+   "sym": "ID_VIEW_ENABLEFRAMETIMECORRECTION"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Color Management",
+   "sym": "POPUP"
+  },
+  {
+   "command": 24030,
+   "msgctxt": "ID_VIEW_CM_ENABLE",
+   "msgid": "&Enable",
+   "sym": "ID_VIEW_CM_ENABLE"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Input Type",
+   "sym": "POPUP"
+  },
+  {
+   "command": 24031,
+   "msgctxt": "ID_VIEW_CM_INPUT_AUTO",
+   "msgid": "&Auto-Detect",
+   "sym": "ID_VIEW_CM_INPUT_AUTO"
+  },
+  {
+   "command": 24032,
+   "msgctxt": "ID_VIEW_CM_INPUT_HDTV",
+   "msgid": "&HDTV",
+   "sym": "ID_VIEW_CM_INPUT_HDTV"
+  },
+  {
+   "command": 24033,
+   "msgctxt": "ID_VIEW_CM_INPUT_SDTV_NTSC",
+   "msgid": "SDTV &NTSC",
+   "sym": "ID_VIEW_CM_INPUT_SDTV_NTSC"
+  },
+  {
+   "command": 24034,
+   "msgctxt": "ID_VIEW_CM_INPUT_SDTV_PAL",
+   "msgid": "SDTV &PAL",
+   "sym": "ID_VIEW_CM_INPUT_SDTV_PAL"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "Ambient &Light",
+   "sym": "POPUP"
+  },
+  {
+   "command": 24035,
+   "msgctxt": "ID_VIEW_CM_AMBIENTLIGHT_BRIGHT",
+   "msgid": "&Bright (2.2 Gamma)",
+   "sym": "ID_VIEW_CM_AMBIENTLIGHT_BRIGHT"
+  },
+  {
+   "command": 24037,
+   "msgctxt": "ID_VIEW_CM_AMBIENTLIGHT_DIM",
+   "msgid": "&Dim (2.35 Gamma)",
+   "sym": "ID_VIEW_CM_AMBIENTLIGHT_DIM"
+  },
+  {
+   "command": 24038,
+   "msgctxt": "ID_VIEW_CM_AMBIENTLIGHT_DARK",
+   "msgid": "D&ark (2.4 Gamma)",
+   "sym": "ID_VIEW_CM_AMBIENTLIGHT_DARK"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Rendering Intent",
+   "sym": "POPUP"
+  },
+  {
+   "command": 24039,
+   "msgctxt": "ID_VIEW_CM_INTENT_PERCEPTUAL",
+   "msgid": "&Perceptual",
+   "sym": "ID_VIEW_CM_INTENT_PERCEPTUAL"
+  },
+  {
+   "command": 24040,
+   "msgctxt": "ID_VIEW_CM_INTENT_RELATIVECOLORIMETRIC",
+   "msgid": "&Relative Colorimetric",
+   "sym": "ID_VIEW_CM_INTENT_RELATIVECOLORIMETRIC"
+  },
+  {
+   "command": 24041,
+   "msgctxt": "ID_VIEW_CM_INTENT_SATURATION",
+   "msgid": "&Saturation",
+   "sym": "ID_VIEW_CM_INTENT_SATURATION"
+  },
+  {
+   "command": 24042,
+   "msgctxt": "ID_VIEW_CM_INTENT_ABSOLUTECOLORIMETRIC",
+   "msgid": "&Absolute Colorimetric",
+   "sym": "ID_VIEW_CM_INTENT_ABSOLUTECOLORIMETRIC"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&VSync",
+   "sym": "POPUP"
+  },
+  {
+   "command": 33243,
+   "msgctxt": "ID_VIEW_VSYNC",
+   "msgid": "&VSync",
+   "sym": "ID_VIEW_VSYNC"
+  },
+  {
+   "command": 33260,
+   "msgctxt": "ID_VIEW_VSYNCACCURATE",
+   "msgid": "&Accurate VSync",
+   "sym": "ID_VIEW_VSYNCACCURATE"
+  },
+  {
+   "command": 33291,
+   "msgctxt": "ID_VIEW_ALTERNATIVEVSYNC",
+   "msgid": "A&lternative VSync",
+   "sym": "ID_VIEW_ALTERNATIVEVSYNC"
+  },
+  {
+   "command": 33246,
+   "msgctxt": "ID_VIEW_VSYNCOFFSET_DECREASE",
+   "msgid": "&Decrease VSync Offset",
+   "sym": "ID_VIEW_VSYNCOFFSET_DECREASE"
+  },
+  {
+   "command": 33247,
+   "msgctxt": "ID_VIEW_VSYNCOFFSET_INCREASE",
+   "msgid": "&Increase VSync Offset",
+   "sym": "ID_VIEW_VSYNCOFFSET_INCREASE"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&GPU Control",
+   "sym": "POPUP"
+  },
+  {
+   "command": 33286,
+   "msgctxt": "ID_VIEW_FLUSHGPU_BEFOREVSYNC",
+   "msgid": "Flush GPU &before VSync",
+   "sym": "ID_VIEW_FLUSHGPU_BEFOREVSYNC"
+  },
+  {
+   "command": 33287,
+   "msgctxt": "ID_VIEW_FLUSHGPU_AFTERPRESENT",
+   "msgid": "Flush GPU &after Present",
+   "sym": "ID_VIEW_FLUSHGPU_AFTERPRESENT"
+  },
+  {
+   "command": 33288,
+   "msgctxt": "ID_VIEW_FLUSHGPU_WAIT",
+   "msgid": "&Wait for flushes",
+   "sym": "ID_VIEW_FLUSHGPU_WAIT"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "R&eset",
+   "sym": "POPUP"
+  },
+  {
+   "command": 33292,
+   "msgctxt": "ID_VIEW_RESET_DEFAULT",
+   "msgid": "Reset to &default renderer settings",
+   "sym": "ID_VIEW_RESET_DEFAULT"
+  },
+  {
+   "command": 33293,
+   "msgctxt": "ID_VIEW_RESET_OPTIMAL",
+   "msgid": "Reset to &optimal renderer settings",
+   "sym": "ID_VIEW_RESET_OPTIMAL"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "Video &Frame",
+   "sym": "POPUP"
+  },
+  {
+   "command": 835,
+   "msgctxt": "ID_VIEW_VF_HALF",
+   "msgid": "&Half Size",
+   "sym": "ID_VIEW_VF_HALF"
+  },
+  {
+   "command": 836,
+   "msgctxt": "ID_VIEW_VF_NORMAL",
+   "msgid": "&Normal Size",
+   "sym": "ID_VIEW_VF_NORMAL"
+  },
+  {
+   "command": 837,
+   "msgctxt": "ID_VIEW_VF_DOUBLE",
+   "msgid": "&Double Size",
+   "sym": "ID_VIEW_VF_DOUBLE"
+  },
+  {
+   "command": 838,
+   "msgctxt": "ID_VIEW_VF_STRETCH",
+   "msgid": "&Stretch To Window",
+   "sym": "ID_VIEW_VF_STRETCH"
+  },
+  {
+   "command": 839,
+   "msgctxt": "ID_VIEW_VF_FROMINSIDE",
+   "msgid": "Touch Window From &Inside",
+   "sym": "ID_VIEW_VF_FROMINSIDE"
+  },
+  {
+   "command": 841,
+   "msgctxt": "ID_VIEW_VF_ZOOM1",
+   "msgid": "Zoom &1",
+   "sym": "ID_VIEW_VF_ZOOM1"
+  },
+  {
+   "command": 842,
+   "msgctxt": "ID_VIEW_VF_ZOOM2",
+   "msgid": "Zoom &2",
+   "sym": "ID_VIEW_VF_ZOOM2"
+  },
+  {
+   "command": 840,
+   "msgctxt": "ID_VIEW_VF_FROMOUTSIDE",
+   "msgid": "Touch Window From &Outside",
+   "sym": "ID_VIEW_VF_FROMOUTSIDE"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Aspect Ratio",
+   "sym": "POPUP"
+  },
+  {
+   "command": 850,
+   "msgctxt": "ID_ASPECTRATIO_DAR",
+   "msgid": "&Default (DAR)",
+   "sym": "ID_ASPECTRATIO_DAR"
+  },
+  {
+   "command": 851,
+   "msgctxt": "ID_ASPECTRATIO_4_3",
+   "msgid": "&4:3",
+   "sym": "ID_ASPECTRATIO_4_3"
+  },
+  {
+   "command": 852,
+   "msgctxt": "ID_ASPECTRATIO_5_4",
+   "msgid": "&5:4",
+   "sym": "ID_ASPECTRATIO_5_4"
+  },
+  {
+   "command": 853,
+   "msgctxt": "ID_ASPECTRATIO_16_9",
+   "msgid": "&16:9",
+   "sym": "ID_ASPECTRATIO_16_9"
+  },
+  {
+   "command": 854,
+   "msgctxt": "ID_ASPECTRATIO_235_100",
+   "msgid": "&235:100",
+   "sym": "ID_ASPECTRATIO_235_100"
+  },
+  {
+   "command": 855,
+   "msgctxt": "ID_ASPECTRATIO_185_100",
+   "msgid": "1&85:100",
+   "sym": "ID_ASPECTRATIO_185_100"
+  },
+  {
+   "command": 856,
+   "msgctxt": "ID_ASPECTRATIO_SAR",
+   "msgid": "Assume &square pixels (SAR)",
+   "sym": "ID_ASPECTRATIO_SAR"
+  },
+  {
+   "command": 845,
+   "msgctxt": "ID_VIEW_VF_COMPMONDESKARDIFF",
+   "msgid": "&Correct Monitor/Desktop AR Diff",
+   "sym": "ID_VIEW_VF_COMPMONDESKARDIFF"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "P&nS Frame Adjust",
+   "sym": "POPUP"
+  },
+  {
+   "command": 862,
+   "msgctxt": "ID_VIEW_INCSIZE",
+   "msgid": "&Increase Size",
+   "sym": "ID_VIEW_INCSIZE"
+  },
+  {
+   "command": 863,
+   "msgctxt": "ID_VIEW_DECSIZE",
+   "msgid": "&Decrease Size",
+   "sym": "ID_VIEW_DECSIZE"
+  },
+  {
+   "command": 864,
+   "msgctxt": "ID_VIEW_INCWIDTH",
+   "msgid": "I&ncrease Width",
+   "sym": "ID_VIEW_INCWIDTH"
+  },
+  {
+   "command": 865,
+   "msgctxt": "ID_VIEW_DECWIDTH",
+   "msgid": "D&ecrease Width",
+   "sym": "ID_VIEW_DECWIDTH"
+  },
+  {
+   "command": 866,
+   "msgctxt": "ID_VIEW_INCHEIGHT",
+   "msgid": "In&crease Height",
+   "sym": "ID_VIEW_INCHEIGHT"
+  },
+  {
+   "command": 867,
+   "msgctxt": "ID_VIEW_DECHEIGHT",
+   "msgid": "Decre&ase Height",
+   "sym": "ID_VIEW_DECHEIGHT"
+  },
+  {
+   "command": 869,
+   "msgctxt": "ID_PANSCAN_MOVERIGHT",
+   "msgid": "Move &Right",
+   "sym": "ID_PANSCAN_MOVERIGHT"
+  },
+  {
+   "command": 868,
+   "msgctxt": "ID_PANSCAN_MOVELEFT",
+   "msgid": "Move &Left",
+   "sym": "ID_PANSCAN_MOVELEFT"
+  },
+  {
+   "command": 870,
+   "msgctxt": "ID_PANSCAN_MOVEUP",
+   "msgid": "Move &Up",
+   "sym": "ID_PANSCAN_MOVEUP"
+  },
+  {
+   "command": 871,
+   "msgctxt": "ID_PANSCAN_MOVEDOWN",
+   "msgid": "Move &Down",
+   "sym": "ID_PANSCAN_MOVEDOWN"
+  },
+  {
+   "command": 876,
+   "msgctxt": "ID_PANSCAN_CENTER",
+   "msgid": "Cen&ter",
+   "sym": "ID_PANSCAN_CENTER"
+  },
+  {
+   "command": 882,
+   "msgctxt": "ID_PANSCAN_ROTATEZM",
+   "msgid": "Rotate Cloc&kwise",
+   "sym": "ID_PANSCAN_ROTATEZM"
+  },
+  {
+   "command": 881,
+   "msgctxt": "ID_PANSCAN_ROTATEZ270",
+   "msgid": "Rotate Counter-Clock&wise",
+   "sym": "ID_PANSCAN_ROTATEZ270"
+  },
+  {
+   "command": 878,
+   "msgctxt": "ID_PANSCAN_ROTATEXM",
+   "msgid": "&Flip Vertically",
+   "sym": "ID_PANSCAN_ROTATEXM"
+  },
+  {
+   "command": 880,
+   "msgctxt": "ID_PANSCAN_ROTATEYM",
+   "msgid": "&Mirror",
+   "sym": "ID_PANSCAN_ROTATEYM"
+  },
+  {
+   "command": 861,
+   "msgctxt": "ID_VIEW_RESET",
+   "msgid": "Re&set",
+   "sym": "ID_VIEW_RESET"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "On &Top",
+   "sym": "POPUP"
+  },
+  {
+   "command": 883,
+   "msgctxt": "ID_ONTOP_DEFAULT",
+   "msgid": "&Default",
+   "sym": "ID_ONTOP_DEFAULT"
+  },
+  {
+   "command": 884,
+   "msgctxt": "ID_ONTOP_ALWAYS",
+   "msgid": "&Always",
+   "sym": "ID_ONTOP_ALWAYS"
+  },
+  {
+   "command": 885,
+   "msgctxt": "ID_ONTOP_WHILEPLAYING",
+   "msgid": "While &Playing",
+   "sym": "ID_ONTOP_WHILEPLAYING"
+  },
+  {
+   "command": 886,
+   "msgctxt": "ID_ONTOP_WHILEPLAYINGVIDEO",
+   "msgid": "While Playing &Video",
+   "sym": "ID_ONTOP_WHILEPLAYINGVIDEO"
+  },
+  {
+   "command": 815,
+   "msgctxt": "ID_VIEW_OPTIONS",
+   "msgid": "&Options...",
+   "sym": "ID_VIEW_OPTIONS"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Play",
+   "sym": "POPUP"
+  },
+  {
+   "command": 889,
+   "msgctxt": "ID_PLAY_PLAYPAUSE",
+   "msgid": "&Play/Pause",
+   "sym": "ID_PLAY_PLAYPAUSE"
+  },
+  {
+   "command": 890,
+   "msgctxt": "ID_PLAY_STOP",
+   "msgid": "&Stop",
+   "sym": "ID_PLAY_STOP"
+  },
+  {
+   "command": 891,
+   "msgctxt": "ID_PLAY_FRAMESTEP",
+   "msgid": "Fra&me Step",
+   "sym": "ID_PLAY_FRAMESTEP"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Repeat",
+   "sym": "POPUP"
+  },
+  {
+   "command": 33449,
+   "msgctxt": "ID_PLAY_REPEAT_FOREVER",
+   "msgid": "F&orever",
+   "sym": "ID_PLAY_REPEAT_FOREVER"
+  },
+  {
+   "command": 33450,
+   "msgctxt": "ID_PLAY_REPEAT_ONEFILE",
+   "msgid": "&File",
+   "sym": "ID_PLAY_REPEAT_ONEFILE"
+  },
+  {
+   "command": 33451,
+   "msgctxt": "ID_PLAY_REPEAT_WHOLEPLAYLIST",
+   "msgid": "&Playlist",
+   "sym": "ID_PLAY_REPEAT_WHOLEPLAYLIST"
+  },
+  {
+   "command": 33453,
+   "msgctxt": "ID_PLAY_REPEAT_AB",
+   "msgid": "A-B (&Reset)",
+   "sym": "ID_PLAY_REPEAT_AB"
+  },
+  {
+   "command": 33454,
+   "msgctxt": "ID_PLAY_REPEAT_AB_MARK_A",
+   "msgid": "A-B (Mark &A)",
+   "sym": "ID_PLAY_REPEAT_AB_MARK_A"
+  },
+  {
+   "command": 33455,
+   "msgctxt": "ID_PLAY_REPEAT_AB_MARK_B",
+   "msgid": "A-B (Mark &B)",
+   "sym": "ID_PLAY_REPEAT_AB_MARK_B"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Playback Rate",
+   "sym": "POPUP"
+  },
+  {
+   "command": 5001,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_025",
+   "msgid": "0.25 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_025"
+  },
+  {
+   "command": 5002,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_050",
+   "msgid": "0.50 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_050"
+  },
+  {
+   "command": 5003,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_075",
+   "msgid": "0.75 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_075"
+  },
+  {
+   "command": 5004,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_090",
+   "msgid": "0.90 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_090"
+  },
+  {
+   "command": 5005,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_100",
+   "msgid": "1.00 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_100"
+  },
+  {
+   "command": 5006,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_110",
+   "msgid": "1.10 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_110"
+  },
+  {
+   "command": 5007,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_125",
+   "msgid": "1.25 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_125"
+  },
+  {
+   "command": 5008,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_150",
+   "msgid": "1.50 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_150"
+  },
+  {
+   "command": 5009,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_175",
+   "msgid": "1.75 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_175"
+  },
+  {
+   "command": 5010,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_200",
+   "msgid": "2.00 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_200"
+  },
+  {
+   "command": 5011,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_300",
+   "msgid": "3.00 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_300"
+  },
+  {
+   "command": 5012,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_400",
+   "msgid": "4.00 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_400"
+  },
+  {
+   "command": 5013,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_600",
+   "msgid": "6.00 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_600"
+  },
+  {
+   "command": 5014,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_800",
+   "msgid": "8.00 x",
+   "sym": "ID_PLAY_PLAYBACKRATE_800"
+  },
+  {
+   "command": 5019,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_FPS23",
+   "msgid": "23.976 fps",
+   "sym": "ID_PLAY_PLAYBACKRATE_FPS23"
+  },
+  {
+   "command": 5020,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_FPS24",
+   "msgid": "24 fps",
+   "sym": "ID_PLAY_PLAYBACKRATE_FPS24"
+  },
+  {
+   "command": 5021,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_FPS25",
+   "msgid": "25 fps",
+   "sym": "ID_PLAY_PLAYBACKRATE_FPS25"
+  },
+  {
+   "command": 5022,
+   "msgctxt": "ID_PLAY_PLAYBACKRATE_FPS59",
+   "msgid": "59.94 fps",
+   "sym": "ID_PLAY_PLAYBACKRATE_FPS59"
+  },
+  {
+   "command": 894,
+   "msgctxt": "ID_PLAY_DECRATE",
+   "msgid": "&Decrease Rate",
+   "sym": "ID_PLAY_DECRATE"
+  },
+  {
+   "command": 895,
+   "msgctxt": "ID_PLAY_INCRATE",
+   "msgid": "&Increase Rate",
+   "sym": "ID_PLAY_INCRATE"
+  },
+  {
+   "command": 896,
+   "msgctxt": "ID_PLAY_RESETRATE",
+   "msgid": "R&eset Rate",
+   "sym": "ID_PLAY_RESETRATE"
+  },
+  {
+   "command": 977,
+   "msgctxt": "ID_FILTERS",
+   "msgid": "&Filters",
+   "sym": "ID_FILTERS"
+  },
+  {
+   "command": 32775,
+   "msgctxt": "ID_SHADERS",
+   "msgid": "S&haders",
+   "sym": "ID_SHADERS"
+  },
+  {
+   "command": 978,
+   "msgctxt": "ID_AUDIOS",
+   "msgid": "&Audio Track",
+   "sym": "ID_AUDIOS"
+  },
+  {
+   "command": 979,
+   "msgctxt": "ID_SUBTITLES",
+   "msgid": "Su&btitle Track",
+   "sym": "ID_SUBTITLES"
+  },
+  {
+   "command": 980,
+   "msgctxt": "ID_VIDEO_STREAMS",
+   "msgid": "Vide&o Track",
+   "sym": "ID_VIDEO_STREAMS"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Volume",
+   "sym": "POPUP"
+  },
+  {
+   "command": 907,
+   "msgctxt": "ID_VOLUME_UP",
+   "msgid": "&Up",
+   "sym": "ID_VOLUME_UP"
+  },
+  {
+   "command": 908,
+   "msgctxt": "ID_VOLUME_DOWN",
+   "msgid": "&Down",
+   "sym": "ID_VOLUME_DOWN"
+  },
+  {
+   "command": 909,
+   "msgctxt": "ID_VOLUME_MUTE",
+   "msgid": "&Mute",
+   "sym": "ID_VOLUME_MUTE"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "Af&ter Playback",
+   "sym": "POPUP"
+  },
+  {
+   "command": 948,
+   "msgctxt": "ID_AFTERPLAYBACK_DONOTHING",
+   "msgid": "Do no&thing",
+   "sym": "ID_AFTERPLAYBACK_DONOTHING"
+  },
+  {
+   "command": 947,
+   "msgctxt": "ID_AFTERPLAYBACK_PLAYNEXT",
+   "msgid": "Play &next file in the folder",
+   "sym": "ID_AFTERPLAYBACK_PLAYNEXT"
+  },
+  {
+   "command": 918,
+   "msgctxt": "ID_AFTERPLAYBACK_MONITOROFF",
+   "msgid": "Turn off the &monitor",
+   "sym": "ID_AFTERPLAYBACK_MONITOROFF"
+  },
+  {
+   "command": 912,
+   "msgctxt": "ID_AFTERPLAYBACK_EXIT",
+   "msgid": "&Exit",
+   "sym": "ID_AFTERPLAYBACK_EXIT"
+  },
+  {
+   "command": 913,
+   "msgctxt": "ID_AFTERPLAYBACK_STANDBY",
+   "msgid": "&Stand By",
+   "sym": "ID_AFTERPLAYBACK_STANDBY"
+  },
+  {
+   "command": 914,
+   "msgctxt": "ID_AFTERPLAYBACK_HIBERNATE",
+   "msgid": "&Hibernate",
+   "sym": "ID_AFTERPLAYBACK_HIBERNATE"
+  },
+  {
+   "command": 915,
+   "msgctxt": "ID_AFTERPLAYBACK_SHUTDOWN",
+   "msgid": "Shut&down",
+   "sym": "ID_AFTERPLAYBACK_SHUTDOWN"
+  },
+  {
+   "command": 916,
+   "msgctxt": "ID_AFTERPLAYBACK_LOGOFF",
+   "msgid": "Log &Off",
+   "sym": "ID_AFTERPLAYBACK_LOGOFF"
+  },
+  {
+   "command": 917,
+   "msgctxt": "ID_AFTERPLAYBACK_LOCK",
+   "msgid": "&Lock",
+   "sym": "ID_AFTERPLAYBACK_LOCK"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Navigate",
+   "sym": "POPUP"
+  },
+  {
+   "command": 921,
+   "msgctxt": "ID_NAVIGATE_SKIPBACK",
+   "msgid": "&Previous",
+   "sym": "ID_NAVIGATE_SKIPBACK"
+  },
+  {
+   "command": 922,
+   "msgctxt": "ID_NAVIGATE_SKIPFORWARD",
+   "msgid": "&Next",
+   "sym": "ID_NAVIGATE_SKIPFORWARD"
+  },
+  {
+   "command": 893,
+   "msgctxt": "ID_NAVIGATE_GOTO",
+   "msgid": "&Go To...",
+   "sym": "ID_NAVIGATE_GOTO"
+  },
+  {
+   "command": 923,
+   "msgctxt": "ID_NAVIGATE_TITLEMENU",
+   "msgid": "&Title Menu",
+   "sym": "ID_NAVIGATE_TITLEMENU"
+  },
+  {
+   "command": 924,
+   "msgctxt": "ID_NAVIGATE_ROOTMENU",
+   "msgid": "&Root Menu",
+   "sym": "ID_NAVIGATE_ROOTMENU"
+  },
+  {
+   "command": 925,
+   "msgctxt": "ID_NAVIGATE_SUBPICTUREMENU",
+   "msgid": "&Subtitle Menu",
+   "sym": "ID_NAVIGATE_SUBPICTUREMENU"
+  },
+  {
+   "command": 926,
+   "msgctxt": "ID_NAVIGATE_AUDIOMENU",
+   "msgid": "&Audio Menu",
+   "sym": "ID_NAVIGATE_AUDIOMENU"
+  },
+  {
+   "command": 927,
+   "msgctxt": "ID_NAVIGATE_ANGLEMENU",
+   "msgid": "An&gle Menu",
+   "sym": "ID_NAVIGATE_ANGLEMENU"
+  },
+  {
+   "command": 928,
+   "msgctxt": "ID_NAVIGATE_CHAPTERMENU",
+   "msgid": "&Chapter Menu",
+   "sym": "ID_NAVIGATE_CHAPTERMENU"
+  },
+  {
+   "command": 936,
+   "msgctxt": "ID_FAVORITES",
+   "msgid": "F&avorites",
+   "sym": "ID_FAVORITES"
+  },
+  {
+   "command": null,
+   "msgctxt": "POPUP",
+   "msgid": "&Help",
+   "sym": "POPUP"
+  },
+  {
+   "command": 939,
+   "msgctxt": "ID_HELP_HOMEPAGE",
+   "msgid": "&Home Page",
+   "sym": "ID_HELP_HOMEPAGE"
+  },
+  {
+   "command": 41321,
+   "msgctxt": "ID_HELP_CHECKFORUPDATE",
+   "msgid": "Check for &updates",
+   "sym": "ID_HELP_CHECKFORUPDATE"
+  },
+  {
+   "command": 941,
+   "msgctxt": "ID_HELP_SHOWCOMMANDLINESWITCHES",
+   "msgid": "&Command Line Switches",
+   "sym": "ID_HELP_SHOWCOMMANDLINESWITCHES"
+  },
+  {
+   "command": 942,
+   "msgctxt": "ID_HELP_TOOLBARIMAGES",
+   "msgid": "Download &Toolbar Images",
+   "sym": "ID_HELP_TOOLBARIMAGES"
+  },
+  {
+   "command": 940,
+   "msgctxt": "ID_HELP_DONATE",
+   "msgid": "&Donate",
+   "sym": "ID_HELP_DONATE"
+  },
+  {
+   "command": 943,
+   "msgctxt": "ID_HELP_ABOUT",
+   "msgid": "&About...",
+   "sym": "ID_HELP_ABOUT"
+  }
+ ],
+ "schema": 1,
+ "upstream_sha": "9c6c72eaa8681a71209b55edd8878dd4702390d7"
+}

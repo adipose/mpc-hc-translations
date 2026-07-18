@@ -1,0 +1,215 @@
+{
+ "schema": 1,
+ "version": "98a5524",
+ "generated": "2026-07-16T21:12:49Z",
+ "files": {
+  "dist/core-enrichment.sqlite": {
+   "sha256": "f3a80c3167b51f047c3c434c023a4e10ac53f12cddc90000e75f515b41444a3c",
+   "size": 921600
+  },
+  "dist/control-index.json": {
+   "sha256": "99ad31cfccac5ce802370b2755357fb51c43630ec254d8d599507892491c8140",
+   "size": 108032
+  },
+  "enrichment/lang/af.sqlite": {
+   "sha256": "6936f2d430361816c94961568ab738eb08259023a95ef7615e146a53cb54a8f6",
+   "size": 20480
+  },
+  "enrichment/lang/ar.sqlite": {
+   "sha256": "fe9bdead5cb884c723a0cabb876b96e2f390acd49893c39afcd8f5d400ec5249",
+   "size": 53248
+  },
+  "enrichment/lang/be.sqlite": {
+   "sha256": "54986f6021c62af4e5e8a0ea8a292b78ef690d8b37f216a823a0c1ac914cf953",
+   "size": 24576
+  },
+  "enrichment/lang/bg.sqlite": {
+   "sha256": "5a6e5f0dcd08d358775837f152e4fedaee6c3d4902b8e9283eeb32299fc4f833",
+   "size": 28672
+  },
+  "enrichment/lang/bn.sqlite": {
+   "sha256": "3f57c70165081271e2fa8f700d0a573ad9cc367fd7af6b13c66e58aec70179b5",
+   "size": 32768
+  },
+  "enrichment/lang/bs_BA.sqlite": {
+   "sha256": "73bd2e7976c9e90643aadd651efb91693887e9a432ddc463f10bf3a760f4f4d3",
+   "size": 36864
+  },
+  "enrichment/lang/ca.sqlite": {
+   "sha256": "228afcb8bc6eae05c0ca1ef3af3e662541dc4f2c424b25852263f5f4a8735f09",
+   "size": 36864
+  },
+  "enrichment/lang/cs.sqlite": {
+   "sha256": "c70884edc48c9564cbf448ddd29b59816c20e3c280ae026b68b06b32bb06dbcc",
+   "size": 24576
+  },
+  "enrichment/lang/da.sqlite": {
+   "sha256": "7d9f5ea74bd53609b5f25e4877cd16fef63099b49a810ca3fa81969d59edf4bd",
+   "size": 36864
+  },
+  "enrichment/lang/de.sqlite": {
+   "sha256": "25a468164f46b1b690176574bedd9ee92e4b69a117048f3f68f4214da9b6d2e4",
+   "size": 24576
+  },
+  "enrichment/lang/el.sqlite": {
+   "sha256": "897f681d637cda400fa2a3d7c13fdf9e159cace6f3c47abda270996bd0cb041b",
+   "size": 40960
+  },
+  "enrichment/lang/en_GB.sqlite": {
+   "sha256": "2aec4569e84560659d7d19f1ab1b4f5d005b3e694fa3a3cb45d54e90f1c17635",
+   "size": 12288
+  },
+  "enrichment/lang/es.sqlite": {
+   "sha256": "bc295a5ff4cb296dcb1250ead2ad5f5fdad5eddadd4c892923957ea3c9981708",
+   "size": 24576
+  },
+  "enrichment/lang/et.sqlite": {
+   "sha256": "60d4d31ce2d406f026c926ca551d2cebe7a5838c5f89d170c31fe55b6b660a3f",
+   "size": 24576
+  },
+  "enrichment/lang/eu.sqlite": {
+   "sha256": "05eec1574cf2715b102f7f744221815a29f4a08602a1e4dfb5ad258a2a58fd75",
+   "size": 20480
+  },
+  "enrichment/lang/fa.sqlite": {
+   "sha256": "2865e59357be0cbf878db8b2248e44efb469b255d578a825051b1ae0800a0d23",
+   "size": 24576
+  },
+  "enrichment/lang/fi.sqlite": {
+   "sha256": "fbfc4c66b571d8d5743e2a34ccf29c77edd57c9f0d497ad89f568dd7b10b3b54",
+   "size": 20480
+  },
+  "enrichment/lang/fr.sqlite": {
+   "sha256": "4c481ad640f9c9df9e15ce4ade69fd9abe185b735378198bd575e3cb09ccdc48",
+   "size": 24576
+  },
+  "enrichment/lang/gl.sqlite": {
+   "sha256": "2e447dec641769060da0c3051303d801eec6937616879b3c31283516d4dcde60",
+   "size": 24576
+  },
+  "enrichment/lang/he.sqlite": {
+   "sha256": "afe9e119f97d15b793b94c653c2d6addde84111012fda37fddce72cb2dcc973f",
+   "size": 28672
+  },
+  "enrichment/lang/hi.sqlite": {
+   "sha256": "1b12c8910d7689ad16f7565ed07d5a39001be91c54f4a00ef7d2f5b4aaf05de5",
+   "size": 24576
+  },
+  "enrichment/lang/hr.sqlite": {
+   "sha256": "e36e4367192a688e4b25e0ad7ffe2b82b9705d3360c775319dca28b22fefb44e",
+   "size": 20480
+  },
+  "enrichment/lang/hu.sqlite": {
+   "sha256": "81600a53be6d4d3cafc1c6ef87fff9b9f1b085476964d061aed88d4f7fa8e2a5",
+   "size": 24576
+  },
+  "enrichment/lang/hy.sqlite": {
+   "sha256": "cde6271a3071362b5b22573df247f44a3286b5842df79cb5f87a3e75791c13aa",
+   "size": 24576
+  },
+  "enrichment/lang/id.sqlite": {
+   "sha256": "18d981532e290043959104e32ad1cb090580db217cafc7d5a94cb2492eda4025",
+   "size": 28672
+  },
+  "enrichment/lang/it.sqlite": {
+   "sha256": "13de65a6c39560d3c5d178e9262fef8964f787170c8f33036166b1e74b7168e6",
+   "size": 24576
+  },
+  "enrichment/lang/ja.sqlite": {
+   "sha256": "09d479425fdd4d425e4ec904fa69e2a01b3aa11450dcce5a24d54ec8666b5818",
+   "size": 24576
+  },
+  "enrichment/lang/ka.sqlite": {
+   "sha256": "535577c2182c2d8ed18f7d58d96b2c4095bd4e875678334641c686faf5a22d41",
+   "size": 24576
+  },
+  "enrichment/lang/ko.sqlite": {
+   "sha256": "909576a413a8979dc63afc72add0ee2b596c62a1011bc738e70636a4c5232f8d",
+   "size": 24576
+  },
+  "enrichment/lang/ms_MY.sqlite": {
+   "sha256": "40b8e9be433852cacdcb2174f13c6defc53f57ccbca9c1b0a84ab7256a3913f5",
+   "size": 20480
+  },
+  "enrichment/lang/nb.sqlite": {
+   "sha256": "b4309215388e9da93138169a0c98bb525917c869bd4372af07ac5228e21fed1f",
+   "size": 20480
+  },
+  "enrichment/lang/nl.sqlite": {
+   "sha256": "acb566fc58d98f6394dd8ae3b0385eb91fcd96386d7b4e859fd6c9a872a10a39",
+   "size": 20480
+  },
+  "enrichment/lang/pa.sqlite": {
+   "sha256": "86682625532842b755fa7b289bb27ca1b3d35361755d8d9f7ff3c2e7816de8d7",
+   "size": 126976
+  },
+  "enrichment/lang/pl.sqlite": {
+   "sha256": "074cf05f04e563b0283f2c8a180fd2947d757a0f7942df8f938093463d5e1b8d",
+   "size": 24576
+  },
+  "enrichment/lang/pt_BR.sqlite": {
+   "sha256": "1dfd0fdb024ebb4f13a39ad4fb779292a4123a8a94c8462544e15eafb8d5aacd",
+   "size": 24576
+  },
+  "enrichment/lang/pt_PT.sqlite": {
+   "sha256": "cc54dc9e725706185c7b9e3288368e6d30dee61b2b82ebdd0317724a731372d2",
+   "size": 12288
+  },
+  "enrichment/lang/ro.sqlite": {
+   "sha256": "19241b0c170ec83b6e414594f72cec3be2ae7da8090011a1c7c94b291f030b6c",
+   "size": 24576
+  },
+  "enrichment/lang/ru.sqlite": {
+   "sha256": "92ba4034ee53003fe7d0108582d6b948eca05905c999990f05384a3118d642a6",
+   "size": 28672
+  },
+  "enrichment/lang/sk.sqlite": {
+   "sha256": "24fca56e2748e49a2dfce0fcfd77a8eea8afb7e300700932614255daeae0b4cd",
+   "size": 24576
+  },
+  "enrichment/lang/sl.sqlite": {
+   "sha256": "6e5d1368831636fe198e7d1561f47d09a311cd7387b073fd085ee140cb51bdc8",
+   "size": 36864
+  },
+  "enrichment/lang/sq.sqlite": {
+   "sha256": "232a40705b07e67d2b67002c6dec2b732787ba03dd91c51786f42cd46dd78e42",
+   "size": 20480
+  },
+  "enrichment/lang/sr.sqlite": {
+   "sha256": "566a2d9e07007fc25a4d51c573c431d552ba684ef7dd0917cb6b679c8e7bd6eb",
+   "size": 32768
+  },
+  "enrichment/lang/sv.sqlite": {
+   "sha256": "2fa98b836fd01fdbf04ef9ed58ae60a523f28478ed607e402911751959260441",
+   "size": 20480
+  },
+  "enrichment/lang/th_TH.sqlite": {
+   "sha256": "3c476a84517284a8b76f3968d8994a9acc0b4f971eea160c09d411099ac7d981",
+   "size": 28672
+  },
+  "enrichment/lang/tr.sqlite": {
+   "sha256": "8cae561c3675bccedb7fbd7d942c910d1397e0361322de31ba8b7fce2fd8f4c1",
+   "size": 24576
+  },
+  "enrichment/lang/tt.sqlite": {
+   "sha256": "ebd1d520d0d139b3d57014d514b87dfc9eb9a61cb747233379f6cfe639c24842",
+   "size": 24576
+  },
+  "enrichment/lang/uk.sqlite": {
+   "sha256": "2e0c2fc3a5ac377fd75d03307a39e6bde24d7ecd328362de6d66712fbfb66e3d",
+   "size": 45056
+  },
+  "enrichment/lang/vi.sqlite": {
+   "sha256": "50d8eb72d4fbae9e8c61cc36d222d6a16b30ef51758bea63c0a5eed476ffa5f9",
+   "size": 32768
+  },
+  "enrichment/lang/zh_CN.sqlite": {
+   "sha256": "7871d2b1e74332d31e6e60127f9ec95b41b18cb245b17bfb9aca0e6417d9750c",
+   "size": 24576
+  },
+  "enrichment/lang/zh_TW.sqlite": {
+   "sha256": "0583b1a2beb07bf93f3fbd058fb9df34de9be726479d0aaea1b84c62e6bb19ea",
+   "size": 24576
+  }
+ }
+}
