@@ -22,8 +22,11 @@ def main():
     nextid = (con.execute("select coalesce(max(id), 0) from strings").fetchone()[0]) + 1
 
     universe = {}
-    for pot in glob.glob(f"{PO}/mpc-hc.*.pot"):
-        res = os.path.basename(pot).split(".")[-2]   # strings|dialogs|menus
+    # ONLY the three app resource templates -- NOT mpc-hc.installer.strings.pot (InnoSetup setup-wizard
+    # strings, which are not part of the app UI the Studio translates).
+    for res in ("strings", "dialogs", "menus"):
+        pot = os.path.join(PO, f"mpc-hc.{res}.pot")
+        if not os.path.exists(pot): continue
         try: p = polib.pofile(pot)
         except Exception: continue
         for e in p:
