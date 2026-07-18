@@ -10,10 +10,10 @@
 #   pwsh bundle-build/publish.ps1            # gated: fill + build only if RC/PO changed
 #   pwsh bundle-build/publish.ps1 -Force     # build even with no string change
 #
-# New upstream strings are added to core-enrichment (sync_core_strings.py) so they get a string_id and
-# an AI translation from English + siblings immediately; their rich Meaning is filled in later when
-# core-enrichment is regenerated from the private lab DB. THIS is the build command -- it ends by
-# pushing and publishing a GitHub Release. (build_local.ps1 is the compile-only step it calls.)
+# New upstream strings are added to core-enrichment (sync_core_strings.py), given a Meaning via the
+# model (generate_meanings.py), then hinted and translated -- all at build time, no lab DB required.
+# THIS is the build command -- it ends by pushing and publishing a GitHub Release. (The private lab DB,
+# when re-run, just yields richer Meanings; build_local.ps1 is the compile-only step this calls.)
 param([switch]$Force, [double]$Threshold = 85, [string]$Model = "claude-sonnet-5",
       [ValidateSet("claude-code", "api")][string]$Backend = "claude-code")
 $ErrorActionPreference = "Stop"
@@ -50,9 +50,10 @@ python bundle-build/build_index.py `
     --mpcres upstream/src/mpc-hc/mpcresources --out dist/control-index.json
 if ($LASTEXITCODE) { throw "build_index failed" }
 python bundle-build/sync_core_strings.py    # add any new upstream strings to core-enrichment (empty Meaning)
+python bundle-build/generate_meanings.py --model $Model --backend $Backend    # fill Meanings for new strings
+python bundle-build/generate_hints.py --db dist/core-enrichment.sqlite --only-missing --llm --model $Model --backend $Backend
 python bundle-build/ai_fill.py --threshold $Threshold --model $Model --backend $Backend
 if ($LASTEXITCODE) { throw "ai_fill failed" }
-python bundle-build/generate_hints.py --db dist/core-enrichment.sqlite --only-missing --llm --model $Model --backend $Backend
 python bundle-build/report_ai_coverage.py
 python bundle-build/make_manifest.py
 
