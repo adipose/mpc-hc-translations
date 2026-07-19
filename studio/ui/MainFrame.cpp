@@ -346,6 +346,9 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_previewHost.Create(AfxRegisterWndClass(0, ::LoadCursor(nullptr, IDC_ARROW), Theme::windowBrush()),
                          L"", ST | WS_BORDER | WS_CLIPCHILDREN | WS_VSCROLL | WS_HSCROLL, z, this, 0);
     m_previewHost.OnScrolled = [this] { ReapplyHighlight(); };   // keep the ring synced to the scrolled child
+    // The host is a custom AfxRegisterWndClass window, so Theme::ApplyToChildren (which keys on known
+    // control classes) skips it -- theme its non-client scrollbars explicitly so they follow the mode.
+    ::SetWindowTheme(m_previewHost.GetSafeHwnd(), Theme::IsDark() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
     // command-line usage list (the "command dialog"): a read-only multiline edit shown over the
     // preview when an IDS_CMD_* string is selected. Parented to the frame so OnCtlColor themes it.
     m_cmdHelp.Create(WS_CHILD | WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL,
@@ -1981,6 +1984,8 @@ void MainFrame::ApplyThemeChange(Theme::Mode m) {
     Theme::SetMode(m);
     Theme::ApplyTitleBar(m_hWnd);
     Theme::ApplyToChildren(GetSafeHwnd());          // re-applies SetWindowTheme + list/tree colors
+    ::SetWindowTheme(m_previewHost.GetSafeHwnd(),    // custom class: ApplyToChildren skips it -> theme its scrollbars
+                     Theme::IsDark() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
     m_progress.SetBkColor(Theme::WINDOW_BG);
     ReloadFrameMenu();                              // File/View menu: owner-drawn or native per mode
     m_barMenuId = -1;                               // force the bar-preview menu to rebuild
