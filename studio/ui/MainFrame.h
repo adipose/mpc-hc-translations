@@ -4,6 +4,7 @@
 #include <afxcmn.h>
 #include <array>
 #include <atomic>
+#include <functional>
 #include <map>
 #include <optional>
 #include <set>
@@ -35,11 +36,28 @@ protected:
 };
 
 // The preview host (behind the embedded dialog). Its own background is palette-aware so the margin
-// around the dialog matches the active theme; a plain CWnd would show its stale class brush.
+// around the dialog matches the active theme; a plain CWnd would show its stale class brush. Also a
+// scrollable viewport: its one child (the rendered dialog HWND) is created at its natural template
+// size and, when it doesn't fit, is scrolled by MOVING it (never resized) — see RecalcAndReposition
+// in MainFrame.cpp. Used ONLY for m_previewHost.
 class CThemedHostWnd : public CWnd {
+public:
+    // (Re)compute scroll range/scrollbars and reposition the child; reset=true also zeros the scroll
+    // position (e.g. after rendering a freshly-selected dialog).
+    void SyncScroll(bool resetPos = false);
+    // Fired after every scroll/reposition (RecalcAndReposition) so the caller can re-sync anything that
+    // tracks the child's screen position (e.g. the red locator ring).
+    std::function<void()> OnScrolled;
 protected:
     afx_msg BOOL OnEraseBkgnd(CDC*);
+    afx_msg void OnVScroll(UINT, UINT, CScrollBar*);
+    afx_msg void OnHScroll(UINT, UINT, CScrollBar*);
+    afx_msg BOOL OnMouseWheel(UINT, short, CPoint);
+    afx_msg void OnSize(UINT, int, int);
     DECLARE_MESSAGE_MAP()
+private:
+    void RecalcAndReposition();
+    int m_scrollX = 0, m_scrollY = 0;
 };
 
 // One control in a synthesized dialog mock-up (a dialog MPC-HC builds in C++ with no RC template, so

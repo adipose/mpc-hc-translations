@@ -344,7 +344,8 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_list.InsertColumn(2, L"Translation", LVCFMT_LEFT, S(150));
     m_list.InsertColumn(3, L"Flag", LVCFMT_LEFT, S(220));   // Review tab only; harmless on other tabs
     m_previewHost.Create(AfxRegisterWndClass(0, ::LoadCursor(nullptr, IDC_ARROW), Theme::windowBrush()),
-                         L"", ST | WS_BORDER | WS_CLIPCHILDREN, z, this, 0);
+                         L"", ST | WS_BORDER | WS_CLIPCHILDREN | WS_VSCROLL | WS_HSCROLL, z, this, 0);
+    m_previewHost.OnScrolled = [this] { ReapplyHighlight(); };   // keep the ring synced to the scrolled child
     // command-line usage list (the "command dialog"): a read-only multiline edit shown over the
     // preview when an IDS_CMD_* string is selected. Parented to the frame so OnCtlColor themes it.
     m_cmdHelp.Create(WS_CHILD | WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL,
@@ -1120,10 +1121,12 @@ void MainFrame::RenderCurrentDialog() {
     // the tree; a loose string with no dialog gets a mock-up instead — see SelectRow).
     if (tab == RES_MENUS || m_curDialog < 0 || !m_checkedOut) {
         m_preview.DestroyPreview();
+        m_previewHost.SyncScroll(true);   // no child now -> RecalcAndReposition hides any stale scrollbars
         return;
     }
     HWND dlg = m_preview.RenderDialog(m_curDialog, &m_previewHost, Idx(), m_po[RES_DIALOGS]);
     if (dlg) ::SetWindowPos(dlg, nullptr, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    m_previewHost.SyncScroll(true);   // reset to top-left and compute the fresh dialog's scroll range
 }
 
 // Which IDD dialog (if any) a string belongs to — for pulling its dialog into the preview.
@@ -1581,9 +1584,81 @@ BOOL CMenuBarWnd::OnEraseBkgnd(CDC* pDC) {
 
 BEGIN_MESSAGE_MAP(CThemedHostWnd, CWnd)
     ON_WM_ERASEBKGND()
+    ON_WM_VSCROLL()
+    ON_WM_HSCROLL()
+    ON_WM_MOUSEWHEEL()
+    ON_WM_SIZE()
 END_MESSAGE_MAP()
 BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     CRect rc; GetClientRect(&rc); pDC->FillSolidRect(rc, Theme::WINDOW_BG); return TRUE;
+}
+// Recompute the scroll range from the child's natural (template) size vs. the host's client area,
+// update both scrollbars (SIF_DISABLENOSCROLL deliberately omitted so Windows auto-hides a bar once
+// its page covers the full range -- "no scrollbar when it fits", for free), then reposition the child
+// by MOVING it (SWP_NOSIZE -- it is never resized) to -m_scrollX/-m_scrollY.
+void CThemedHostWnd::RecalcAndReposition() {
+    HWND child = ::GetWindow(m_hWnd, GW_CHILD);
+    if (!child) { ShowScrollBar(SB_BOTH, FALSE); return; }
+    RECT wr; ::GetWindowRect(child, &wr);
+    int childW = wr.right - wr.left, childH = wr.bottom - wr.top;
+    CRect cc; GetClientRect(&cc);
+    int maxX = max(0, childW - cc.Width()), maxY = max(0, childH - cc.Height());
+    m_scrollX = max(0, min(m_scrollX, maxX));
+    m_scrollY = max(0, min(m_scrollY, maxY));
+    SCROLLINFO si{ sizeof(SCROLLINFO), SIF_RANGE | SIF_PAGE | SIF_POS };
+    si.nMin = 0; si.nMax = childH > 0 ? childH - 1 : 0; si.nPage = cc.Height(); si.nPos = m_scrollY;
+    SetScrollInfo(SB_VERT, &si, TRUE);
+    si.nMax = childW > 0 ? childW - 1 : 0; si.nPage = cc.Width(); si.nPos = m_scrollX;
+    SetScrollInfo(SB_HORZ, &si, TRUE);
+    ::SetWindowPos(child, nullptr, -m_scrollX, -m_scrollY, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    if (OnScrolled) OnScrolled();
+}
+void CThemedHostWnd::SyncScroll(bool resetPos) {
+    if (resetPos) m_scrollX = m_scrollY = 0;
+    RecalcAndReposition();
+}
+void CThemedHostWnd::OnSize(UINT nType, int cx, int cy) {
+    CWnd::OnSize(nType, cx, cy);
+    RecalcAndReposition();           // preserve scroll position across resizes
+}
+void CThemedHostWnd::OnVScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar) {
+    switch (nSBCode) {
+        case SB_LINEUP:   m_scrollY -= 24; break;
+        case SB_LINEDOWN: m_scrollY += 24; break;
+        case SB_PAGEUP:   { CRect cc; GetClientRect(&cc); m_scrollY -= cc.Height(); break; }
+        case SB_PAGEDOWN: { CRect cc; GetClientRect(&cc); m_scrollY += cc.Height(); break; }
+        case SB_THUMBTRACK: case SB_THUMBPOSITION: {
+            SCROLLINFO si{ sizeof(SCROLLINFO), SIF_TRACKPOS };
+            GetScrollInfo(SB_VERT, &si, SIF_TRACKPOS);   // 32-bit pos -- nPos param would truncate on large ranges
+            m_scrollY = si.nTrackPos;
+            break;
+        }
+        case SB_TOP:    m_scrollY = 0; break;
+        case SB_BOTTOM: m_scrollY = 0x3FFFFFFF; break;   // clamped to maxY below
+    }
+    RecalcAndReposition();   // clamps m_scrollY into range
+}
+void CThemedHostWnd::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar) {
+    switch (nSBCode) {
+        case SB_LINEUP:   m_scrollX -= 24; break;
+        case SB_LINEDOWN: m_scrollX += 24; break;
+        case SB_PAGEUP:   { CRect cc; GetClientRect(&cc); m_scrollX -= cc.Width(); break; }
+        case SB_PAGEDOWN: { CRect cc; GetClientRect(&cc); m_scrollX += cc.Width(); break; }
+        case SB_THUMBTRACK: case SB_THUMBPOSITION: {
+            SCROLLINFO si{ sizeof(SCROLLINFO), SIF_TRACKPOS };
+            GetScrollInfo(SB_HORZ, &si, SIF_TRACKPOS);   // 32-bit pos -- nPos param would truncate on large ranges
+            m_scrollX = si.nTrackPos;
+            break;
+        }
+        case SB_TOP:    m_scrollX = 0; break;
+        case SB_BOTTOM: m_scrollX = 0x3FFFFFFF; break;   // clamped to maxX below
+    }
+    RecalcAndReposition();   // clamps m_scrollX into range
+}
+BOOL CThemedHostWnd::OnMouseWheel(UINT nFlags, short zDelta, CPoint pt) {
+    m_scrollY -= (zDelta / WHEEL_DELTA) * (3 * 24);
+    RecalcAndReposition();
+    return TRUE;
 }
 
 // ---- CMockupWnd: owner-drawn context mock-ups for loose strings ----
