@@ -814,7 +814,14 @@ void ApplyToChildren(HWND parent) {
         const wchar_t* ccTheme = IsDark() ? L"DarkMode_Explorer" : L"Explorer";
         wchar_t cls[40]; ::GetClassNameW(c, cls, 40);
         if      (_wcsicmp(cls, L"Button") == 0)          ::SetWindowSubclass(c, ThemeProc, 1, 0);
-        else if (_wcsicmp(cls, L"ComboBox") == 0)        ::SetWindowSubclass(c, ThemeProc, 2, 0);
+        else if (_wcsicmp(cls, L"ComboBox") == 0) {
+            ::SetWindowSubclass(c, ThemeProc, 2, 0);
+            // The drop-down list is a popup OWNED by the combo, not a child of `parent`, so
+            // EnumChildWindows never reaches it -- theme it directly or its scrollbar stays light
+            // against the (already dark) list. Same trap as the preview host's own scrollbars.
+            COMBOBOXINFO cbi{ sizeof(cbi) };
+            if (::GetComboBoxInfo(c, &cbi) && cbi.hwndList) ::SetWindowTheme(cbi.hwndList, ccTheme, nullptr);
+        }
         else if (_wcsicmp(cls, L"msctls_updown32") == 0) ::SetWindowSubclass(c, ThemeProc, 3, 0);
         else if (_wcsicmp(cls, L"SysHeader32") == 0)     ::SetWindowSubclass(c, ThemeProc, 4, 0);
         else if (_wcsicmp(cls, L"SysTabControl32") == 0) ::SetWindowSubclass(c, ThemeProc, 5, 0);
