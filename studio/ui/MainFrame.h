@@ -45,12 +45,15 @@ public:
     // (Re)compute scroll range/scrollbars and reposition the child; reset=true also zeros the scroll
     // position (e.g. after rendering a freshly-selected dialog).
     void SyncScroll(bool resetPos = false);
-    // Draw a property-page frame (border + caption bar) around the child dialog, mimicking
-    // TreePropSheet's CPropPageFrameDefault -- see MainFrame::RenderCurrentDialog, which resolves
-    // `category`/`page` from the dialog's Options-tree page-title string (or its CAPTION record) and
-    // calls this right after rendering. An EMPTY `page` means "no frame" -- restores today's plain
-    // themed background exactly (the no-frame path every other preview/mock-up/command-help still uses).
-    void SetFrame(const CString& category, const CString& page);
+    // Draw a property-page frame (border + gradient caption bar) around the child dialog, mimicking
+    // TreePropSheet's CPropPageFrameDefault -- see MainFrame::RenderCurrentDialog, which resolves `page`
+    // (the LEAF-only Options-tree page title, or the dialog's own CAPTION record for a modal dialog)
+    // and `contentPx` (the real property-page area, sized to fit the largest page -- every page must
+    // frame identically, since the real sheet does; a modal dialog instead passes its own pixel size)
+    // and calls this right after rendering. Empty `page` AND empty `contentPx` means "no frame" --
+    // restores today's plain themed background exactly (the no-frame path every other preview/mock-up/
+    // command-help still uses).
+    void SetFrame(const CString& page, CSize contentPx);
     // Fired after every scroll/reposition (RecalcAndReposition) so the caller can re-sync anything that
     // tracks the child's screen position (e.g. the red locator ring).
     std::function<void()> OnScrolled;
@@ -63,15 +66,20 @@ protected:
     DECLARE_MESSAGE_MAP()
 private:
     void RecalcAndReposition();
-    // Caption-bar height: the message font's line height + padding (~textHeight + 8px), DPI-correct
-    // since lfMessageFont is already scaled for this DC -- mirrors how LivePreview picks its font (see
-    // RenderDialog's SPI_GETNONCLIENTMETRICS). 0 when no frame is set.
+    // Caption-bar height: TreePropSheet hardcodes 21px at 96 DPI (frameCaptionHeight =
+    // dpiWindow.ScaleX(21) in TreePropSheet.cpp) rather than deriving it from font metrics; scaled to
+    // this window's own DPI the same way. 0 when no frame is set.
     int CaptionHeight() const;
-    // The frame's content area: the FULL client rect when no frame is set (byte-for-byte today's
-    // behavior), else inset by a 1px border all round plus the caption bar at the top.
+    // The frame's outer size: m_frameContentPx + a 1px border each side + the caption bar on top.
+    CSize FrameOuterSize() const;
+    // The frame's content area, in the frame's OWN (unscrolled) coordinate space -- the full client
+    // rect when no frame is set (byte-for-byte today's behavior); otherwise the 1px border/caption
+    // inset, sized to m_frameContentPx. Independent of the host's client size in the framed case: the
+    // frame is a fixed-size artifact that scrolls as a whole (see RecalcAndReposition/OnEraseBkgnd).
     CRect FrameContentRect() const;
     int m_scrollX = 0, m_scrollY = 0;
-    CString m_frameCategory, m_framePage;   // empty m_framePage = no frame (see SetFrame)
+    CString m_framePage;      // empty = no frame (see SetFrame)
+    CSize   m_frameContentPx; // real page-area size in px (or the child's own size for a modal dialog)
 };
 
 // One control in a synthesized dialog mock-up (a dialog MPC-HC builds in C++ with no RC template, so

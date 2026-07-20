@@ -923,7 +923,7 @@ void MainFrame::RefreshAfterLoad() {
     EnsureFitScan();   // harmless no-op if already cached/running; keeps the Review tab's cache fresh
     if (tab == RES_DIALOGS)     RenderCurrentDialog();
     else if (tab == RES_MENUS)  BuildMenuTree();
-    else                      { m_preview.DestroyPreview(); m_previewHost.SetFrame(L"", L""); }
+    else                      { m_preview.DestroyPreview(); m_previewHost.SetFrame(L"", CSize()); }
     m_edit.ClearString();
 }
 
@@ -1169,7 +1169,7 @@ void MainFrame::RenderCurrentDialog() {
     // the tree; a loose string with no dialog gets a mock-up instead — see SelectRow).
     if (tab == RES_MENUS || m_curDialog < 0 || !m_checkedOut) {
         m_preview.DestroyPreview();
-        m_previewHost.SetFrame(L"", L"");     // no dialog -- no frame either
+        m_previewHost.SetFrame(L"", CSize());     // no dialog -- no frame either
         m_previewHost.SyncScroll(true);   // no child now -> RecalcAndReposition hides any stale scrollbars
         return;
     }
@@ -1177,23 +1177,24 @@ void MainFrame::RenderCurrentDialog() {
     if (dlg) ::SetWindowPos(dlg, nullptr, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 
     // Frame the preview like the player's Options property-page frame (CThemedHostWnd::SetFrame draws
-    // it): the caption is the page's Options-tree title -- a STRING-table entry keyed by the dialog's
-    // bare IDD_ symbol (see BuildDialogSymbolMap), msgid "Category::Page" (or just "Page" with no
-    // category). Modal dialogs have no such string -- they fall back to their own CAPTION record so
-    // they get a title bar too. Neither present -> no frame (SetFrame(L"", L"")).
-    CString category, page;
+    // it): the caption is the page's Options-tree title, LEAF ONLY -- a STRING-table entry keyed by the
+    // dialog's bare IDD_ symbol (see BuildDialogSymbolMap), msgid "Category::Page" (the category prefix
+    // is discarded -- the real property sheet's caption is the tree-item text, i.e. just "Page") or
+    // plain "Page" with no category. Modal dialogs have no such string -- they fall back to their own
+    // CAPTION record so they get a title bar too. Neither present -> no frame (SetFrame(L"", CSize())).
+    CString page;
+    bool isPropertyPage = false;
     std::map<long long, std::string> symByDialog;
     for (const auto& [sym, dlg2] : BuildDialogSymbolMap()) symByDialog[dlg2] = sym;
     if (auto it = symByDialog.find(m_curDialog); it != symByDialog.end()) {
         for (const auto& e : m_po[RES_STRINGS].entries) {
             if (e.msgctxt != it->second) continue;
             std::string title = !e.msgstr.empty() ? e.msgstr : e.msgid;
-            if (size_t sep = title.find("::"); sep != std::string::npos) {
-                category = CA2W(title.substr(0, sep).c_str(), CP_UTF8);
-                page = CA2W(title.substr(sep + 2).c_str(), CP_UTF8);
-            } else {
+            if (size_t sep = title.find("::"); sep != std::string::npos)
+                page = CA2W(title.substr(sep + 2).c_str(), CP_UTF8);   // keep the split, discard the category
+            else
                 page = CA2W(title.c_str(), CP_UTF8);
-            }
+            isPropertyPage = true;
             break;
         }
     }
@@ -1205,7 +1206,35 @@ void MainFrame::RenderCurrentDialog() {
             page = CA2W(text.c_str(), CP_UTF8);
         }
     }
-    m_previewHost.SetFrame(category, page);   // page empty (no string, no CAPTION) -> no frame
+
+    // The frame's content size: for a property page, the max IDD_PPAGE* template size in DLU (the
+    // real sheet sizes its page area to fit the LARGEST page, so every page must be framed identically
+    // -- that's what lets a translator judge whether a long translated title fits the caption, and
+    // where content falls, not just how its own page happens to look). DLU -> px uses the CURRENT
+    // rendered child as the scale reference; every division is guarded, falling back to the child's
+    // own pixel size on ANY failure (missing record, zero DLU, or no RcDialogs at all -- the pinned
+    // neutral-DLL path, which carries no DLU templates). A modal dialog (isPropertyPage==false) just
+    // gets its own pixel size -- it isn't sized against sibling pages by any real property sheet.
+    CSize contentPx;   // (0,0) with an empty `page` => SetFrame's no-frame condition
+    CSize childPx;
+    if (dlg) { CRect wr; ::GetWindowRect(dlg, &wr); childPx = wr.Size(); }
+    if (!page.IsEmpty() && isPropertyPage) {
+        int maxCx = 0, maxCy = 0, curCx = 0, curCy = 0;
+        for (const auto& d : m_preview.RcDialogs()) {
+            if (d.sym.rfind("IDD_PPAGE", 0) != 0) continue;
+            maxCx = max(maxCx, d.cx); maxCy = max(maxCy, d.cy);
+            if (d.id == m_curDialog) { curCx = d.cx; curCy = d.cy; }
+        }
+        if (dlg && maxCx > 0 && maxCy > 0 && curCx > 0 && curCy > 0) {
+            double pxPerDluX = childPx.cx / (double)curCx, pxPerDluY = childPx.cy / (double)curCy;
+            contentPx = CSize((int)(maxCx * pxPerDluX + 0.5), (int)(maxCy * pxPerDluY + 0.5));
+        } else {
+            contentPx = childPx;   // fallback: no RcDialogs / missing record / zero DLU
+        }
+    } else if (!page.IsEmpty()) {
+        contentPx = childPx;   // modal dialog -- frame just this page, at its own rendered size
+    }
+    m_previewHost.SetFrame(page, contentPx);
     m_previewHost.SyncScroll(true);   // reset to top-left and compute the fresh dialog's scroll range
 }
 
@@ -1732,96 +1761,111 @@ BEGIN_MESSAGE_MAP(CThemedHostWnd, CWnd)
     ON_WM_MOUSEWHEEL()
     ON_WM_SIZE()
 END_MESSAGE_MAP()
-void CThemedHostWnd::SetFrame(const CString& category, const CString& page) {
-    if (m_frameCategory == category && m_framePage == page) return;
-    m_frameCategory = category; m_framePage = page;
+void CThemedHostWnd::SetFrame(const CString& page, CSize contentPx) {
+    if (m_framePage == page && m_frameContentPx == contentPx) return;
+    m_framePage = page; m_frameContentPx = contentPx;
     if (GetSafeHwnd()) Invalidate();   // caller (RenderCurrentDialog) always follows with SyncScroll(),
                                        // which recomputes the child's geometry against the new frame
 }
 int CThemedHostWnd::CaptionHeight() const {
     if (m_framePage.IsEmpty()) return 0;
     CClientDC dc(const_cast<CThemedHostWnd*>(this));
-    NONCLIENTMETRICSW ncm{ sizeof(ncm) };
-    ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
-    CFont f; f.CreateFontIndirectW(&ncm.lfMessageFont);
-    HGDIOBJ old = dc.SelectObject(&f);
-    TEXTMETRICW tm{}; dc.GetTextMetrics(&tm);
-    dc.SelectObject(old);
     int dpi = dc.GetDeviceCaps(LOGPIXELSY);
-    return tm.tmHeight + ::MulDiv(8, dpi, 96);
+    return ::MulDiv(21, dpi, 96);   // TreePropSheet's hardcoded 96-DPI caption height, DPI-scaled
+}
+CSize CThemedHostWnd::FrameOuterSize() const {
+    return CSize(m_frameContentPx.cx + 2, m_frameContentPx.cy + 2 + CaptionHeight());
 }
 CRect CThemedHostWnd::FrameContentRect() const {
     CRect rc; GetClientRect(&rc);
     if (m_framePage.IsEmpty()) return rc;   // no frame -- full client rect, unchanged
-    rc.DeflateRect(1, 1, 1, 1);              // 1px border all round
-    rc.top += CaptionHeight();               // + the caption bar
-    return rc;
+    int capH = CaptionHeight();
+    return CRect(1, 1 + capH, 1 + m_frameContentPx.cx, 1 + capH + m_frameContentPx.cy);
 }
 BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     CRect rc; GetClientRect(&rc); pDC->FillSolidRect(rc, Theme::WINDOW_BG);
     if (m_framePage.IsEmpty()) return TRUE;   // no frame -- today's plain background, unchanged
 
-    // Property-page frame, mimicking TreePropSheet's CPropPageFrameDefault::DrawCaption (see
-    // RenderCurrentDialog's comment for why the preview draws its own chrome instead of the real
-    // property-sheet frame): a 1px themed border, a caption bar fill, and left-aligned, vertically
-    // centered caption text -- "Category \x203A Page" (dim category, bold page) or just bold "Page".
-    CBrush borderBr(Theme::GRID_LINE);
-    pDC->FrameRect(rc, &borderBr);
-    int capH = CaptionHeight();
-    CRect capRect(rc.left + 1, rc.top + 1, rc.right - 1, rc.top + 1 + capH);
-    pDC->FillSolidRect(capRect, Theme::MENUBAR_BG);
+    // The frame is now the previewed object (sized to the real page area -- see RenderCurrentDialog),
+    // so it scrolls as ONE artifact: draw it offset by the current scroll position, exactly like the
+    // child dialog is positioned in RecalcAndReposition, so border/caption/content move together.
+    CRect frameRc(CPoint(-m_scrollX, -m_scrollY), FrameOuterSize());
 
-    int dpi = pDC->GetDeviceCaps(LOGPIXELSY);
-    int padX = ::MulDiv(6, dpi, 96);
+    CBrush borderBr(Theme::GRID_LINE);
+    pDC->FrameRect(frameRc, &borderBr);
+    int capH = CaptionHeight();
+    CRect capRect(frameRc.left + 1, frameRc.top + 1, frameRc.right - 1, frameRc.top + 1 + capH);
+
+    // Gradient caption bar, mimicking TreePropSheet's CPropPageFrameDefault::DrawCaption: fades from
+    // the OS active-caption color (left) into the page background (right) -- the player fades into
+    // whatever's already painted at that pixel (the page background, since it paints the page first);
+    // we paint the frame first, so fade to Theme::WINDOW_BG explicitly instead of sampling a pixel.
+    // Dependency-free per-column interpolation (mirrors FillGradientRectH) -- no msimg32/GdiGradientFill.
+    COLORREF clrLeft = ::GetSysColor(COLOR_ACTIVECAPTION), clrRight = Theme::WINDOW_BG;
+    int steps = max(1, capRect.Width());
+    double dR = GetRValue(clrLeft), dG = GetGValue(clrLeft), dB = GetBValue(clrLeft);
+    double stepR = (GetRValue(clrRight) - dR) / steps, stepG = (GetGValue(clrRight) - dG) / steps,
+           stepB = (GetBValue(clrRight) - dB) / steps;
+    for (int x = capRect.left; x < capRect.right; ++x) {
+        pDC->FillSolidRect(x, capRect.top, 1, capRect.Height(), RGB((BYTE)dR, (BYTE)dG, (BYTE)dB));
+        dR += stepR; dG += stepG; dB += stepB;
+    }
+
+    // Caption text, exactly as the player's DrawCaption: OS caption-text color, transparent bkmode,
+    // bold message font shrunk to fit the caption height (the same shrink loop), baseline nudged up by
+    // the descent, left-aligned with ellipsis. DT_NOPREFIX is our one deliberate deviation -- page
+    // titles may contain a literal '&' that must not become a mnemonic underline.
     NONCLIENTMETRICSW ncm{ sizeof(ncm) };
     ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
-    CFont regular; regular.CreateFontIndirectW(&ncm.lfMessageFont);
-    LOGFONTW lfBold = ncm.lfMessageFont; lfBold.lfWeight = FW_BOLD;
-    CFont bold; bold.CreateFontIndirectW(&lfBold);
-
-    pDC->SetBkMode(TRANSPARENT);
-    CRect textRect(capRect.left + padX, capRect.top, capRect.right - padX, capRect.bottom);
-    HGDIOBJ oldFont = pDC->SelectObject(&regular);
-    int x = textRect.left;
-    if (!m_frameCategory.IsEmpty()) {
-        pDC->SetTextColor(Theme::TEXT_DISABLED);
-        CSize catSz = pDC->GetTextExtent(m_frameCategory);
-        CRect catRect(x, textRect.top, min(x + catSz.cx, textRect.right), textRect.bottom);
-        pDC->DrawText(m_frameCategory, catRect, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
-        x += catSz.cx;
-
-        CString sep(L" \x203A ");
-        CSize sepSz = pDC->GetTextExtent(sep);
-        CRect sepRect(x, textRect.top, min(x + sepSz.cx, textRect.right), textRect.bottom);
-        pDC->DrawText(sep, sepRect, DT_SINGLELINE | DT_VCENTER | DT_NOPREFIX);
-        x += sepSz.cx;
+    LOGFONTW lf = ncm.lfMessageFont;
+    lf.lfHeight = (long)(-.8f * capH);
+    lf.lfWeight = FW_BOLD;
+    CFont f; f.CreateFontIndirectW(&lf);
+    HGDIOBJ oldFont = pDC->SelectObject(&f);
+    TEXTMETRICW tm{}; pDC->GetTextMetrics(&tm);
+    while (tm.tmHeight > capH && abs(lf.lfHeight) > 10) {
+        pDC->SelectObject(oldFont);
+        f.DeleteObject();
+        lf.lfHeight++;
+        f.CreateFontIndirectW(&lf);
+        pDC->SelectObject(&f);
+        pDC->GetTextMetrics(&tm);
     }
-    pDC->SelectObject(&bold);
-    pDC->SetTextColor(Theme::TEXT);
-    CRect pageRect(min(x, textRect.right), textRect.top, textRect.right, textRect.bottom);
-    pDC->DrawText(m_framePage, pageRect, DT_SINGLELINE | DT_VCENTER | DT_END_ELLIPSIS | DT_NOPREFIX);
+    CRect textRect(capRect.left + 2, capRect.top, capRect.right, capRect.bottom);
+    textRect.top -= tm.tmDescent - 1;
+    pDC->SetTextColor(::GetSysColor(COLOR_CAPTIONTEXT));
+    pDC->SetBkMode(TRANSPARENT);
+    pDC->DrawText(m_framePage, textRect, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
     pDC->SelectObject(oldFont);
     return TRUE;
 }
-// Recompute the scroll range from the child's natural (template) size vs. the host's CONTENT area
-// (the full client rect when no frame is set -- see FrameContentRect), update both scrollbars
-// (SIF_DISABLENOSCROLL deliberately omitted so Windows auto-hides a bar once its page covers the full
-// range -- "no scrollbar when it fits", for free), then reposition the child by MOVING it (SWP_NOSIZE
-// -- it is never resized) to the content rect's top-left minus the scroll offset -- so the caption bar
-// (chrome, not content) never scrolls away.
+// Recompute the scroll range/scrollbars, then reposition the child by MOVING it (SWP_NOSIZE -- it is
+// never resized) to the content rect's top-left minus the scroll offset. The scrolled ARTIFACT differs
+// by mode: no frame -- the child's own natural (template) size against the host's full client rect
+// (byte-for-byte today's behavior); framed -- the FRAME's outer size (border + caption + content, the
+// real page area) against the client rect, so caption/border/content scroll together as one object (see
+// OnEraseBkgnd). SIF_DISABLENOSCROLL deliberately omitted so Windows auto-hides a bar once its page
+// covers the full range -- "no scrollbar when it fits", for free.
 void CThemedHostWnd::RecalcAndReposition() {
     HWND child = ::GetWindow(m_hWnd, GW_CHILD);
     if (!child) { ShowScrollBar(SB_BOTH, FALSE); return; }
-    RECT wr; ::GetWindowRect(child, &wr);
-    int childW = wr.right - wr.left, childH = wr.bottom - wr.top;
+    int artW, artH;
+    if (m_framePage.IsEmpty()) {
+        RECT wr; ::GetWindowRect(child, &wr);
+        artW = wr.right - wr.left; artH = wr.bottom - wr.top;
+    } else {
+        CSize outer = FrameOuterSize();
+        artW = outer.cx; artH = outer.cy;
+    }
+    CRect client; GetClientRect(&client);
     CRect cc = FrameContentRect();
-    int maxX = max(0, childW - cc.Width()), maxY = max(0, childH - cc.Height());
+    int maxX = max(0, artW - client.Width()), maxY = max(0, artH - client.Height());
     m_scrollX = max(0, min(m_scrollX, maxX));
     m_scrollY = max(0, min(m_scrollY, maxY));
     SCROLLINFO si{ sizeof(SCROLLINFO), SIF_RANGE | SIF_PAGE | SIF_POS };
-    si.nMin = 0; si.nMax = childH > 0 ? childH - 1 : 0; si.nPage = cc.Height(); si.nPos = m_scrollY;
+    si.nMin = 0; si.nMax = artH > 0 ? artH - 1 : 0; si.nPage = client.Height(); si.nPos = m_scrollY;
     SetScrollInfo(SB_VERT, &si, TRUE);
-    si.nMax = childW > 0 ? childW - 1 : 0; si.nPage = cc.Width(); si.nPos = m_scrollX;
+    si.nMax = artW > 0 ? artW - 1 : 0; si.nPage = client.Width(); si.nPos = m_scrollX;
     SetScrollInfo(SB_HORZ, &si, TRUE);
     ::SetWindowPos(child, nullptr, cc.left - m_scrollX, cc.top - m_scrollY, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
     if (OnScrolled) OnScrolled();
@@ -2309,7 +2353,7 @@ void MainFrame::OnTabChanged(NMHDR*, LRESULT* res) {
     PopulateList();
     if (tab == RES_DIALOGS)     RenderCurrentDialog();
     else if (tab == RES_MENUS)  BuildMenuTree();
-    else                      { m_preview.DestroyPreview(); m_previewHost.SetFrame(L"", L""); }
+    else                      { m_preview.DestroyPreview(); m_previewHost.SetFrame(L"", CSize()); }
     if (tab == RES_REVIEW) EnsureFitScan();
     m_edit.ClearString();
     m_btnDismiss.EnableWindow(FALSE);   // SelectRow re-enables it when appropriate for the Review tab
@@ -2508,7 +2552,7 @@ void MainFrame::SelectRow(int item) {
             comboShown = true;                                  // synthesized themed menu handles it
         } else if (!ShowMockup(infoPtr, row.msgctxt, text, row.res)) {
             HideCommandHelp(); HideMockup(); m_preview.DestroyPreview();
-            m_previewHost.SetFrame(L"", L"");   // no dialog, no mock-up -- nothing to frame either
+            m_previewHost.SetFrame(L"", CSize());   // no dialog, no mock-up -- nothing to frame either
         }
     }
     if (!comboShown) {
