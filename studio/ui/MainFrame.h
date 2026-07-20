@@ -580,6 +580,9 @@ private:
     CButton    m_btnSuggestFix;   // "Suggest fix…" — docked at the research panel's top-right
     CButton    m_btnDismiss;      // "Dismiss" — visible only on the Review tab, acts on the selected row
     CStatic    m_status;
+    // Discoverability hint shown above the tree for the popup menus (IDR_POPUP*), which have no
+    // menu-bar strip: the real translated menu is previewed by right-clicking the tree.
+    CStatic    m_menuHint;
     CProgressCtrl m_progress;      // shown while the background download runs
     bool       m_downloading = false;
     CTabCtrl   m_tabs;

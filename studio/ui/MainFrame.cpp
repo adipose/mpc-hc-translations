@@ -325,6 +325,8 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_langCombo.Create(ST | WS_TABSTOP | CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL, z, this, IDC_LANG_COMBO);
     m_btnCheckout.Create(L"&Get latest", ST | WS_TABSTOP, z, this, IDC_BTN_CHECKOUT);
     m_status.Create(L"", ST | SS_ENDELLIPSIS, z, this, IDC_STATUS_TEXT);
+    m_menuHint.Create(L"Right-click the tree to preview this menu as it appears in the player.",
+                      ST | SS_ENDELLIPSIS, z, this, 0);   // shown by Layout only for the popup menus
     m_progress.Create(WS_CHILD | PBS_SMOOTH, z, this, IDC_PROGRESS);   // hidden until a download runs
     ::SetWindowTheme(m_progress.GetSafeHwnd(), L"", L"");   // strip the visual style so our colors apply
     m_progress.SetBkColor(Theme::WINDOW_BG);
@@ -468,6 +470,15 @@ void MainFrame::Layout() {
         int barH = ::GetSystemMetrics(SM_CYMENU) + S(8);
         m_menuBarRect.SetRect(cx, paneTop, cx + cw, paneTop + barH);
         paneTop += barH + S(4); paneH -= barH + S(4);
+    }
+    // The popup menus (IDR_POPUP*) have no bar to preview -- the real translated menu comes up on
+    // right-click, which is otherwise undiscoverable, so put a hint where the bar strip would be.
+    const bool menuHint = menuTab && m_curMenu >= 0 && m_curMenu != 128 && m_checkedOut;
+    m_menuHint.ShowWindow(menuHint ? SW_SHOW : SW_HIDE);
+    if (menuHint) {
+        int hintH = S(16);
+        m_menuHint.MoveWindow(cx, paneTop, cw, hintH);
+        paneTop += hintH + S(4); paneH -= hintH + S(4);
     }
     int bodyH = paneH - resH - resGap;
     CWnd& body = menuTab ? static_cast<CWnd&>(m_menuTree) : static_cast<CWnd&>(m_previewHost);
