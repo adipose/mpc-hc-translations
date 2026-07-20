@@ -1175,6 +1175,7 @@ void MainFrame::RenderCurrentDialog() {
         m_preview.DestroyPreview();
         m_previewHost.SetFrame(L"", CSize());     // no dialog -- no frame either
         m_previewHost.SyncScroll(true);   // no child now -> RecalcAndReposition hides any stale scrollbars
+        m_previewHost.Invalidate();       // erase the destroyed dialog's leftover pixels
         return;
     }
     HWND dlg = m_preview.RenderDialog(m_curDialog, &m_previewHost, Idx(), m_po[RES_DIALOGS]);
@@ -1243,6 +1244,10 @@ void MainFrame::RenderCurrentDialog() {
     }
     m_previewHost.SetFrame(page, contentPx);
     m_previewHost.SyncScroll(true);   // reset to top-left and compute the fresh dialog's scroll range
+    // Clear the PREVIOUS dialog's leftover pixels: destroying its child window doesn't erase its
+    // controls from the host, so a smaller/differently-shaped new page leaves ghost edits, combo
+    // arrows, etc. behind (see the reported artifacts). WS_CLIPCHILDREN keeps this off the new dialog.
+    m_previewHost.Invalidate();
 }
 
 // Which IDD dialog (if any) a string belongs to — for pulling its dialog into the preview.
