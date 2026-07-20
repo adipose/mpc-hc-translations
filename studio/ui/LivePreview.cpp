@@ -452,8 +452,48 @@ void LivePreview::IntegrateSpinners(HWND dlg) {
     }
 }
 
+// Advance past a DLGTEMPLATEEX sz_Or_Ord field (menu/class): 0x0000 -> empty (2 bytes),
+// 0xFFFF -> ordinal (4 bytes), else a null-terminated UTF-16 string.
+static size_t skip_sz_or_ord(const std::vector<unsigned char>& b, size_t pos) {
+    if (pos + 2 > b.size()) return b.size();
+    unsigned short w; memcpy(&w, b.data() + pos, 2);
+    if (w == 0x0000) return pos + 2;
+    if (w == 0xFFFF) return pos + 4;
+    for (pos += 2; pos + 2 <= b.size(); ) { unsigned short c; memcpy(&c, b.data() + pos, 2); pos += 2; if (!c) break; }
+    return pos;
+}
+
+// Force a DLGTEMPLATEEX's DS_SETFONT font to "MS Shell Dlg" 8pt -- the dialog-unit grid COMCTL32 uses
+// for property-sheet pages regardless of the template's declared FONT (see RenderDialog's caller).
+// Text is still drawn in the real 9pt Segoe UI applied via WM_SETFONT after creation; only the layout
+// grid (control sizes/positions) is affected. Rebuilds the byte vector because the typeface length
+// changes; the control array is kept DWORD-aligned so its self-contained, individually-aligned control
+// entries copy verbatim without breaking alignment.
+static void force_propsheet_font(std::vector<unsigned char>& buf, DWORD style) {
+    if (!(style & DS_SETFONT)) return;
+    size_t pos = 26;                          // after dlgVer(2) sig(2) helpID(4) exStyle(4) style(4) cDlgItems(2) x/y/cx/cy(8)
+    pos = skip_sz_or_ord(buf, pos);           // menu
+    pos = skip_sz_or_ord(buf, pos);           // windowClass
+    pos = skip_sz_or_ord(buf, pos);           // title
+    if (pos + 6 > buf.size()) return;         // font block = pointsize(2) weight(2) italic(1) charset(1) typeface[]
+    size_t tfEnd = pos + 6;
+    for (; tfEnd + 2 <= buf.size(); ) { unsigned short c; memcpy(&c, buf.data() + tfEnd, 2); tfEnd += 2; if (!c) break; }
+    size_t ctrlStart = (tfEnd + 3) & ~size_t(3);   // control array is DWORD-aligned from the template start
+    std::vector<unsigned char> nb(buf.begin(), buf.begin() + pos);
+    auto pushW = [&](unsigned short w){ nb.push_back((unsigned char)(w & 0xFF)); nb.push_back((unsigned char)(w >> 8)); };
+    pushW(8);            // pointsize
+    pushW(FW_REGULAR);   // weight (400)
+    nb.push_back(0);     // italic
+    nb.push_back(DEFAULT_CHARSET);
+    for (const wchar_t* p = L"MS Shell Dlg"; ; ++p) { pushW((unsigned short)*p); if (!*p) break; }
+    while (nb.size() & 3) nb.push_back(0);    // re-align the control array to DWORD
+    nb.insert(nb.end(), buf.begin() + ctrlStart, buf.end());
+    buf.swap(nb);
+}
+
 HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
-                               const ControlIndex& idx, const PoFile& po) {
+                               const ControlIndex& idx, const PoFile& po,
+                               bool propSheetLayout) {
     DestroyPreview();
 
     // 1. Get the DLGTEMPLATEEX bytes — emitted from the parsed RC (Approach C) or the pinned DLL —
@@ -488,6 +528,11 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
     exStyle &= ~(WS_EX_CLIENTEDGE | WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_STATICEDGE);
     memcpy(buf.data() + 8, &exStyle, 4);
     memcpy(buf.data() + 12, &style, 4);
+
+    // Property pages: lay out on COMCTL32's 8pt "MS Shell Dlg" property-sheet grid (see helper), so the
+    // preview matches the real Options dialog (~8/9 the size of a naive 9pt-template layout). Text is
+    // still drawn in the 9pt message font applied below. Modal dialogs keep their own template font.
+    if (propSheetLayout) force_propsheet_font(buf, style);
 
     // 2. Create it modeless. hInstance = the APP (system/registered classes; the datafile
     //    HMODULE is not a real module and must not be passed here).

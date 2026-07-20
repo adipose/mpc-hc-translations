@@ -1178,7 +1178,19 @@ void MainFrame::RenderCurrentDialog() {
         m_previewHost.Invalidate();       // erase the destroyed dialog's leftover pixels
         return;
     }
-    HWND dlg = m_preview.RenderDialog(m_curDialog, &m_previewHost, Idx(), m_po[RES_DIALOGS]);
+    // Property pages (IDD_PPAGE*) render on COMCTL32's 8pt "MS Shell Dlg" property-sheet grid, matching
+    // the real Options dialog; other dialogs (About/Open/etc.) keep the template's own font (see
+    // RenderDialog / force_propsheet_font in LivePreview.cpp). Determined up front so RenderDialog can
+    // apply it during layout, not just for the frame drawn below.
+    bool isPropPage = false;
+    {
+        std::map<long long, std::string> symByDialogPre;
+        for (const auto& [sym, dlg2] : BuildDialogSymbolMap()) symByDialogPre[dlg2] = sym;
+        if (auto it = symByDialogPre.find(m_curDialog);
+            it != symByDialogPre.end() && it->second.rfind("IDD_PPAGE", 0) == 0)
+            isPropPage = true;
+    }
+    HWND dlg = m_preview.RenderDialog(m_curDialog, &m_previewHost, Idx(), m_po[RES_DIALOGS], isPropPage);
     if (dlg) ::SetWindowPos(dlg, nullptr, 0, 0, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
 
     // Frame the preview like the player's Options property-page frame (CThemedHostWnd::SetFrame draws

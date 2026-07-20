@@ -32,8 +32,11 @@ public:
 
     // Create dialog `dialogNum` as a child of `parent` (template style patched WS_POPUP->WS_CHILD
     // so it embeds), then substitute strings from `po` (matched via `idx`). Returns the HWND.
+    // `propSheetLayout`: when true, the template is laid out on COMCTL32's 8pt "MS Shell Dlg"
+    // property-sheet grid (see RenderDialog).
     HWND  RenderDialog(long long dialogNum, CWnd* parent,
-                       const mpctrans::ControlIndex& idx, const mpctrans::PoFile& po);
+                       const mpctrans::ControlIndex& idx, const mpctrans::PoFile& po,
+                       bool propSheetLayout = false);
     void  DestroyPreview();                          // tear down the current preview dialog
     HWND  CurrentDlg() const { return m_dlg; }
 
