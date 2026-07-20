@@ -1180,13 +1180,18 @@ void MainFrame::RenderCurrentDialog() {
     // it): the caption is the page's Options-tree title, LEAF ONLY -- a STRING-table entry keyed by the
     // dialog's bare IDD_ symbol (see BuildDialogSymbolMap), msgid "Category::Page" (the category prefix
     // is discarded -- the real property sheet's caption is the tree-item text, i.e. just "Page") or
-    // plain "Page" with no category. Modal dialogs have no such string -- they fall back to their own
-    // CAPTION record so they get a title bar too. Neither present -> no frame (SetFrame(L"", CSize())).
+    // plain "Page" with no category.
+    // ONLY the Options sheet's own pages are framed: CPPageSheet (upstream PPageSheet.cpp) AddPage()s
+    // the IDD_PPAGE* dialogs, and only those sit in the tree frame this draws. Other dialogs that
+    // happen to own a bare-symbol title string belong to a DIFFERENT, tabbed sheet (the File
+    // Properties tabs IDD_FILEMEDIAINFO / IDD_FILEPROP*) and modal dialogs have no such frame at all
+    // -- neither gets the caption bar. Anything else -> no frame (SetFrame(L"", CSize())).
     CString page;
     bool isPropertyPage = false;
     std::map<long long, std::string> symByDialog;
     for (const auto& [sym, dlg2] : BuildDialogSymbolMap()) symByDialog[dlg2] = sym;
-    if (auto it = symByDialog.find(m_curDialog); it != symByDialog.end()) {
+    if (auto it = symByDialog.find(m_curDialog);
+        it != symByDialog.end() && it->second.rfind("IDD_PPAGE", 0) == 0) {
         for (const auto& e : m_po[RES_STRINGS].entries) {
             if (e.msgctxt != it->second) continue;
             std::string title = !e.msgstr.empty() ? e.msgstr : e.msgid;
@@ -1196,14 +1201,6 @@ void MainFrame::RenderCurrentDialog() {
                 page = CA2W(title.c_str(), CP_UTF8);
             isPropertyPage = true;
             break;
-        }
-    }
-    if (page.IsEmpty()) {
-        if (const DialogRecord* cap = Idx().dialog_caption(m_curDialog)) {
-            std::string text = cap->msgid;
-            if (const PoEntry* e = m_po[RES_DIALOGS].find(cap->msgctxt, cap->msgid); e && !e->msgstr.empty())
-                text = e->msgstr;
-            page = CA2W(text.c_str(), CP_UTF8);
         }
     }
 
@@ -1813,8 +1810,8 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
 
     // Caption text, exactly as the player's DrawCaption: OS caption-text color, transparent bkmode,
     // bold message font shrunk to fit the caption height (the same shrink loop), baseline nudged up by
-    // the descent, left-aligned with ellipsis. DT_NOPREFIX is our one deliberate deviation -- page
-    // titles may contain a literal '&' that must not become a mnemonic underline.
+    // the descent, left-aligned with ellipsis. No DT_NOPREFIX: the player doesn't pass it either, so an
+    // '&' in a title underlines the next character as a mnemonic rather than rendering literally.
     NONCLIENTMETRICSW ncm{ sizeof(ncm) };
     ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
     LOGFONTW lf = ncm.lfMessageFont;
@@ -1835,7 +1832,7 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     textRect.top -= tm.tmDescent - 1;
     pDC->SetTextColor(::GetSysColor(COLOR_CAPTIONTEXT));
     pDC->SetBkMode(TRANSPARENT);
-    pDC->DrawText(m_framePage, textRect, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX);
+    pDC->DrawText(m_framePage, textRect, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
     pDC->SelectObject(oldFont);
     return TRUE;
 }
