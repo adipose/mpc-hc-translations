@@ -1244,10 +1244,13 @@ void MainFrame::RenderCurrentDialog() {
     }
     m_previewHost.SetFrame(page, contentPx);
     m_previewHost.SyncScroll(true);   // reset to top-left and compute the fresh dialog's scroll range
-    // Clear the PREVIOUS dialog's leftover pixels: destroying its child window doesn't erase its
-    // controls from the host, so a smaller/differently-shaped new page leaves ghost edits, combo
-    // arrows, etc. behind (see the reported artifacts). WS_CLIPCHILDREN keeps this off the new dialog.
-    m_previewHost.Invalidate();
+    // Force an immediate, FULL repaint of the host AND the freshly-created dialog tree. A plain
+    // Invalidate() marks only the host's client, and WS_CLIPCHILDREN excludes the child dialog + its
+    // controls -- so the new combos/edits stay unpainted (showing the prior page's pixels) until a
+    // mouse event repaints them. RDW_ALLCHILDREN recurses into the dialog's controls; RDW_UPDATENOW
+    // paints now rather than deferring. (RDW_ERASE redraws the frame chrome in OnEraseBkgnd.)
+    m_previewHost.RedrawWindow(nullptr, nullptr,
+                               RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
 
 // Which IDD dialog (if any) a string belongs to — for pulling its dialog into the preview.
