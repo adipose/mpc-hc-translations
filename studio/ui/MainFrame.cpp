@@ -1471,6 +1471,21 @@ static CString clean_menu_label(const std::wstring& s) {
     return CString(o.c_str());
 }
 
+// MPC-HC's popup menus (IDR_POPUP / IDR_POPUPMAIN) wrap their real items in a single unnamed
+// POPUP ""; the player itself previews them via GetSubMenu(0) (see CMainFrame::GetShortMenu /
+// the WM_CONTEXTMENU handler). Descend that wrapper so the tree + right-click show the real menu.
+// The returned submenu is OWNED by `m` -- never DestroyMenu it separately.
+static HMENU menu_root(HMENU m) {
+    if (!m || ::GetMenuItemCount(m) != 1) return m;
+    MENUITEMINFOW info{ sizeof(info) };
+    info.fMask = MIIM_SUBMENU;
+    ::GetMenuItemInfoW(m, 0, TRUE, &info);
+    if (!info.hSubMenu) return m;
+    wchar_t buf[512] = {};
+    ::GetMenuStringW(m, 0, buf, 512, MF_BYPOSITION);
+    return buf[0] ? m : info.hSubMenu;               // empty label + submenu -> it's the wrapper
+}
+
 void MainFrame::AddMenuNodes(HMENU m, HTREEITEM parent) {
     int n = ::GetMenuItemCount(m);
     for (int i = 0; i < n; ++i) {
@@ -1533,7 +1548,7 @@ void MainFrame::BuildMenuTree() {
     m_barMenuId = -1;                                // force the bar preview to rebuild (fresh edits)
     if (m_trackMenu) { ::DestroyMenu(m_trackMenu); m_trackMenu = nullptr; }
     if (m_curMenu >= 0 && m_checkedOut && (m_trackMenu = m_preview.LoadRawMenu(m_curMenu))) {
-        AddMenuNodes(m_trackMenu, TVI_ROOT);         // build tree from the English menu
+        AddMenuNodes(menu_root(m_trackMenu), TVI_ROOT);   // build tree from the English menu (descend the IDR_POPUP* wrapper)
         SubstituteMenuInPlace(m_trackMenu);          // then translate it (for the right-click popup)
         Theme::ThemeMenu(m_trackMenu, /*isMenubar=*/false);   // dark owner-drawn popup
         if (HTREEITEM root = m_menuTree.GetRootItem()) {
@@ -1554,6 +1569,12 @@ void MainFrame::UpdateMenuBarPreview() {
     if (m_barMenuId != m_curMenu) {                 // rebuild only when the menu content changed
         if (m_barMenu) { ::DestroyMenu(m_barMenu); m_barMenu = nullptr; }
         if (HMENU bm = m_preview.LoadRawMenu(m_curMenu)) {
+            if (menu_root(bm) != bm) {               // IDR_POPUP/IDR_POPUPMAIN: a context menu, not a bar
+                ::DestroyMenu(bm);
+                m_menuBar.ShowWindow(SW_HIDE);
+                m_barMenuId = m_curMenu;              // don't rebuild every call
+                return;
+            }
             SubstituteMenuInPlace(bm);
             Theme::ThemeMenu(bm, /*isMenubar=*/true);   // dark: MIM_BACKGROUND + owner-drawn items
             ::SetMenu(bar, bm);
@@ -1562,6 +1583,10 @@ void MainFrame::UpdateMenuBarPreview() {
         m_barMenuId = m_curMenu;
         ::DrawMenuBar(bar);
     }
+    // No bar menu to show -- a context menu (IDR_POPUP*, hidden above) or a failed load. Without this
+    // the SetWindowPos below would re-show the empty strip on every later call (Layout/resize), since
+    // those take the m_barMenuId == m_curMenu path and skip the block above.
+    if (!m_barMenu) { m_menuBar.ShowWindow(SW_HIDE); return; }
     CRect r = m_menuBarRect; ClientToScreen(&r);     // owned popup uses screen coordinates
     m_menuBar.SetWindowPos(&CWnd::wndTop, r.left, r.top, r.Width(), r.Height(),
                            SWP_NOACTIVATE | SWP_SHOWWINDOW);
@@ -2064,7 +2089,7 @@ void MainFrame::OnMenuTreeRClick(NMHDR*, LRESULT* res) {
     POINT pt; ::GetCursorPos(&pt);
     CPoint cpt(pt); m_menuTree.ScreenToClient(&cpt);
     UINT flags = 0;
-    HMENU show = m_trackMenu;
+    HMENU show = menu_root(m_trackMenu);             // descend the IDR_POPUP* wrapper (see menu_root)
     if (HTREEITEM it = m_menuTree.HitTest(cpt, &flags)) {
         auto s = m_menuNodeSub.find(it);
         if (s != m_menuNodeSub.end()) show = s->second;
