@@ -291,6 +291,7 @@ BEGIN_MESSAGE_MAP(MainFrame, CFrameWnd)
     ON_NOTIFY(LVN_GETDISPINFO, IDC_STR_LIST, OnListGetDispInfo)
     ON_NOTIFY(TVN_SELCHANGED, IDC_MENU_TREE, OnMenuTreeSelChanged)
     ON_NOTIFY(NM_RCLICK, IDC_MENU_TREE, OnMenuTreeRClick)
+    ON_BN_CLICKED(IDC_BTN_MENU_PREVIEW, OnMenuPreviewClicked)
     ON_MESSAGE(WM_APP_PREFETCH_DONE, OnPrefetchDone)
     ON_MESSAGE(WM_APP_PREFETCH_PROGRESS, OnPrefetchProgress)
     ON_MESSAGE(WM_APP_AUTO_SELECT, OnAutoSelect)
@@ -325,8 +326,7 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_langCombo.Create(ST | WS_TABSTOP | CBS_DROPDOWNLIST | CBS_SORT | WS_VSCROLL, z, this, IDC_LANG_COMBO);
     m_btnCheckout.Create(L"&Get latest", ST | WS_TABSTOP, z, this, IDC_BTN_CHECKOUT);
     m_status.Create(L"", ST | SS_ENDELLIPSIS, z, this, IDC_STATUS_TEXT);
-    m_menuHint.Create(L"Right-click the tree to preview this menu as it appears in the player.",
-                      ST | SS_ENDELLIPSIS, z, this, 0);   // shown by Layout only for the popup menus
+    m_btnMenuPreview.Create(L"Preview", ST | WS_TABSTOP, z, this, IDC_BTN_MENU_PREVIEW);   // shown by Layout only for the popup menus
     m_progress.Create(WS_CHILD | PBS_SMOOTH, z, this, IDC_PROGRESS);   // hidden until a download runs
     ::SetWindowTheme(m_progress.GetSafeHwnd(), L"", L"");   // strip the visual style so our colors apply
     m_progress.SetBkColor(Theme::WINDOW_BG);
@@ -384,7 +384,7 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_edit.CreatePanel(this, IDC_EDIT_PANEL);
 
     for (CWnd* w : std::initializer_list<CWnd*>{ &m_langCombo, &m_btnCheckout, &m_status,
-             &m_tabs, &m_dlgCombo, &m_list, &m_menuTree })
+             &m_tabs, &m_dlgCombo, &m_list, &m_menuTree, &m_btnMenuPreview })
         w->SetFont(&m_font);
 
     // Dark-theme the frame chrome: combos, the Get-latest button, the surface tabs, the string
@@ -471,14 +471,16 @@ void MainFrame::Layout() {
         m_menuBarRect.SetRect(cx, paneTop, cx + cw, paneTop + barH);
         paneTop += barH + S(4); paneH -= barH + S(4);
     }
-    // The popup menus (IDR_POPUP*) have no bar to preview -- the real translated menu comes up on
-    // right-click, which is otherwise undiscoverable, so put a hint where the bar strip would be.
-    const bool menuHint = menuTab && m_curMenu >= 0 && m_curMenu != 128 && m_checkedOut;
-    m_menuHint.ShowWindow(menuHint ? SW_SHOW : SW_HIDE);
-    if (menuHint) {
-        int hintH = S(16);
-        m_menuHint.MoveWindow(cx, paneTop, cw, hintH);
-        paneTop += hintH + S(4); paneH -= hintH + S(4);
+    // The popup menus (IDR_POPUP*) have no bar to preview -- the real translated menu is shown by
+    // this button (or by right-clicking the tree). It shares the picker combo's row, immediately to
+    // its right, so it costs no vertical space.
+    const bool showMenuPreview = menuTab && m_curMenu >= 0 && m_curMenu != 128 && m_checkedOut;
+    m_btnMenuPreview.ShowWindow(showMenuPreview ? SW_SHOW : SW_HIDE);
+    if (showMenuPreview) {
+        int comboRight = cx + (cw < comboW ? cw : comboW);
+        int btnW = S(90), left = comboRight + S(6);
+        if (left + btnW > cx + cw) left = cx + cw - btnW;   // clamp inside the pane
+        m_btnMenuPreview.MoveWindow(left, y, btnW, comboH);
     }
     int bodyH = paneH - resH - resGap;
     CWnd& body = menuTab ? static_cast<CWnd&>(m_menuTree) : static_cast<CWnd&>(m_previewHost);
@@ -2142,6 +2144,17 @@ void MainFrame::OnMenuTreeRClick(NMHDR*, LRESULT* res) {
     ::TrackPopupMenu(show, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD,
                      pt.x, pt.y, 0, m_hWnd, nullptr);
     ::PostMessage(m_hWnd, WM_NULL, 0, 0);
+}
+
+// "Preview" button -- same real translated menu as OnMenuTreeRClick (m_trackMenu is already the
+// descended + translated copy built by BuildMenuTree), dropped under the button instead of the cursor.
+void MainFrame::OnMenuPreviewClicked() {
+    if (!m_trackMenu) return;
+    CRect r; m_btnMenuPreview.GetWindowRect(&r);
+    ::SetForegroundWindow(m_hWnd);
+    ::TrackPopupMenu(m_trackMenu, TPM_LEFTALIGN | TPM_TOPALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD,
+                     r.left, r.bottom, 0, m_hWnd, nullptr);
+    ::PostMessage(m_hWnd, WM_NULL, 0, 0);   // standard fix so it doesn't self-dismiss
 }
 
 void MainFrame::OnTabChanged(NMHDR*, LRESULT* res) {

@@ -183,6 +183,7 @@ protected:
     afx_msg void OnListGetDispInfo(NMHDR*, LRESULT*);  // virtual list: supply cell text on demand
     afx_msg void OnMenuTreeSelChanged(NMHDR*, LRESULT*);
     afx_msg void OnMenuTreeRClick(NMHDR*, LRESULT*);
+    afx_msg void OnMenuPreviewClicked();   // "Preview" button -- same popup as right-clicking the tree
     afx_msg LRESULT OnPrefetchDone(WPARAM, LPARAM);   // background bulk-download completed
     afx_msg LRESULT OnPrefetchProgress(WPARAM, LPARAM);  // per-language download progress
     afx_msg LRESULT OnAutoSelect(WPARAM, LPARAM);        // automation: select tab + list row
@@ -580,9 +581,9 @@ private:
     CButton    m_btnSuggestFix;   // "Suggest fix…" — docked at the research panel's top-right
     CButton    m_btnDismiss;      // "Dismiss" — visible only on the Review tab, acts on the selected row
     CStatic    m_status;
-    // Discoverability hint shown above the tree for the popup menus (IDR_POPUP*), which have no
-    // menu-bar strip: the real translated menu is previewed by right-clicking the tree.
-    CStatic    m_menuHint;
+    // Menus tab: previews the popup menus (IDR_POPUP*) as the player shows them -- they have no
+    // bar strip. Sits to the right of the picker combo; right-clicking the tree does the same thing.
+    CButton    m_btnMenuPreview;
     CProgressCtrl m_progress;      // shown while the background download runs
     bool       m_downloading = false;
     CTabCtrl   m_tabs;
