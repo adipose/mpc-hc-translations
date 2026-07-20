@@ -1232,8 +1232,14 @@ void MainFrame::RenderCurrentDialog() {
         } else {
             contentPx = childPx;   // fallback: no RcDialogs / missing record / zero DLU
         }
-    } else if (!page.IsEmpty()) {
-        contentPx = childPx;   // modal dialog -- frame just this page, at its own rendered size
+    }
+    // Never frame smaller than the thing being framed: a page's controls can sit outside the dialog's
+    // own window rect (a dialog doesn't clip its children), so a frame sized purely from the template
+    // leaves them spilling below/right of the border -- e.g. IDD_PPAGEADVANCED's wahr/falsch/Standard
+    // row. Grow to cover the child; the max-page sizing above still governs when the child is smaller.
+    if (!page.IsEmpty()) {
+        contentPx.cx = max(contentPx.cx, childPx.cx);
+        contentPx.cy = max(contentPx.cy, childPx.cy);
     }
     m_previewHost.SetFrame(page, contentPx);
     m_previewHost.SyncScroll(true);   // reset to top-left and compute the fresh dialog's scroll range
