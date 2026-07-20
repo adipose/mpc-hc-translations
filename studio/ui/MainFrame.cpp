@@ -1803,12 +1803,12 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     int capH = CaptionHeight();
     CRect capRect(frameRc.left + 1, frameRc.top + 1, frameRc.right - 1, frameRc.top + 1 + capH);
 
-    // Gradient caption bar, mimicking TreePropSheet's CPropPageFrameDefault::DrawCaption: fades from
-    // the OS active-caption color (left) into the page background (right) -- the player fades into
-    // whatever's already painted at that pixel (the page background, since it paints the page first);
-    // we paint the frame first, so fade to Theme::WINDOW_BG explicitly instead of sampling a pixel.
+    // Gradient caption bar, matching the DARK-THEME page frame the player actually uses
+    // (CMPCThemePropPageFrame::DrawCaption, not the default CPropPageFrameDefault): it fades from
+    // ContentSelectedColor (left) to ContentBGColor (right) -- our Theme::CONTENT_SEL -> CONTENT_BG,
+    // NOT the OS COLOR_ACTIVECAPTION (a light blue that clashes with the dark palette).
     // Dependency-free per-column interpolation (mirrors FillGradientRectH) -- no msimg32/GdiGradientFill.
-    COLORREF clrLeft = ::GetSysColor(COLOR_ACTIVECAPTION), clrRight = Theme::WINDOW_BG;
+    COLORREF clrLeft = Theme::CONTENT_SEL, clrRight = Theme::CONTENT_BG;
     int steps = max(1, capRect.Width());
     double dR = GetRValue(clrLeft), dG = GetGValue(clrLeft), dB = GetBValue(clrLeft);
     double stepR = (GetRValue(clrRight) - dR) / steps, stepG = (GetGValue(clrRight) - dG) / steps,
@@ -1818,10 +1818,10 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
         dR += stepR; dG += stepG; dB += stepB;
     }
 
-    // Caption text, exactly as the player's DrawCaption: OS caption-text color, transparent bkmode,
-    // bold message font shrunk to fit the caption height (the same shrink loop), baseline nudged up by
-    // the descent, left-aligned with ellipsis. No DT_NOPREFIX: the player doesn't pass it either, so an
-    // '&' in a title underlines the next character as a mnemonic rather than rendering literally.
+    // Caption text, as CMPCThemePropPageFrame::DrawCaption: themed caption FG (PropPageCaptionFGColor
+    // ~= Theme::TEXT), transparent bkmode, bold message font shrunk to fit the caption height (the same
+    // shrink loop), baseline nudged up by the descent, left-aligned with ellipsis. No DT_NOPREFIX: the
+    // player doesn't pass it either, so an '&' underlines the next character as a mnemonic.
     NONCLIENTMETRICSW ncm{ sizeof(ncm) };
     ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
     LOGFONTW lf = ncm.lfMessageFont;
@@ -1840,7 +1840,7 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     }
     CRect textRect(capRect.left + 2, capRect.top, capRect.right, capRect.bottom);
     textRect.top -= tm.tmDescent - 1;
-    pDC->SetTextColor(::GetSysColor(COLOR_CAPTIONTEXT));
+    pDC->SetTextColor(Theme::TEXT);
     pDC->SetBkMode(TRANSPARENT);
     pDC->DrawText(m_framePage, textRect, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
     pDC->SelectObject(oldFont);
@@ -1875,6 +1875,11 @@ void CThemedHostWnd::RecalcAndReposition() {
     si.nMax = artW > 0 ? artW - 1 : 0; si.nPage = client.Width(); si.nPos = m_scrollX;
     SetScrollInfo(SB_HORZ, &si, TRUE);
     ::SetWindowPos(child, nullptr, cc.left - m_scrollX, cc.top - m_scrollY, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    // The whole frame (border + caption bar) is chrome painted in OnEraseBkgnd at the scroll offset, so
+    // it MOVES with a scroll -- moving only the child leaves the old chrome smeared behind (stale caption/
+    // border, half-drawn controls). Repaint the chrome on any framed scroll. WS_CLIPCHILDREN keeps the
+    // erase off the child, so this only redraws the (thin) chrome, not the dialog -- no child flicker.
+    if (!m_framePage.IsEmpty()) Invalidate(TRUE);
     if (OnScrolled) OnScrolled();
 }
 void CThemedHostWnd::SyncScroll(bool resetPos) {
