@@ -253,7 +253,7 @@ private:
     void PopulateDialogCombo();
     void PopulateMenuCombo();
     void BuildMenuTree();
-    void AddMenuNodes(HMENU m, HTREEITEM parent);
+    void AddMenuNodes(HMENU src, HTREEITEM parent, HMENU dst = nullptr);
     void SubstituteMenuInPlace(HMENU m);            // translate a menu's item text (recursive)
     void UpdateMenuBarPreview();                    // native (dark-themed) horizontal menu bar (main menu)
     void ApplyThemeChange(Theme::Mode m);           // switch theme live across the whole app

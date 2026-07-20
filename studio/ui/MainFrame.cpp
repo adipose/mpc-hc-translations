@@ -1486,16 +1486,25 @@ static HMENU menu_root(HMENU m) {
     return buf[0] ? m : info.hSubMenu;               // empty label + submenu -> it's the wrapper
 }
 
-void MainFrame::AddMenuNodes(HMENU m, HTREEITEM parent) {
-    int n = ::GetMenuItemCount(m);
+// Walks `src` (the English source menu) once, building the tree under `parent`; when `dst` is
+// non-null it ALSO appends the same resolved item to `dst`, so the tree and the native right-click
+// popup (m_trackMenu) can never disagree -- see the bug this fixes at the top of BuildMenuTree.
+// The tree label is cleaned (clean_menu_label) for display; the dst label keeps its '&' mnemonic
+// and "\t<shortcut>" tail, mirroring SubstituteMenuInPlace.
+void MainFrame::AddMenuNodes(HMENU src, HTREEITEM parent, HMENU dst) {
+    int n = ::GetMenuItemCount(src);
     for (int i = 0; i < n; ++i) {
         MENUITEMINFOW info{ sizeof(info) };
-        info.fMask = MIIM_SUBMENU | MIIM_ID | MIIM_FTYPE;
-        ::GetMenuItemInfoW(m, i, TRUE, &info);
-        if (info.fType & MFT_SEPARATOR) { m_menuTree.InsertItem(L"──────────", parent); continue; }
+        info.fMask = MIIM_SUBMENU | MIIM_ID | MIIM_FTYPE | MIIM_STATE;
+        ::GetMenuItemInfoW(src, i, TRUE, &info);
+        if (info.fType & MFT_SEPARATOR) {
+            m_menuTree.InsertItem(L"──────────", parent);
+            if (dst) ::AppendMenuW(dst, MF_SEPARATOR, 0, nullptr);
+            continue;
+        }
 
         wchar_t buf[512] = {};
-        ::GetMenuStringW(m, i, buf, 512, MF_BYPOSITION);
+        ::GetMenuStringW(src, i, buf, 512, MF_BYPOSITION);
         std::wstring cur = buf;
         std::string english = CW2A(cur.c_str(), CP_UTF8), ctx, msgid, msgstr;
 
@@ -1508,7 +1517,28 @@ void MainFrame::AddMenuNodes(HMENU m, HTREEITEM parent) {
         std::wstring shown = msgstr.empty() ? cur : std::wstring((LPCWSTR)CA2W(msgstr.c_str(), CP_UTF8));
         HTREEITEM h = m_menuTree.InsertItem(clean_menu_label(shown), parent);
         if (!msgid.empty()) m_menuNodeKey[h] = { ctx, msgid };
-        if (info.hSubMenu) { m_menuNodeSub[h] = info.hSubMenu; AddMenuNodes(info.hSubMenu, h); }
+
+        HMENU sub = nullptr;
+        if (info.hSubMenu) {
+            sub = dst ? ::CreatePopupMenu() : nullptr;
+            AddMenuNodes(info.hSubMenu, h, sub);
+            m_menuNodeSub[h] = dst ? sub : info.hSubMenu;
+        }
+
+        if (dst) {
+            std::wstring label = shown;                        // keep '&' mnemonic (unlike the tree label)
+            if (!msgstr.empty())
+                if (auto t = cur.find(L'\t'); t != std::wstring::npos) label += cur.substr(t);   // shortcut tail
+            if (info.hSubMenu) ::AppendMenuW(dst, MF_POPUP, (UINT_PTR)sub, label.c_str());
+            else               ::AppendMenuW(dst, MF_STRING, info.wID, label.c_str());
+            if ((info.fState & (MFS_CHECKED | MFS_DISABLED)) || (info.fType & MFT_RADIOCHECK)) {
+                MENUITEMINFOW set{ sizeof(set) };
+                set.fMask = MIIM_STATE | MIIM_FTYPE;
+                set.fState = info.fState & (MFS_CHECKED | MFS_DISABLED);
+                set.fType = MFT_STRING | (info.fType & MFT_RADIOCHECK);
+                ::SetMenuItemInfoW(dst, ::GetMenuItemCount(dst) - 1, TRUE, &set);
+            }
+        }
     }
 }
 
@@ -1547,14 +1577,17 @@ void MainFrame::BuildMenuTree() {
     m_menuNodeSub.clear();
     m_barMenuId = -1;                                // force the bar preview to rebuild (fresh edits)
     if (m_trackMenu) { ::DestroyMenu(m_trackMenu); m_trackMenu = nullptr; }
-    if (m_curMenu >= 0 && m_checkedOut && (m_trackMenu = m_preview.LoadRawMenu(m_curMenu))) {
-        AddMenuNodes(menu_root(m_trackMenu), TVI_ROOT);   // build tree from the English menu (descend the IDR_POPUP* wrapper)
-        SubstituteMenuInPlace(m_trackMenu);          // then translate it (for the right-click popup)
-        Theme::ThemeMenu(m_trackMenu, /*isMenubar=*/false);   // dark owner-drawn popup
-        if (HTREEITEM root = m_menuTree.GetRootItem()) {
-            for (HTREEITEM it = root; it; it = m_menuTree.GetNextSiblingItem(it))
-                m_menuTree.Expand(it, TVE_EXPAND);   // top level open; submenus expand on click
-            m_menuTree.SelectSetFirstVisible(root);  // start scrolled at the top
+    if (m_curMenu >= 0 && m_checkedOut) {
+        if (HMENU raw = m_preview.LoadRawMenu(m_curMenu)) {
+            m_trackMenu = ::CreatePopupMenu();                       // translated copy, built by the walk below
+            AddMenuNodes(menu_root(raw), TVI_ROOT, m_trackMenu);     // tree + popup from ONE resolution (descend the IDR_POPUP* wrapper)
+            ::DestroyMenu(raw);                                      // the English source is no longer needed
+            Theme::ThemeMenu(m_trackMenu, /*isMenubar=*/false);   // dark owner-drawn popup
+            if (HTREEITEM root = m_menuTree.GetRootItem()) {
+                for (HTREEITEM it = root; it; it = m_menuTree.GetNextSiblingItem(it))
+                    m_menuTree.Expand(it, TVE_EXPAND);   // top level open; submenus expand on click
+                m_menuTree.SelectSetFirstVisible(root);  // start scrolled at the top
+            }
         }
     }
     Layout();                                        // (re)place the menu-bar strip for this menu
@@ -2089,7 +2122,7 @@ void MainFrame::OnMenuTreeRClick(NMHDR*, LRESULT* res) {
     POINT pt; ::GetCursorPos(&pt);
     CPoint cpt(pt); m_menuTree.ScreenToClient(&cpt);
     UINT flags = 0;
-    HMENU show = menu_root(m_trackMenu);             // descend the IDR_POPUP* wrapper (see menu_root)
+    HMENU show = m_trackMenu;                        // already descended + translated (see BuildMenuTree)
     if (HTREEITEM it = m_menuTree.HitTest(cpt, &flags)) {
         auto s = m_menuNodeSub.find(it);
         if (s != m_menuNodeSub.end()) show = s->second;
