@@ -45,6 +45,12 @@ public:
     // (Re)compute scroll range/scrollbars and reposition the child; reset=true also zeros the scroll
     // position (e.g. after rendering a freshly-selected dialog).
     void SyncScroll(bool resetPos = false);
+    // Draw a property-page frame (border + caption bar) around the child dialog, mimicking
+    // TreePropSheet's CPropPageFrameDefault -- see MainFrame::RenderCurrentDialog, which resolves
+    // `category`/`page` from the dialog's Options-tree page-title string (or its CAPTION record) and
+    // calls this right after rendering. An EMPTY `page` means "no frame" -- restores today's plain
+    // themed background exactly (the no-frame path every other preview/mock-up/command-help still uses).
+    void SetFrame(const CString& category, const CString& page);
     // Fired after every scroll/reposition (RecalcAndReposition) so the caller can re-sync anything that
     // tracks the child's screen position (e.g. the red locator ring).
     std::function<void()> OnScrolled;
@@ -57,7 +63,15 @@ protected:
     DECLARE_MESSAGE_MAP()
 private:
     void RecalcAndReposition();
+    // Caption-bar height: the message font's line height + padding (~textHeight + 8px), DPI-correct
+    // since lfMessageFont is already scaled for this DC -- mirrors how LivePreview picks its font (see
+    // RenderDialog's SPI_GETNONCLIENTMETRICS). 0 when no frame is set.
+    int CaptionHeight() const;
+    // The frame's content area: the FULL client rect when no frame is set (byte-for-byte today's
+    // behavior), else inset by a 1px border all round plus the caption bar at the top.
+    CRect FrameContentRect() const;
     int m_scrollX = 0, m_scrollY = 0;
+    CString m_frameCategory, m_framePage;   // empty m_framePage = no frame (see SetFrame)
 };
 
 // One control in a synthesized dialog mock-up (a dialog MPC-HC builds in C++ with no RC template, so
