@@ -950,6 +950,8 @@ std::map<std::string, long long> MainFrame::BuildDialogSymbolMap() {
     return out;
 }
 
+static CString clean_menu_label(const std::wstring& s);   // defined below; strips '&' mnemonics
+
 void MainFrame::PopulateDialogCombo() {
     m_dlgCombo.ResetContent();
     m_dlgIds.clear();
@@ -978,7 +980,9 @@ void MainFrame::PopulateDialogCombo() {
         // category; the symbol (when known) makes the raw IDD_ resource findable from the label
         // alone. Omit the "—" separator entirely (not just leave it blank) when the symbol is unknown,
         // and don't repeat it when label already IS the raw symbol (the last-resort fallback above).
-        CString s(CA2W(label.c_str(), CP_UTF8));
+        // Strip '&' mnemonics for display: a title like "&Details" is a real accelerator in the app
+        // (D underlined), but a combo item renders the '&' literally, so drop it ("&&" -> "&").
+        CString s = clean_menu_label(std::wstring((LPCWSTR)CString(CA2W(label.c_str(), CP_UTF8))));
         CString symPart;
         if (!info.sym.empty() && label != info.sym)
             symPart.Format(L"  \x2014  %s", (LPCWSTR)CString(CA2W(info.sym.c_str(), CP_UTF8)));
