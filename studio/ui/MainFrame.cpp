@@ -927,28 +927,53 @@ void MainFrame::RefreshAfterLoad() {
     m_edit.ClearString();
 }
 
+// Bare IDD_* symbol -> dialog id, recovered from Idx().dialogs(): strip a trailing "_CAPTION" off a
+// caption record's msgctxt, else "_" + control_sym off a control record's (first non-empty symbol
+// wins per dialog). Built fresh each call (a few dozen dialogs, cheap) and shared by DialogForString
+// (page-title string -> its dialog) and PopulateDialogCombo (labeling a captionless property page by
+// its page title) so the stripping logic lives in one place.
+std::map<std::string, long long> MainFrame::BuildDialogSymbolMap() {
+    std::map<long long, std::string> symByDialog;
+    for (const auto& r : Idx().dialogs()) {
+        std::string& sym = symByDialog[r.dialog];
+        if (!sym.empty()) continue;
+        if (!r.control) {
+            const std::string suffix = "_CAPTION";
+            if (r.msgctxt.size() > suffix.size())
+                sym = r.msgctxt.substr(0, r.msgctxt.size() - suffix.size());
+        } else if (r.msgctxt.size() > r.control_sym.size() + 1) {
+            sym = r.msgctxt.substr(0, r.msgctxt.size() - r.control_sym.size() - 1);
+        }
+    }
+    std::map<std::string, long long> out;
+    for (const auto& [dlg, sym] : symByDialog) if (!sym.empty()) out[sym] = dlg;
+    return out;
+}
+
 void MainFrame::PopulateDialogCombo() {
     m_dlgCombo.ResetContent();
     m_dlgIds.clear();
     // EVERY distinct dialog id in the index is renderable — property pages (IDD_PPAGE*) have no
-    // CAPTION record (their titles live in the settings tree), so label those by the IDD_ symbol
-    // recovered from a record's msgctxt (= "<IDD sym>_<control sym>").
+    // CAPTION record (their titles live in the Options tree instead, as a STRING-table entry keyed
+    // by the bare IDD_ symbol — see BuildDialogSymbolMap), so label those by that page TITLE
+    // (translated, else English) when available, else fall back to the raw IDD_ symbol.
     struct Info { std::string caption, sym; };
     std::map<long long, Info> dlgs;
     for (const auto& r : Idx().dialogs()) {
         Info& d = dlgs[r.dialog];
-        if (!r.control) {
-            d.caption = r.msgid;
-            const std::string suffix = "_CAPTION";
-            if (d.sym.empty() && r.msgctxt.size() > suffix.size())
-                d.sym = r.msgctxt.substr(0, r.msgctxt.size() - suffix.size());
-        } else if (d.sym.empty() && r.msgctxt.size() > r.control_sym.size() + 1) {
-            d.sym = r.msgctxt.substr(0, r.msgctxt.size() - r.control_sym.size() - 1);
-        }
+        if (!r.control) d.caption = r.msgid;
     }
+    for (const auto& [sym, dlg] : BuildDialogSymbolMap()) dlgs[dlg].sym = sym;
     std::vector<std::pair<CString, long long>> items;
     for (const auto& [id, info] : dlgs) {
-        const std::string& label = !info.caption.empty() ? info.caption : info.sym;
+        std::string label = info.caption;
+        if (label.empty() && !info.sym.empty()) {
+            // No CAPTION record -- a property page. Prefer its Options-tree page title (a
+            // STRING-table entry whose msgctxt is this dialog's bare symbol) over the raw symbol.
+            for (const auto& e : m_po[RES_STRINGS].entries)
+                if (e.msgctxt == info.sym) { label = !e.msgstr.empty() ? e.msgstr : e.msgid; break; }
+        }
+        if (label.empty()) label = info.sym;
         CString s(CA2W(label.c_str(), CP_UTF8));
         CString num; num.Format(L"  (IDD %lld)", id);
         items.emplace_back(s + num, id);
@@ -1149,6 +1174,11 @@ void MainFrame::RenderCurrentDialog() {
 long long MainFrame::DialogForString(const std::string& ctx, const std::string& id) {
     for (const auto& r : Idx().dialogs())
         if (r.msgctxt == ctx && r.msgid == id) return r.dialog;
+    // No control record matches -- ctx may be a property-page TITLE (msgctxt == the bare IDD_ symbol,
+    // e.g. IDD_PPAGEPLAYER, msgid "Player::General") rather than a control. Fall back so selecting a
+    // page-title string in "All strings" still pulls the dialog it titles into the preview.
+    auto syms = BuildDialogSymbolMap();
+    if (auto it = syms.find(ctx); it != syms.end()) return it->second;
     return -1;
 }
 
@@ -2956,9 +2986,9 @@ MainFrame::Row::Flag MainFrame::CellFlagCore(const std::string& msgctxt, const s
 
 // Build m_rows for the Review tab from validate:: (placeholder / accelerator — cheap, run fresh every
 // call) + m_fitCache (fit — read-only; EnsureFitScan owns kicking off the scan, this never blocks).
-// Row order: hard overflow, placeholder, accelerator, tight fit.
+// Row order: hard overflow, placeholder, accelerator, category, tight fit.
 void MainFrame::PopulateReviewRows() {
-    std::vector<Row> hard, placeholder, accel, tight;
+    std::vector<Row> hard, placeholder, accel, category, tight;
     std::wstring langKey(m_lang);
     auto dismissed = [&](const std::string& ctx, const std::string& id) {
         return m_dismissed.count({ langKey, ctx, id }) != 0;
@@ -3017,6 +3047,67 @@ void MainFrame::PopulateReviewRows() {
                 accel.push_back(row);
             }
     }
+    // -- Options tree category consistency (RES_STRINGS only): a property-page title (IDD_PPAGE* etc.)
+    // is a STRING-table entry whose msgctxt is the BARE dialog symbol and whose msgid/msgstr use "::"
+    // to separate the Options tree CATEGORY from the page name ("Player::General"). Every page sharing
+    // an English category must translate that prefix IDENTICALLY, or the built player's Options tree
+    // splits into multiple branches for the same category. --
+    {
+        auto isBareDialogSymbol = [](const std::string& ctx) {
+            if (ctx.rfind("IDD_", 0) != 0 || ctx.size() <= 4) return false;
+            for (size_t i = 4; i < ctx.size(); ++i) {
+                char c = ctx[i];
+                if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) return false;
+            }
+            return true;
+        };
+        struct CatEntry { std::string msgctxt, msgid, englishCat, gotCat; };
+        std::vector<CatEntry> withCat;   // msgstr HAS "::" -- category successfully split off
+        for (const auto& e : m_po[RES_STRINGS].entries) {
+            if (e.msgstr.empty() || dismissed(e.msgctxt, e.msgid)) continue;
+            if (!isBareDialogSymbol(e.msgctxt)) continue;
+            size_t sep = e.msgid.find("::");
+            if (sep == std::string::npos) continue;   // not a page-title entry
+            std::string englishCat = e.msgid.substr(0, sep);
+            size_t gotSep = e.msgstr.find("::");
+            if (gotSep == std::string::npos) {
+                Row row{ e.msgctxt, e.msgid, RES_STRINGS };
+                row.flag = Row::Flag::Category;
+                row.evidence.Format(L"the \"::\" category separator is missing (the Options tree needs "
+                                     L"\"%s::<page>\")", (LPCWSTR)CString(CA2W(englishCat.c_str(), CP_UTF8)));
+                category.push_back(row);
+                continue;
+            }
+            withCat.push_back({ e.msgctxt, e.msgid, englishCat, e.msgstr.substr(0, gotSep) });
+        }
+        // Group by English category; flag every entry in a group whose translated categories disagree.
+        std::map<std::string, std::vector<size_t>> byEnglishCat;   // englishCat -> indices into withCat
+        for (size_t i = 0; i < withCat.size(); ++i) byEnglishCat[withCat[i].englishCat].push_back(i);
+        for (const auto& [englishCat, idxs] : byEnglishCat) {
+            std::vector<std::string> variants;   // distinct translated categories, first-seen order
+            for (size_t i : idxs) {
+                const std::string& got = withCat[i].gotCat;
+                if (std::find(variants.begin(), variants.end(), got) == variants.end())
+                    variants.push_back(got);
+            }
+            if (variants.size() <= 1) continue;   // this language agrees -- nothing to flag
+            CString variantList;
+            for (size_t v = 0; v < variants.size(); ++v) {
+                if (v) variantList += L" / ";
+                variantList += L"\"" + CString(CA2W(variants[v].c_str(), CP_UTF8)) + L"\"";
+            }
+            CString evidence;
+            evidence.Format(L"category \"%s\" is translated %zu different ways here: %s",
+                             (LPCWSTR)CString(CA2W(englishCat.c_str(), CP_UTF8)), variants.size(),
+                             (LPCWSTR)variantList);
+            for (size_t i : idxs) {
+                Row row{ withCat[i].msgctxt, withCat[i].msgid, RES_STRINGS };
+                row.flag = Row::Flag::Category;
+                row.evidence = evidence;
+                category.push_back(row);
+            }
+        }
+    }
     // -- fit, from cache (may be empty/not-yet-computed; EnsureFitScan already kicked off elsewhere —
     //    this function must not itself block or start scans) --
     if (auto it = m_fitCache.find(langKey); it != m_fitCache.end()) {
@@ -3044,6 +3135,7 @@ void MainFrame::PopulateReviewRows() {
     for (auto& r : hard) m_rows.push_back(std::move(r));
     for (auto& r : placeholder) m_rows.push_back(std::move(r));
     for (auto& r : accel) m_rows.push_back(std::move(r));
+    for (auto& r : category) m_rows.push_back(std::move(r));
     for (auto& r : tight) m_rows.push_back(std::move(r));
     m_curRow = -1;
     m_list.SetItemState(-1, 0, LVIS_SELECTED | LVIS_FOCUSED);
@@ -3055,8 +3147,8 @@ void MainFrame::PopulateReviewRows() {
     for (const auto& t : m_dismissed) if (std::get<0>(t) == langKey) ++dismissedCount;
     CString s;
     s.Format(L"Review: %zu hard overflow(s), %zu placeholder issue(s), %zu accelerator issue(s), "
-             L"%zu tight fit(s)%s. Dismissed: %zu.%s",
-             hard.size(), placeholder.size(), accel.size(), tight.size(),
+             L"%zu category issue(s), %zu tight fit(s)%s. Dismissed: %zu.%s",
+             hard.size(), placeholder.size(), accel.size(), category.size(), tight.size(),
              scanning ? L" (fit scan in progress)" : L"",
              dismissedCount,
              scanning ? L" Computing fit\x2026" : L"");
@@ -3645,6 +3737,11 @@ CString MainFrame::BuildAiUserPromptCore(const CString& langCode, const CString&
         case Row::Flag::Accelerator:
             prompt += L"\r\n>>> FIX REQUIRED: " + row.evidence + L". Produce a corrected translation "
                       L"with a non-conflicting accelerator letter.\r\n";
+            break;
+        case Row::Flag::Category:
+            prompt += L"\r\n>>> FIX REQUIRED: " + row.evidence + L". Use exactly the SAME translation for "
+                      L"the category prefix as the other pages in this category, keeping the \"::\" "
+                      L"separator so the Options tree stays a single branch.\r\n";
             break;
         default:
             break;

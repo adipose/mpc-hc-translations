@@ -220,7 +220,7 @@ private:
     enum Res { RES_DIALOGS = 0, RES_MENUS = 1, RES_STRINGS = 2, RES_COUNT = 3, RES_UNTRANS = 3, RES_REVIEW = 4 };
     struct Row {
         std::string msgctxt, msgid; int res;
-        enum class Flag { None, FitHard, Placeholder, Accelerator, FitTight } flag = Flag::None;
+        enum class Flag { None, FitHard, Placeholder, Accelerator, FitTight, Category } flag = Flag::None;
         CString evidence;              // "overflows by 104px", "placeholder %d missing", etc.
         long long flagDialog = -1;     // dialog id owning a fit flag (-1 = n/a)
         long long flagControlId = -1;  // control id owning a fit flag (-1 = n/a, or for non-fit flags)
@@ -266,6 +266,11 @@ private:
     void RefreshListRow(int item);
     CString RowText(int item, int col);             // (context / english / translation) for a row
     void RenderCurrentDialog();
+    // Bare IDD_* symbol -> dialog id, recovered from Idx().dialogs() the same way PopulateDialogCombo
+    // derives its label symbol (strip "_CAPTION" off a caption record, else "_"+control_sym off a
+    // control record). Built once per call; shared by DialogForString and PopulateDialogCombo so the
+    // stripping logic lives in one place.
+    std::map<std::string, long long> BuildDialogSymbolMap();
     long long DialogForString(const std::string& ctx, const std::string& id);   // string -> its IDD
     long long TooltipDialog(const std::string& ctx, CString& ctlEnglish);        // tooltip -> its control's IDD
     bool ShowComboItem(const std::string& ctx);   // combo-item string -> its page with the dropdown expanded
