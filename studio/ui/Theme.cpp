@@ -437,7 +437,24 @@ static void draw_check(HWND h, HDC dc, bool radio) {
     HGDIOBJ of = wf ? ::SelectObject(dc, wf) : nullptr;
     ::SetBkMode(dc, TRANSPARENT);
     ::SetTextColor(dc, ::IsWindowEnabled(h) ? TEXT : TEXT_DISABLED);
-    ::DrawTextW(dc, txt, n, &textR, DT_LEFT | DT_VCENTER | DT_SINGLELINE);
+    // Honor BS_MULTILINE: several MPC-HC radios/checks are multiline and sized for 2+ lines (e.g.
+    // IDD_PPAGEPLAYER's IDC_RADIO1/2 are BS_MULTILINE|BS_TOP at 126x27 DLU). Drawing them
+    // DT_SINGLELINE clipped long (translated) captions instead of wrapping like the real control.
+    // DT_VCENTER/DT_BOTTOM are DT_SINGLELINE-only, so for wrapped text we measure and offset.
+    UINT fmt = DT_LEFT;
+    if (style & BS_MULTILINE) {
+        fmt |= DT_WORDBREAK | DT_TOP;
+        LONG vert = style & BS_VCENTER;          // BS_VCENTER == BS_TOP|BS_BOTTOM
+        if (vert != BS_TOP) {                    // bottom- or centre-aligned: place the block ourselves
+            RECT calc = textR;
+            ::DrawTextW(dc, txt, n, &calc, fmt | DT_CALCRECT);
+            int extra = (textR.bottom - textR.top) - (calc.bottom - calc.top);
+            if (extra > 0) textR.top += (vert == BS_BOTTOM) ? extra : extra / 2;
+        }
+    } else {
+        fmt |= DT_VCENTER | DT_SINGLELINE;
+    }
+    ::DrawTextW(dc, txt, n, &textR, fmt);
     if (of) ::SelectObject(dc, of);
 }
 
