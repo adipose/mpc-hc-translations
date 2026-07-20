@@ -132,6 +132,16 @@ private:
     void ApplyWidgetPairs(HWND dlg, long long dialogId);
     void IntegrateSpinners(HWND dlg);   // sit each up-down inside its buddy edit so they read as one field
     void ApplyDarkTheme(HWND dlg);   // MPC-HC "Modern" dark theming (bg/text + owner-drawn controls)
+
+    // One "conflict cluster" of directly-overlapping direct children -- some dialogs (e.g.
+    // IDD_PPAGEADVANCED's bottom row) stack several controls at the SAME template rect because the
+    // player only shows one variant at runtime per setting's type (Edit / ComboBox / radio pair).
+    // `members` is template (EnumChildWindows) order; exactly the mutually-compatible subset chosen
+    // by ApplySeed is visible at a time -- see ResolveOverlaps for the why in full.
+    struct OverlapCluster { std::vector<HWND> members; };
+    void ResolveOverlaps(HWND dlg);                      // detect clusters, show each one's default seed
+    void ApplySeed(OverlapCluster& cluster, HWND seed);  // show `seed` + compatible siblings, hide the rest
+    void SyncSpinnerBuddies(HWND dlg);                   // tie each msctls_updown32's visibility to its buddy
     static INT_PTR CALLBACK PreviewDlgProc(HWND, UINT, WPARAM, LPARAM);
     HMODULE m_neutral = nullptr;
     std::vector<mpctrans::RcDialog> m_rcDialogs;   // parsed RC source (Approach C)
@@ -150,4 +160,5 @@ private:
     HFONT   m_dlgFont = nullptr;     // system message font (Segoe UI) applied to the preview, MPC-style
     // English template text per child, captured BEFORE substitution (keys for HitTest).
     std::vector<std::pair<HWND, std::string>> m_english;
+    std::vector<OverlapCluster> m_overlapClusters;   // this render's overlap clusters; cleared in DestroyPreview
 };

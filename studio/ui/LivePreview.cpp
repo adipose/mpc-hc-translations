@@ -43,6 +43,7 @@ void LivePreview::DestroyPreview() {
     if (m_dlg) { ::DestroyWindow(m_dlg); m_dlg = nullptr; }
     m_highlight = nullptr;
     m_english.clear();
+    m_overlapClusters.clear();
 }
 
 // A themed tooltip bubble: a top-level popup (owned by the frame, so it floats above the dialog's
@@ -128,6 +129,29 @@ void LivePreview::HighlightControl(const std::string& english) {
     if (!english.empty())
         for (const auto& [hwnd, en] : m_english)
             if (en == english) { next = hwnd; break; }
+
+    // If the string being edited lives on a currently-hidden overlap-cluster member (e.g. the user
+    // picked the ComboBox variant's string while the Edit variant happens to be showing), reseed that
+    // cluster with it BEFORE ringing it, so the ring lands on a visible control -- and repaint the
+    // cluster's screen-rect union so the swap actually paints (ShowWindow alone doesn't repaint the
+    // siblings it just hid/exposed).
+    if (next && m_dlg && !::IsWindowVisible(next)) {
+        for (auto& cluster : m_overlapClusters) {
+            if (std::find(cluster.members.begin(), cluster.members.end(), next) == cluster.members.end())
+                continue;
+            RECT u{}; bool first = true;
+            for (HWND m : cluster.members) {
+                RECT r; ::GetWindowRect(m, &r);
+                if (first) { u = r; first = false; } else ::UnionRect(&u, &u, &r);
+            }
+            ApplySeed(cluster, next);
+            SyncSpinnerBuddies(m_dlg);
+            ::MapWindowPoints(nullptr, m_dlg, (POINT*)&u, 2);   // screen -> dialog-client
+            ::RedrawWindow(m_dlg, &u, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+            break;
+        }
+    }
+
     m_highlight = next;
     ringFrame(next);
 }
@@ -452,6 +476,131 @@ void LivePreview::IntegrateSpinners(HWND dlg) {
     }
 }
 
+// --- Overlap clusters -------------------------------------------------------------------------
+// Some MPC-HC dialogs stack SEVERAL controls at the identical template rect because the player's C++
+// only shows one "variant" at a time at runtime -- e.g. IDD_PPAGEADVANCED's bottom row overlays an
+// Edit (numeric value, with an msctls_updown32 buddy), a ComboBox (enum values) and two radio Buttons
+// ("True"/"False") at the SAME rect; CPPageAdvanced::OnInitDialog shows only the one matching the
+// selected setting's type. Rendered from a raw template ALL of them show at once, stacked -- double
+// borders, a stray combo-arrow box, radios drawn over the edit. This mirrors the runtime: detect the
+// overlapping groups and show only one compatible subset per group, seeded by the string being edited.
+namespace {
+// Direct children eligible for clustering: excludes group boxes (layout chrome, not a runtime variant),
+// msctls_updown32 (not a variant of its own -- tied to its buddy edit's visibility, see
+// SyncSpinnerBuddies), and zero-area windows.
+bool overlap_clusterable(HWND c) {
+    RECT r; ::GetWindowRect(c, &r);
+    if (r.right <= r.left || r.bottom <= r.top) return false;
+    wchar_t cls[32]; ::GetClassNameW(c, cls, 32);
+    if (!_wcsicmp(cls, L"msctls_updown32")) return false;
+    LONG st = (LONG)::GetWindowLongPtr(c, GWL_STYLE);
+    if (!_wcsicmp(cls, L"Button") && (st & BS_TYPEMASK) == BS_GROUPBOX) return false;
+    return true;
+}
+// Two controls CONFLICT (occupy the same runtime "variant slot") if their window rects intersect over
+// more than 40% of the smaller one's area -- a loose overlap (e.g. a spinner's shrunk buddy edit abutting
+// its label) shouldn't cluster; the near-total overlap of stacked variants should.
+bool overlap_conflicts(const RECT& a, const RECT& b) {
+    RECT i;
+    if (!::IntersectRect(&i, &a, &b)) return false;
+    LONGLONG areaA = (LONGLONG)(a.right - a.left) * (a.bottom - a.top);
+    LONGLONG areaB = (LONGLONG)(b.right - b.left) * (b.bottom - b.top);
+    LONGLONG areaI = (LONGLONG)(i.right - i.left) * (i.bottom - i.top);
+    LONGLONG smaller = min(areaA, areaB);   // (bare min: NOMINMAX isn't defined in this TU, see e.g. ShowComboDropdown's max())
+    return smaller > 0 && areaI * 10 > smaller * 4;   // > 40%
+}
+} // namespace
+
+// Detect this dialog's overlap clusters (connected components of overlap_conflicts among direct,
+// clusterable children) and show each one's default seed (its first member in template/EnumChildWindows
+// order). Called from RenderDialog after layout is final (substitution, AdjustDynamicWidgetPair,
+// IntegrateSpinners) and before the dialog is shown. Dialogs with no overlaps get no clusters, so their
+// children are untouched -- ShowWindow is only ever called on members of an actual cluster.
+void LivePreview::ResolveOverlaps(HWND dlg) {
+    m_overlapClusters.clear();
+
+    struct Item { HWND h; RECT r; };
+    std::vector<Item> items;
+    ::EnumChildWindows(dlg, [](HWND c, LPARAM lp) -> BOOL {
+        if (overlap_clusterable(c)) { RECT r; ::GetWindowRect(c, &r); ((std::vector<Item>*)lp)->push_back({ c, r }); }
+        return TRUE;
+    }, (LPARAM)&items);
+
+    std::vector<bool> used(items.size(), false);
+    for (size_t i = 0; i < items.size(); ++i) {
+        if (used[i]) continue;
+        std::vector<size_t> comp{ i };
+        used[i] = true;
+        for (size_t k = 0; k < comp.size(); ++k)              // BFS: pull in anything conflicting with any member
+            for (size_t j = 0; j < items.size(); ++j)
+                if (!used[j] && overlap_conflicts(items[comp[k]].r, items[j].r)) { used[j] = true; comp.push_back(j); }
+        if (comp.size() < 2) continue;                        // singletons aren't clusters
+        std::sort(comp.begin(), comp.end());                  // restore template order (BFS scrambles it)
+        OverlapCluster oc;
+        for (size_t ix : comp) oc.members.push_back(items[ix].h);
+        m_overlapClusters.push_back(std::move(oc));
+    }
+
+    for (auto& c : m_overlapClusters) ApplySeed(c, c.members.front());   // default seed = first in template order
+    SyncSpinnerBuddies(dlg);
+}
+
+// Show `seed`, then -- in template order -- also show any other cluster member that conflicts with
+// NONE of the members shown so far (e.g. seeding on radio "True" also brings back its sibling radio
+// "False": they don't conflict with each other, only with the Edit/ComboBox they're stacked inside).
+// Everything else in the cluster stays/becomes hidden. Never resizes/moves a control -- only visibility.
+void LivePreview::ApplySeed(OverlapCluster& cluster, HWND seed) {
+    for (HWND m : cluster.members) ::ShowWindow(m, m == seed ? SW_SHOWNA : SW_HIDE);
+    std::vector<HWND> shown{ seed };
+    for (HWND m : cluster.members) {
+        if (m == seed) continue;
+        RECT mr; ::GetWindowRect(m, &mr);
+        bool conflictsShown = false;
+        for (HWND s : shown) {
+            RECT sr; ::GetWindowRect(s, &sr);
+            if (overlap_conflicts(mr, sr)) { conflictsShown = true; break; }
+        }
+        if (!conflictsShown) { ::ShowWindow(m, SW_SHOWNA); shown.push_back(m); }
+    }
+}
+
+// Tie each msctls_updown32's visibility to its buddy edit's (the buddy pairing was set up by
+// IntegrateSpinners via UDM_SETBUDDY, which must run before this). The spinner isn't a cluster member
+// of its own -- it's part of whichever Edit variant currently shows, so it hides/shows with it.
+void LivePreview::SyncSpinnerBuddies(HWND dlg) {
+    ::EnumChildWindows(dlg, [](HWND c, LPARAM) -> BOOL {
+        wchar_t cls[32]; ::GetClassNameW(c, cls, 32);
+        if (_wcsicmp(cls, L"msctls_updown32")) return TRUE;
+        HWND buddy = (HWND)::SendMessageW(c, UDM_GETBUDDY, 0, 0);
+        if (!buddy) {
+            // No UDM_SETBUDDY pairing (IntegrateSpinners only pairs a spinner sitting just RIGHT of
+            // its edit; some templates place the spinner INSIDE the edit's right edge, e.g.
+            // IDD_PPAGEADVANCED). Fall back to geometry: the Edit sibling whose rect overlaps or abuts
+            // the spinner -- otherwise a hidden edit leaves an orphan floating spinner.
+            RECT ur; ::GetWindowRect(c, &ur);
+            struct Ctx { const RECT* u; HWND hit; } ctx{ &ur, nullptr };
+            ::EnumChildWindows(::GetParent(c), [](HWND e, LPARAM lp) -> BOOL {
+                auto* x = (Ctx*)lp;
+                wchar_t ecls[32]; ::GetClassNameW(e, ecls, 32);
+                if (_wcsicmp(ecls, L"Edit")) return TRUE;
+                RECT er; ::GetWindowRect(e, &er);
+                if (er.bottom <= x->u->top || er.top >= x->u->bottom) return TRUE;   // no vertical overlap
+                if (er.right >= x->u->left - 8 && er.left <= x->u->right + 8) { x->hit = e; return FALSE; }
+                return TRUE;
+            }, (LPARAM)&ctx);
+            buddy = ctx.hit;
+        }
+        // Test the buddy's OWN visible bit, not IsWindowVisible: ResolveOverlaps runs before the
+        // dialog is shown, and IsWindowVisible is false for every child of a hidden parent -- it
+        // would hide the spinner of a perfectly visible edit at render time.
+        if (buddy) {
+            bool on = (::GetWindowLongPtr(buddy, GWL_STYLE) & WS_VISIBLE) != 0;
+            ::ShowWindow(c, on ? SW_SHOWNA : SW_HIDE);
+        }
+        return TRUE;
+    }, 0);
+}
+
 // Advance past a DLGTEMPLATEEX sz_Or_Ord field (menu/class): 0x0000 -> empty (2 bytes),
 // 0xFFFF -> ordinal (4 bytes), else a null-terminated UTF-16 string.
 static size_t skip_sz_or_ord(const std::vector<unsigned char>& b, size_t pos) {
@@ -584,6 +733,11 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
     // 6. MPC-HC "Modern" dark theming (backgrounds via WM_CTLCOLOR in PreviewDlgProc; buttons/checks/
     //    groups owner-drawn). Applied while hidden, like the widget pairs, so it shows clean.
     ApplyDarkTheme(dlg);
+
+    // 7. One-at-a-time overlap clusters (see the comment at ResolveOverlaps): some templates stack
+    //    several controls at the identical rect because the player shows only one per setting's type.
+    //    Layout is final now (widget pairs + spinners), so cluster detection sees real rects.
+    ResolveOverlaps(dlg);
 
     // TODO: render target-language font + WS_EX_LAYOUTRTL for ar/he (accurate overflow).
     ::ShowWindow(dlg, SW_SHOWNA);
