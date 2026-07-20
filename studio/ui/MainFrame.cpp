@@ -1260,9 +1260,12 @@ void MainFrame::RenderCurrentDialog() {
     // Invalidate() marks only the host's client, and WS_CLIPCHILDREN excludes the child dialog + its
     // controls -- so the new combos/edits stay unpainted (showing the prior page's pixels) until a
     // mouse event repaints them. RDW_ALLCHILDREN recurses into the dialog's controls; RDW_UPDATENOW
-    // paints now rather than deferring. (RDW_ERASE redraws the frame chrome in OnEraseBkgnd.)
+    // paints now rather than deferring; RDW_FRAME forces each control's NON-CLIENT area too -- the
+    // themed edit/combo borders are drawn in WM_NCPAINT, so without it they render half-drawn (an
+    // L-shaped edit border, a stray combo-button box) left over from the prior page. RDW_ERASE
+    // redraws the frame chrome in OnEraseBkgnd.
     m_previewHost.RedrawWindow(nullptr, nullptr,
-                               RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
+                               RDW_INVALIDATE | RDW_ERASE | RDW_FRAME | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
 
 // Which IDD dialog (if any) a string belongs to — for pulling its dialog into the preview.
