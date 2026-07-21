@@ -1876,25 +1876,15 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     NONCLIENTMETRICSW ncm{ sizeof(ncm) };
     ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
     LOGFONTW lf = ncm.lfMessageFont;
-    // The player sizes the caption FONT from TreePropSheet's DPI-scaled 21px caption metric (36px at
-    // 175%), while the VISIBLE bar is the (non-linearly-scaling) tab-item height (29px) -- two
-    // different bases. Measured on the real Options dialog: bar 29px, caption ink 17px = a -27 em,
-    // which is -0.8*36 shrunk to fit 36 -- NOT -0.8*29 shrunk to fit 29 (that gives 14px ink).
-    // Reproduce exactly that: font from the scaled metric, bar from the tab height.
-    int fontBase = ::MulDiv(21, pDC->GetDeviceCaps(LOGPIXELSY), 96);
-    lf.lfHeight = (long)(-.8f * fontBase);
+    // Caption em calibrated against the REAL Options dialog on a 175% system (user-measured: bar 29px,
+    // caption ink 17px): a -24 em at 168 DPI, i.e. ~13.7px at 96 (encoded MulDiv(41,dpi,288)).
+    // Formula-derivation kept missing (the player's -0.8*base + shrink dance landed our ink at 14px or
+    // 18-19px depending on the base) -- so this is pinned to the measured rendering, DPI-linear.
+    lf.lfHeight = -::MulDiv(41, pDC->GetDeviceCaps(LOGPIXELSY), 288);
     lf.lfWeight = FW_BOLD;
     CFont f; f.CreateFontIndirectW(&lf);
     HGDIOBJ oldFont = pDC->SelectObject(&f);
     TEXTMETRICW tm{}; pDC->GetTextMetrics(&tm);
-    while (tm.tmHeight > fontBase && abs(lf.lfHeight) > 10) {
-        pDC->SelectObject(oldFont);
-        f.DeleteObject();
-        lf.lfHeight++;
-        f.CreateFontIndirectW(&lf);
-        pDC->SelectObject(&f);
-        pDC->GetTextMetrics(&tm);
-    }
     CRect textRect(capRect.left + 2, capRect.top, capRect.right, capRect.bottom);
     textRect.top -= tm.tmDescent - 1;
     pDC->SetTextColor(Theme::TEXT);
