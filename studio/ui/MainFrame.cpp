@@ -318,7 +318,7 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
                             : (int)Theme::Mode::Dark;
     Theme::SetMode((Theme::Mode)saved);    // restore the last-chosen theme (default MPC-HC Dark)
     Theme::InitTopWindow(GetSafeHwnd());   // dark mode (scrollbars) + title bar, before children
-    { CClientDC dc(this); m_dpi = dc.GetDeviceCaps(LOGPIXELSX); }   // app is per-system DPI aware
+    m_dpi = Theme::DpiOf(GetSafeHwnd());   // GetDpiForWindow (per-window; == system DPI while the app is system-DPI aware)
     m_font.CreatePointFont(90, L"Segoe UI");                        // 9pt, DPI-scaled by the screen DC
     const DWORD ST = WS_CHILD | WS_VISIBLE;
     CRect z(0, 0, 0, 0);
@@ -1812,9 +1812,8 @@ int CThemedHostWnd::CaptionHeight() const {
             // PROPSHEETHEADER template's 8pt "MS Shell Dlg" -- the same font that pins the pages'
             // DLU grid); a bare CTabCtrl defaults to the stock system font and measures ~4px short,
             // the 9pt message font ~6px tall. Use the sheet font itself.
-            CClientDC mdc(self);
             LOGFONTW lf{};
-            lf.lfHeight = -::MulDiv(8, mdc.GetDeviceCaps(LOGPIXELSY), 72);
+            lf.lfHeight = -::MulDiv(8, Theme::DpiOf(m_hWnd), 72);
             wcscpy_s(lf.lfFaceName, L"MS Shell Dlg");
             HFONT f = ::CreateFontIndirectW(&lf);
             if (f) ::SendMessageW(tab.m_hWnd, WM_SETFONT, (WPARAM)f, FALSE);
@@ -1824,10 +1823,8 @@ int CThemedHostWnd::CaptionHeight() const {
             tab.DestroyWindow();
             if (f) ::DeleteObject(f);
         }
-        if (m_capH <= 0) {          // measurement failed -- TreePropSheet's hardcoded fallback
-            CClientDC dc(self);
-            const_cast<CThemedHostWnd*>(this)->m_capH = ::MulDiv(21, dc.GetDeviceCaps(LOGPIXELSY), 96);
-        }
+        if (m_capH <= 0)            // measurement failed -- TreePropSheet's hardcoded fallback
+            const_cast<CThemedHostWnd*>(this)->m_capH = ::MulDiv(21, Theme::DpiOf(m_hWnd), 96);
     }
     return m_capH;
 }
@@ -1880,7 +1877,7 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     // caption ink 17px): a -24 em at 168 DPI, i.e. ~13.7px at 96 (encoded MulDiv(41,dpi,288)).
     // Formula-derivation kept missing (the player's -0.8*base + shrink dance landed our ink at 14px or
     // 18-19px depending on the base) -- so this is pinned to the measured rendering, DPI-linear.
-    lf.lfHeight = -::MulDiv(41, pDC->GetDeviceCaps(LOGPIXELSY), 288);
+    lf.lfHeight = -::MulDiv(41, Theme::DpiOf(m_hWnd), 288);
     lf.lfWeight = FW_BOLD;
     CFont f; f.CreateFontIndirectW(&lf);
     HGDIOBJ oldFont = pDC->SelectObject(&f);

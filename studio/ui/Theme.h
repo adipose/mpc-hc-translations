@@ -12,6 +12,7 @@ enum class Mode { Dark, Light, System };
 void  SetMode(Mode pref);      // store the preference + apply the resolved palette/brushes
 Mode  Preference();            // the user's stored choice (may be System)
 bool  IsDark();                // the effective palette is the dark one
+int   DpiOf(HWND h);           // GetDpiForWindow when available (per-monitor correct); GetDeviceCaps fallback
 
 // --- palette (set per-mode by SetMode; values below are the active theme's colors) ---
 extern COLORREF WINDOW_BG;     // dialog / page / frame background

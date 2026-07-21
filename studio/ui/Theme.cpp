@@ -153,7 +153,7 @@ HBRUSH contentCtl(HDC dc) { ::SetTextColor(dc, TEXT); ::SetBkColor(dc, CONTENT_B
 // carry this as CWnd member fields (isHover, downPos, hotItem); the studio's shared subclass proc
 // has no per-instance storage, so it's kept in small hash maps keyed by HWND instead.
 // ============================================================================================
-static int DpiOf(HWND h) {   // CMPCThemeUtil call sites all go through DpiHelper -> GetDpiForWindow
+int DpiOf(HWND h) {          // CMPCThemeUtil call sites all go through DpiHelper -> GetDpiForWindow
     static auto pGetDpiForWindow = reinterpret_cast<UINT(WINAPI*)(HWND)>(
         ::GetProcAddress(::GetModuleHandleW(L"user32.dll"), "GetDpiForWindow"));
     if (pGetDpiForWindow) { UINT d = pGetDpiForWindow(h); if (d) return (int)d; }
