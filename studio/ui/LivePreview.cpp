@@ -491,6 +491,10 @@ namespace {
 bool overlap_clusterable(HWND c) {
     RECT r; ::GetWindowRect(c, &r);
     if (r.right <= r.left || r.bottom <= r.top) return false;
+    // Skip windows already hidden (their own WS_VISIBLE bit -- the dialog isn't shown yet, so
+    // IsWindowVisible would be false for everyone): e.g. imageless icon statics hidden in step 6b.
+    // ApplySeed must never re-show them.
+    if (!(::GetWindowLongPtr(c, GWL_STYLE) & WS_VISIBLE)) return false;
     wchar_t cls[32]; ::GetClassNameW(c, cls, 32);
     if (!_wcsicmp(cls, L"msctls_updown32")) return false;
     LONG st = (LONG)::GetWindowLongPtr(c, GWL_STYLE);
@@ -738,6 +742,23 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
     // 6. MPC-HC "Modern" dark theming (backgrounds via WM_CTLCOLOR in PreviewDlgProc; buttons/checks/
     //    groups owner-drawn). Applied while hidden, like the widget pairs, so it shows clean.
     ApplyDarkTheme(dlg);
+
+    // 6b. Hide SS_ICON/SS_BITMAP statics that have NO image: their images are loaded at RUNTIME by
+    //    the app (e.g. IDD_PPAGEOUTPUT's tick/cross renderer-capability indicators), and a real
+    //    SS_ICON static SHRINKS to its icon when one is set -- which is how the player's oversized
+    //    24x20-DLU placeholders never cover the labels they overlap in the template. With no image,
+    //    ours kept the full placeholder rect and its background erase clipped the neighboring
+    //    label's first characters ('KVA', 'creenshot'). An imageless image-static shows nothing
+    //    anyway, so hide it.
+    ::EnumChildWindows(dlg, [](HWND c, LPARAM) -> BOOL {
+        wchar_t cls[16]; ::GetClassNameW(c, cls, 16);
+        if (_wcsicmp(cls, L"Static")) return TRUE;
+        LONG t = (LONG)::GetWindowLongPtr(c, GWL_STYLE) & SS_TYPEMASK;
+        if ((t == SS_ICON && !::SendMessageW(c, STM_GETIMAGE, IMAGE_ICON, 0)) ||
+            (t == SS_BITMAP && !::SendMessageW(c, STM_GETIMAGE, IMAGE_BITMAP, 0)))
+            ::ShowWindow(c, SW_HIDE);
+        return TRUE;
+    }, 0);
 
     // 7. One-at-a-time overlap clusters (see the comment at ResolveOverlaps): some templates stack
     //    several controls at the identical rect because the player shows only one per setting's type.
