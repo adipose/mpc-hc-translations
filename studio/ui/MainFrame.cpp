@@ -1876,12 +1876,18 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     NONCLIENTMETRICSW ncm{ sizeof(ncm) };
     ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
     LOGFONTW lf = ncm.lfMessageFont;
-    lf.lfHeight = (long)(-.8f * capH);
+    // The player sizes the caption FONT from TreePropSheet's DPI-scaled 21px caption metric (36px at
+    // 175%), while the VISIBLE bar is the (non-linearly-scaling) tab-item height (29px) -- two
+    // different bases. Measured on the real Options dialog: bar 29px, caption ink 17px = a -27 em,
+    // which is -0.8*36 shrunk to fit 36 -- NOT -0.8*29 shrunk to fit 29 (that gives 14px ink).
+    // Reproduce exactly that: font from the scaled metric, bar from the tab height.
+    int fontBase = ::MulDiv(21, pDC->GetDeviceCaps(LOGPIXELSY), 96);
+    lf.lfHeight = (long)(-.8f * fontBase);
     lf.lfWeight = FW_BOLD;
     CFont f; f.CreateFontIndirectW(&lf);
     HGDIOBJ oldFont = pDC->SelectObject(&f);
     TEXTMETRICW tm{}; pDC->GetTextMetrics(&tm);
-    while (tm.tmHeight > capH && abs(lf.lfHeight) > 10) {
+    while (tm.tmHeight > fontBase && abs(lf.lfHeight) > 10) {
         pDC->SelectObject(oldFont);
         f.DeleteObject();
         lf.lfHeight++;
