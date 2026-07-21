@@ -695,23 +695,17 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
     ::SetWindowLongPtr(dlg, DWLP_USER, (LONG_PTR)this);
     m_dlg = dlg;
 
-    // 2b. Match MPC-HC's dialog font: it renders in the system message font (Segoe UI), not the
-    //     template's MS Shell Dlg. Apply it before substitution so widget-pair measuring uses it too.
-    //     NOT for property pages: a real property sheet re-applies ITS OWN 8pt "MS Shell Dlg" font to
-    //     every page (which is also why their DLU grid is 8pt -- see force_propsheet_font), so the
-    //     player's Options pages genuinely render text at 8pt. The forced template font already IS
-    //     that font; overriding it back to 9pt made the preview's text ~1 line-height taller than the
-    //     player's (measured 20-21px vs 18px at 168 DPI).
+    // 2b. Fonts: honor the TEMPLATE font, exactly like the player. MPC-HC never re-fonts its dialogs
+    //     at runtime (CMPCThemeUtil's DialogFont hack is #if 0), so what the template declares is what
+    //     the player renders: 54 of 55 templates say 9pt Segoe UI; IDD_ADDCOMMAND_DLG says 8pt
+    //     "MS Shell Dlg"; property pages are force_propsheet_font'ed to the sheet's 8pt above. A
+    //     previous blanket WM_SETFONT override to the 9pt message font was a no-op for the Segoe
+    //     templates but oversized IDD_ADDCOMMAND_DLG's text against its 8pt-sized layout.
+    //     m_dlgFont stays lazily created for the measuring/tooltip paths that reference it.
     if (!m_dlgFont) {
         NONCLIENTMETRICSW ncm{ sizeof(ncm) };
         ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
         m_dlgFont = ::CreateFontIndirectW(&ncm.lfMessageFont);
-    }
-    if (m_dlgFont && !propSheetLayout) {
-        ::SendMessageW(dlg, WM_SETFONT, (WPARAM)m_dlgFont, FALSE);
-        ::EnumChildWindows(dlg, [](HWND c, LPARAM lp) -> BOOL {
-            ::SendMessageW(c, WM_SETFONT, (WPARAM)lp, FALSE); return TRUE;
-        }, (LPARAM)m_dlgFont);
     }
 
     // 3. Capture the ORIGINAL English text per child (HitTest keys), then substitute captions
