@@ -1873,11 +1873,14 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     NONCLIENTMETRICSW ncm{ sizeof(ncm) };
     ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
     LOGFONTW lf = ncm.lfMessageFont;
-    // Caption em calibrated against the REAL Options dialog on a 175% system (user-measured: bar 29px,
-    // caption ink 17px): a -24 em at 168 DPI, i.e. ~13.7px at 96 (encoded MulDiv(41,dpi,288)).
-    // Formula-derivation kept missing (the player's -0.8*base + shrink dance landed our ink at 14px or
-    // 18-19px depending on the base) -- so this is pinned to the measured rendering, DPI-linear.
-    lf.lfHeight = -::MulDiv(41, Theme::DpiOf(m_hWnd), 288);
+    // Caption em calibrated against the REAL Options dialog (user-measured at 175%: bar 29px, ink
+    // 17px = a -24 em). Static derivation of the player's exact em kept failing (its -0.8*base +
+    // shrink loop predicts a different value than it visibly renders), so the em is pinned to the
+    // measured rendering -- but tied to the TAB-DERIVED caption height rather than linear DPI, since
+    // the player's base metric is the tab item height, which scales sublinearly with DPI (21px @96 ->
+    // 29px @175%). -0.8*(capH+1) = -24 at capH 29; at other DPIs it follows the same tab curve the
+    // bar itself follows, keeping font and bar proportioned together.
+    lf.lfHeight = -(long)(.8f * (capH + 1));
     lf.lfWeight = FW_BOLD;
     CFont f; f.CreateFontIndirectW(&lf);
     HGDIOBJ oldFont = pDC->SelectObject(&f);
