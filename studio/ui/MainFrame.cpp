@@ -16,6 +16,7 @@
 #include "mpctrans/data_update.h"
 
 #include <uxtheme.h>    // SetWindowTheme (strip the progress bar's visual style so our colors apply)
+#include <vssym32.h>    // TABP_PANE (caption-font base queries the themed tab-pane content inset)
 #include <commctrl.h>   // SetWindowSubclass / DefSubclassProc (m_cmdHelp scroll subclass -> keep the ring aligned)
 #include <algorithm>
 #include <filesystem>
@@ -1873,18 +1874,32 @@ BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     NONCLIENTMETRICSW ncm{ sizeof(ncm) };
     ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
     LOGFONTW lf = ncm.lfMessageFont;
-    // Caption em calibrated against the REAL Options dialog (user-measured at 175%: bar 29px, ink
-    // 17px = a -24 em). Static derivation of the player's exact em kept failing (its -0.8*base +
-    // shrink loop predicts a different value than it visibly renders), so the em is pinned to the
-    // measured rendering -- but tied to the TAB-DERIVED caption height rather than linear DPI, since
-    // the player's base metric is the tab item height, which scales sublinearly with DPI (21px @96 ->
-    // 29px @175%). -0.8*(capH+1) = -24 at capH 29; at other DPIs it follows the same tab curve the
-    // bar itself follows, keeping font and bar proportioned together.
-    lf.lfHeight = -(long)(.8f * (capH + 1));
+    // The player's EXACT caption-font mechanism, recovered by instrumenting its DrawCaption (logged
+    // at 175%: GetCaptionHeight=37 from ScaleX(21), themed tab-pane content-rect TOP INSET 4 ->
+    // caption rect 33, em -.8*33=-26 shrunk to -24, tm 32): font base = the DPI-scaled 21px caption
+    // metric minus the tab-pane's top content inset (CalcCaptionArea does exactly this), em =
+    // -0.8*base shrunk while tmHeight > base. DPI-correct by construction -- every input scales the
+    // way the player's does. (The VISIBLE bar stays the tab-item height; see CaptionHeight.)
+    int fontBase = ::MulDiv(21, Theme::DpiOf(m_hWnd), 96);
+    if (HTHEME th = ::OpenThemeData(m_hWnd, L"Tab")) {
+        RECT probe{ 0, 0, 400, 400 }, content{};
+        if (SUCCEEDED(::GetThemeBackgroundContentRect(th, pDC->GetSafeHdc(), TABP_PANE, 0, &probe, &content)))
+            fontBase -= content.top - probe.top;
+        ::CloseThemeData(th);
+    }
+    lf.lfHeight = (long)(-.8f * fontBase);
     lf.lfWeight = FW_BOLD;
     CFont f; f.CreateFontIndirectW(&lf);
     HGDIOBJ oldFont = pDC->SelectObject(&f);
     TEXTMETRICW tm{}; pDC->GetTextMetrics(&tm);
+    while (tm.tmHeight > fontBase && abs(lf.lfHeight) > 10) {   // the player's shrink loop, verbatim
+        pDC->SelectObject(oldFont);
+        f.DeleteObject();
+        lf.lfHeight++;
+        f.CreateFontIndirectW(&lf);
+        pDC->SelectObject(&f);
+        pDC->GetTextMetrics(&tm);
+    }
     CRect textRect(capRect.left + 2, capRect.top, capRect.right, capRect.bottom);
     textRect.top -= tm.tmDescent - 1;
     pDC->SetTextColor(Theme::TEXT);
