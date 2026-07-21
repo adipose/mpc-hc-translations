@@ -693,12 +693,17 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
 
     // 2b. Match MPC-HC's dialog font: it renders in the system message font (Segoe UI), not the
     //     template's MS Shell Dlg. Apply it before substitution so widget-pair measuring uses it too.
+    //     NOT for property pages: a real property sheet re-applies ITS OWN 8pt "MS Shell Dlg" font to
+    //     every page (which is also why their DLU grid is 8pt -- see force_propsheet_font), so the
+    //     player's Options pages genuinely render text at 8pt. The forced template font already IS
+    //     that font; overriding it back to 9pt made the preview's text ~1 line-height taller than the
+    //     player's (measured 20-21px vs 18px at 168 DPI).
     if (!m_dlgFont) {
         NONCLIENTMETRICSW ncm{ sizeof(ncm) };
         ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
         m_dlgFont = ::CreateFontIndirectW(&ncm.lfMessageFont);
     }
-    if (m_dlgFont) {
+    if (m_dlgFont && !propSheetLayout) {
         ::SendMessageW(dlg, WM_SETFONT, (WPARAM)m_dlgFont, FALSE);
         ::EnumChildWindows(dlg, [](HWND c, LPARAM lp) -> BOOL {
             ::SendMessageW(c, WM_SETFONT, (WPARAM)lp, FALSE); return TRUE;
