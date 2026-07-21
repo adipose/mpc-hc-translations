@@ -1799,9 +1799,37 @@ void CThemedHostWnd::SetFrame(const CString& page, CSize contentPx) {
 }
 int CThemedHostWnd::CaptionHeight() const {
     if (m_framePage.IsEmpty()) return 0;
-    CClientDC dc(const_cast<CThemedHostWnd*>(this));
-    int dpi = dc.GetDeviceCaps(LOGPIXELSY);
-    return ::MulDiv(21, dpi, 96);   // TreePropSheet's hardcoded 96-DPI caption height, DPI-scaled
+    // The real sheet's caption height is the TAB CONTROL's item height (TreePropSheet measures a
+    // hidden one-item CTabCtrl; PPageSheet manages the tab font because "the font for the tab control
+    // affects how tall the visible caption area is"). Tab items deliberately do NOT scale linearly
+    // with DPI (21px @ 96 grows only to ~29px @ 168), so ScaleX(21) overshoots -- measure the same
+    // way the player does. Cached: DPI is fixed for this system-DPI-aware process.
+    if (m_capH < 0) {
+        CWnd* self = const_cast<CThemedHostWnd*>(this);
+        CTabCtrl tab;
+        if (tab.Create(WS_CHILD, CRect(0, 0, 10, 10), self, 0)) {
+            // The player's tab carries the sheet's dialog font (PPageSheet's dpiTabFont = the
+            // PROPSHEETHEADER template's 8pt "MS Shell Dlg" -- the same font that pins the pages'
+            // DLU grid); a bare CTabCtrl defaults to the stock system font and measures ~4px short,
+            // the 9pt message font ~6px tall. Use the sheet font itself.
+            CClientDC mdc(self);
+            LOGFONTW lf{};
+            lf.lfHeight = -::MulDiv(8, mdc.GetDeviceCaps(LOGPIXELSY), 72);
+            wcscpy_s(lf.lfFaceName, L"MS Shell Dlg");
+            HFONT f = ::CreateFontIndirectW(&lf);
+            if (f) ::SendMessageW(tab.m_hWnd, WM_SETFONT, (WPARAM)f, FALSE);
+            tab.InsertItem(0, L"");
+            CRect r; tab.GetItemRect(0, r);
+            const_cast<CThemedHostWnd*>(this)->m_capH = r.Height();
+            tab.DestroyWindow();
+            if (f) ::DeleteObject(f);
+        }
+        if (m_capH <= 0) {          // measurement failed -- TreePropSheet's hardcoded fallback
+            CClientDC dc(self);
+            const_cast<CThemedHostWnd*>(this)->m_capH = ::MulDiv(21, dc.GetDeviceCaps(LOGPIXELSY), 96);
+        }
+    }
+    return m_capH;
 }
 CSize CThemedHostWnd::FrameOuterSize() const {
     return CSize(m_frameContentPx.cx + 2, m_frameContentPx.cy + 2 + CaptionHeight());

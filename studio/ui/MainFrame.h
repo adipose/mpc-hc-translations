@@ -78,6 +78,7 @@ private:
     // frame is a fixed-size artifact that scrolls as a whole (see RecalcAndReposition/OnEraseBkgnd).
     CRect FrameContentRect() const;
     int m_scrollX = 0, m_scrollY = 0;
+    int m_capH = -1;          // cached caption-bar height (tab-item derived -- see CaptionHeight)
     CString m_framePage;      // empty = no frame (see SetFrame)
     CSize   m_frameContentPx; // real page-area size in px (or the child's own size for a modal dialog)
 };
