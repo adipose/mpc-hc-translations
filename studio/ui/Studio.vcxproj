@@ -54,6 +54,9 @@
     <ClInclude Include="Theme.h" />
     <ClInclude Include="SuggestFixDlg.h" />
     <ClInclude Include="AiSettingsDlg.h" />
+    <ClInclude Include="StudioPropPageFrame.h" />
+    <ClInclude Include="TreePropSheet\PropPageFrame.h" />
+    <ClInclude Include="TreePropSheet\PropPageFrameDefault.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp">
@@ -66,6 +69,9 @@
     <ClCompile Include="Theme.cpp" />
     <ClCompile Include="SuggestFixDlg.cpp" />
     <ClCompile Include="AiSettingsDlg.cpp" />
+    <ClCompile Include="StudioPropPageFrame.cpp" />
+    <ClCompile Include="TreePropSheet\PropPageFrame.cpp" />
+    <ClCompile Include="TreePropSheet\PropPageFrameDefault.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Studio.rc" />

@@ -15,6 +15,7 @@
 #include "LivePreview.h"
 #include "EditPanel.h"
 #include "Theme.h"
+#include "StudioPropPageFrame.h"
 #include "mpctrans/control_index.h"
 #include "mpctrans/enrichment.h"
 #include "mpctrans/po.h"
@@ -45,14 +46,16 @@ public:
     // (Re)compute scroll range/scrollbars and reposition the child; reset=true also zeros the scroll
     // position (e.g. after rendering a freshly-selected dialog).
     void SyncScroll(bool resetPos = false);
-    // Draw a property-page frame (border + gradient caption bar) around the child dialog, mimicking
-    // TreePropSheet's CPropPageFrameDefault -- see MainFrame::RenderCurrentDialog, which resolves `page`
-    // (the LEAF-only Options-tree page title, or the dialog's own CAPTION record for a modal dialog)
-    // and `contentPx` (the real property-page area, sized to fit the largest page -- every page must
-    // frame identically, since the real sheet does; a modal dialog instead passes its own pixel size)
-    // and calls this right after rendering. Empty `page` AND empty `contentPx` means "no frame" --
-    // restores today's plain themed background exactly (the no-frame path every other preview/mock-up/
-    // command-help still uses).
+    // Frame the child dialog in a REAL TreePropSheet page-frame widget (m_frame, a CStudioPropPageFrame
+    // hosted as a sibling window behind the child -- see StudioPropPageFrame.h and upstream
+    // CPropPageFrameDefault/CMPCThemePropPageFrame, which it mirrors) instead of hand-painting a
+    // replica. See MainFrame::RenderCurrentDialog, which resolves `page` (the LEAF-only Options-tree
+    // page title, or the dialog's own CAPTION record for a modal dialog) and `contentPx` (the real
+    // property-page area, sized to fit the largest page -- every page must frame identically, since the
+    // real sheet does; a modal dialog instead passes its own pixel size) and calls this right after
+    // rendering. Empty `page` AND empty `contentPx` means "no frame" -- hides m_frame and restores
+    // today's plain themed background exactly (the no-frame path every other preview/mock-up/command-
+    // help still uses).
     void SetFrame(const CString& page, CSize contentPx);
     // Fired after every scroll/reposition (RecalcAndReposition) so the caller can re-sync anything that
     // tracks the child's screen position (e.g. the red locator ring).
@@ -66,21 +69,15 @@ protected:
     DECLARE_MESSAGE_MAP()
 private:
     void RecalcAndReposition();
-    // Caption-bar height: TreePropSheet hardcodes 21px at 96 DPI (frameCaptionHeight =
-    // dpiWindow.ScaleX(21) in TreePropSheet.cpp) rather than deriving it from font metrics; scaled to
-    // this window's own DPI the same way. 0 when no frame is set.
-    int CaptionHeight() const;
-    // The frame's outer size: m_frameContentPx + a 1px border each side + the caption bar on top.
-    CSize FrameOuterSize() const;
-    // The frame's content area, in the frame's OWN (unscrolled) coordinate space -- the full client
-    // rect when no frame is set (byte-for-byte today's behavior); otherwise the 1px border/caption
-    // inset, sized to m_frameContentPx. Independent of the host's client size in the framed case: the
-    // frame is a fixed-size artifact that scrolls as a whole (see RecalcAndReposition/OnEraseBkgnd).
-    CRect FrameContentRect() const;
     int m_scrollX = 0, m_scrollY = 0;
-    int m_capH = -1;          // cached caption-bar height (tab-item derived -- see CaptionHeight)
     CString m_framePage;      // empty = no frame (see SetFrame)
     CSize   m_frameContentPx; // real page-area size in px (or the child's own size for a modal dialog)
+    // The real page-frame widget (border + gradient caption bar), created lazily on the first framed
+    // SetFrame() call and hidden (never destroyed) the rest of the time -- see SetFrame/
+    // RecalcAndReposition. A WS_CHILD sibling of the rendered dialog (LivePreview::RenderDialog's HWND,
+    // this window's OTHER child), kept BELOW it in z-order so the page paints over the frame's content
+    // area and only the border/caption band show through.
+    CStudioPropPageFrame m_frame;
 };
 
 // One control in a synthesized dialog mock-up (a dialog MPC-HC builds in C++ with no RC template, so

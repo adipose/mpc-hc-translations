@@ -16,7 +16,6 @@
 #include "mpctrans/data_update.h"
 
 #include <uxtheme.h>    // SetWindowTheme (strip the progress bar's visual style so our colors apply)
-#include <vssym32.h>    // TABP_PANE (caption-font base queries the themed tab-pane content inset)
 #include <commctrl.h>   // SetWindowSubclass / DefSubclassProc (m_cmdHelp scroll subclass -> keep the ring aligned)
 #include <algorithm>
 #include <filesystem>
@@ -918,7 +917,16 @@ bool MainFrame::LoadLanguage(const CString& code, bool fromGithub, bool refreshR
 // Re-render whatever surface is active after a language load (fixes stale preview on switch).
 void MainFrame::RefreshAfterLoad() {
     int tab = m_tabs.GetCurSel();
-    if (tab == RES_DIALOGS && m_dlgIds.empty()) PopulateDialogCombo();
+    if (tab == RES_DIALOGS) {
+        // Repopulate EVERY load (not just the first): the labels carry translated titles/captions,
+        // so a language switch while on this tab must relabel -- preserving the current selection
+        // (PopulateDialogCombo resets to the first entry).
+        long long cur = m_curDialog;
+        PopulateDialogCombo();
+        if (cur >= 0)
+            for (size_t i = 0; i < m_dlgIds.size(); ++i)
+                if (m_dlgIds[i] == cur) { m_dlgCombo.SetCurSel((int)i); m_curDialog = cur; break; }
+    }
     if (tab == RES_MENUS && m_menuIds.empty()) PopulateMenuCombo();
     PopulateList();
     EnsureFitScan();   // harmless no-op if already cached/running; keeps the Review tab's cache fresh
@@ -964,7 +972,14 @@ void MainFrame::PopulateDialogCombo() {
     std::map<long long, Info> dlgs;
     for (const auto& r : Idx().dialogs()) {
         Info& d = dlgs[r.dialog];
-        if (!r.control) d.caption = r.msgid;
+        if (!r.control) {
+            // Label modal dialogs by their TRANSLATED caption (msgstr when the loaded language has
+            // one) -- this path used to store the raw English msgid while the property-page path
+            // below translated, so About/Open/etc. stayed English in the picker.
+            d.caption = r.msgid;
+            if (const PoEntry* e = m_po[RES_DIALOGS].find(r.msgctxt, r.msgid); e && !e->msgstr.empty())
+                d.caption = e->msgstr;
+        }
     }
     for (const auto& [sym, dlg] : BuildDialogSymbolMap()) dlgs[dlg].sym = sym;
     std::vector<std::pair<CString, long long>> items;
@@ -1792,142 +1807,64 @@ BEGIN_MESSAGE_MAP(CThemedHostWnd, CWnd)
     ON_WM_MOUSEWHEEL()
     ON_WM_SIZE()
 END_MESSAGE_MAP()
+// Caption-bar height: TreePropSheet.cpp (OnInitDialog, PMv2 branch) hardcodes frameCaptionHeight =
+// dpiWindow.ScaleX(21) rather than deriving it from font metrics -- replicate that exactly, scaled to
+// this window's own DPI. File-scope helper (not a member): both SetFrame and RecalcAndReposition need
+// it, and it carries no state worth caching (a single MulDiv call).
+static int FrameCaptionHeight(HWND hWnd) { return ::MulDiv(21, Theme::DpiOf(hWnd), 96); }
+
 void CThemedHostWnd::SetFrame(const CString& page, CSize contentPx) {
     if (m_framePage == page && m_frameContentPx == contentPx) return;
     m_framePage = page; m_frameContentPx = contentPx;
+    if (page.IsEmpty()) {
+        if (m_frame.GetSafeHwnd()) m_frame.ShowWindow(SW_HIDE);
+    } else {
+        if (!m_frame.GetSafeHwnd())
+            m_frame.Create(WS_CHILD | WS_CLIPSIBLINGS, CRect(0, 0, 10, 10), this, 0);
+        m_frame.SetCaptionHeight(FrameCaptionHeight(m_hWnd));
+        m_frame.ShowCaption(TRUE);
+        m_frame.SetCaption(page);
+        m_frame.ShowWindow(SW_SHOW);
+        // The page dialog (RenderDialog's HWND, this host's OTHER child) must paint OVER the frame's
+        // content area -- only the border/caption band should show through. Newly-created siblings are
+        // inserted at the top of the z-order by default, so a freshly-created m_frame would otherwise
+        // sit ABOVE an already-rendered page; pin it to the bottom every time a frame is (re)shown.
+        m_frame.SetWindowPos(&wndBottom, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+    }
     if (GetSafeHwnd()) Invalidate();   // caller (RenderCurrentDialog) always follows with SyncScroll(),
                                        // which recomputes the child's geometry against the new frame
 }
-int CThemedHostWnd::CaptionHeight() const {
-    if (m_framePage.IsEmpty()) return 0;
-    // The real sheet's caption height is the TAB CONTROL's item height (TreePropSheet measures a
-    // hidden one-item CTabCtrl; PPageSheet manages the tab font because "the font for the tab control
-    // affects how tall the visible caption area is"). Tab items deliberately do NOT scale linearly
-    // with DPI (21px @ 96 grows only to ~29px @ 168), so ScaleX(21) overshoots -- measure the same
-    // way the player does. Cached: DPI is fixed for this system-DPI-aware process.
-    if (m_capH < 0) {
-        CWnd* self = const_cast<CThemedHostWnd*>(this);
-        CTabCtrl tab;
-        if (tab.Create(WS_CHILD, CRect(0, 0, 10, 10), self, 0)) {
-            // The player's tab carries the sheet's dialog font (PPageSheet's dpiTabFont = the
-            // PROPSHEETHEADER template's 8pt "MS Shell Dlg" -- the same font that pins the pages'
-            // DLU grid); a bare CTabCtrl defaults to the stock system font and measures ~4px short,
-            // the 9pt message font ~6px tall. Use the sheet font itself.
-            LOGFONTW lf{};
-            lf.lfHeight = -::MulDiv(8, Theme::DpiOf(m_hWnd), 72);
-            wcscpy_s(lf.lfFaceName, L"MS Shell Dlg");
-            HFONT f = ::CreateFontIndirectW(&lf);
-            if (f) ::SendMessageW(tab.m_hWnd, WM_SETFONT, (WPARAM)f, FALSE);
-            tab.InsertItem(0, L"");
-            CRect r; tab.GetItemRect(0, r);
-            const_cast<CThemedHostWnd*>(this)->m_capH = r.Height();
-            tab.DestroyWindow();
-            if (f) ::DeleteObject(f);
-        }
-        if (m_capH <= 0)            // measurement failed -- TreePropSheet's hardcoded fallback
-            const_cast<CThemedHostWnd*>(this)->m_capH = ::MulDiv(21, Theme::DpiOf(m_hWnd), 96);
-    }
-    return m_capH;
-}
-CSize CThemedHostWnd::FrameOuterSize() const {
-    return CSize(m_frameContentPx.cx + 2, m_frameContentPx.cy + 2 + CaptionHeight());
-}
-CRect CThemedHostWnd::FrameContentRect() const {
-    CRect rc; GetClientRect(&rc);
-    if (m_framePage.IsEmpty()) return rc;   // no frame -- full client rect, unchanged
-    int capH = CaptionHeight();
-    return CRect(1, 1 + capH, 1 + m_frameContentPx.cx, 1 + capH + m_frameContentPx.cy);
-}
 BOOL CThemedHostWnd::OnEraseBkgnd(CDC* pDC) {
     CRect rc; GetClientRect(&rc); pDC->FillSolidRect(rc, Theme::WINDOW_BG);
-    if (m_framePage.IsEmpty()) return TRUE;   // no frame -- today's plain background, unchanged
-
-    // The frame is now the previewed object (sized to the real page area -- see RenderCurrentDialog),
-    // so it scrolls as ONE artifact: draw it offset by the current scroll position, exactly like the
-    // child dialog is positioned in RecalcAndReposition, so border/caption/content move together.
-    CRect frameRc(CPoint(-m_scrollX, -m_scrollY), FrameOuterSize());
-
-    CBrush borderBr(Theme::GRID_LINE);
-    pDC->FrameRect(frameRc, &borderBr);
-    int capH = CaptionHeight();
-    CRect capRect(frameRc.left + 1, frameRc.top + 1, frameRc.right - 1, frameRc.top + 1 + capH);
-
-    // Gradient caption bar, matching the DARK-THEME page frame the player actually uses
-    // (CMPCThemePropPageFrame::DrawCaption, not the default CPropPageFrameDefault): it fades from
-    // ContentSelectedColor (left) to ContentBGColor (right) -- our Theme::CONTENT_SEL -> CONTENT_BG,
-    // NOT the OS COLOR_ACTIVECAPTION (a light blue that clashes with the dark palette).
-    // Dependency-free per-column interpolation (mirrors FillGradientRectH) -- no msimg32/GdiGradientFill.
-    COLORREF clrLeft = Theme::CONTENT_SEL, clrRight = Theme::CONTENT_BG;
-    int steps = max(1, capRect.Width());
-    double dR = GetRValue(clrLeft), dG = GetGValue(clrLeft), dB = GetBValue(clrLeft);
-    double stepR = (GetRValue(clrRight) - dR) / steps, stepG = (GetGValue(clrRight) - dG) / steps,
-           stepB = (GetBValue(clrRight) - dB) / steps;
-    for (int x = capRect.left; x < capRect.right; ++x) {
-        pDC->FillSolidRect(x, capRect.top, 1, capRect.Height(), RGB((BYTE)dR, (BYTE)dG, (BYTE)dB));
-        dR += stepR; dG += stepG; dB += stepB;
-    }
-
-    // Caption text, as CMPCThemePropPageFrame::DrawCaption: themed caption FG (PropPageCaptionFGColor
-    // ~= Theme::TEXT), transparent bkmode, bold message font shrunk to fit the caption height (the same
-    // shrink loop), baseline nudged up by the descent, left-aligned with ellipsis. No DT_NOPREFIX: the
-    // player doesn't pass it either, so an '&' underlines the next character as a mnemonic.
-    NONCLIENTMETRICSW ncm{ sizeof(ncm) };
-    ::SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(ncm), &ncm, 0);
-    LOGFONTW lf = ncm.lfMessageFont;
-    // The player's EXACT caption-font mechanism, recovered by instrumenting its DrawCaption (logged
-    // at 175%: GetCaptionHeight=37 from ScaleX(21), themed tab-pane content-rect TOP INSET 4 ->
-    // caption rect 33, em -.8*33=-26 shrunk to -24, tm 32): font base = the DPI-scaled 21px caption
-    // metric minus the tab-pane's top content inset (CalcCaptionArea does exactly this), em =
-    // -0.8*base shrunk while tmHeight > base. DPI-correct by construction -- every input scales the
-    // way the player's does. (The VISIBLE bar stays the tab-item height; see CaptionHeight.)
-    int fontBase = ::MulDiv(21, Theme::DpiOf(m_hWnd), 96);
-    if (HTHEME th = ::OpenThemeData(m_hWnd, L"Tab")) {
-        RECT probe{ 0, 0, 400, 400 }, content{};
-        if (SUCCEEDED(::GetThemeBackgroundContentRect(th, pDC->GetSafeHdc(), TABP_PANE, 0, &probe, &content)))
-            fontBase -= content.top - probe.top;
-        ::CloseThemeData(th);
-    }
-    lf.lfHeight = (long)(-.8f * fontBase);
-    lf.lfWeight = FW_BOLD;
-    CFont f; f.CreateFontIndirectW(&lf);
-    HGDIOBJ oldFont = pDC->SelectObject(&f);
-    TEXTMETRICW tm{}; pDC->GetTextMetrics(&tm);
-    while (tm.tmHeight > fontBase && abs(lf.lfHeight) > 10) {   // the player's shrink loop, verbatim
-        pDC->SelectObject(oldFont);
-        f.DeleteObject();
-        lf.lfHeight++;
-        f.CreateFontIndirectW(&lf);
-        pDC->SelectObject(&f);
-        pDC->GetTextMetrics(&tm);
-    }
-    CRect textRect(capRect.left + 2, capRect.top, capRect.right, capRect.bottom);
-    textRect.top -= tm.tmDescent - 1;
-    pDC->SetTextColor(Theme::TEXT);
-    pDC->SetBkMode(TRANSPARENT);
-    pDC->DrawText(m_framePage, textRect, DT_LEFT | DT_SINGLELINE | DT_END_ELLIPSIS);
-    pDC->SelectObject(oldFont);
     return TRUE;
 }
-// Recompute the scroll range/scrollbars, then reposition the child by MOVING it (SWP_NOSIZE -- it is
-// never resized) to the content rect's top-left minus the scroll offset. The scrolled ARTIFACT differs
-// by mode: no frame -- the child's own natural (template) size against the host's full client rect
-// (byte-for-byte today's behavior); framed -- the FRAME's outer size (border + caption + content, the
-// real page area) against the client rect, so caption/border/content scroll together as one object (see
-// OnEraseBkgnd). SIF_DISABLENOSCROLL deliberately omitted so Windows auto-hides a bar once its page
-// covers the full range -- "no scrollbar when it fits", for free.
+// Recompute the scroll range/scrollbars, then reposition m_frame and the page dialog by MOVING them
+// (SWP_NOSIZE on the page -- it is never resized) to their content-relative positions minus the scroll
+// offset, exactly like TreePropSheet places the real page BELOW the frame's caption band (rectFrame.top
+// += frameCaptionHeight in TreePropSheet.cpp's OnInitDialog). The scrolled ARTIFACT differs by mode: no
+// frame -- the page's own natural (template) size against the host's full client rect (byte-for-byte
+// today's behavior); framed -- the frame's outer size (1px border each side + the caption band + the
+// real page area) against the client rect, so border/caption/content scroll together as one object.
+// SIF_DISABLENOSCROLL deliberately omitted so Windows auto-hides a bar once its page covers the full
+// range -- "no scrollbar when it fits", for free.
 void CThemedHostWnd::RecalcAndReposition() {
-    HWND child = ::GetWindow(m_hWnd, GW_CHILD);
-    if (!child) { ShowScrollBar(SB_BOTH, FALSE); return; }
+    HWND child = nullptr;   // the rendered page dialog, i.e. the child that ISN'T m_frame
+    for (HWND h = ::GetWindow(m_hWnd, GW_CHILD); h; h = ::GetWindow(h, GW_HWNDNEXT))
+        if (h != m_frame.GetSafeHwnd()) { child = h; break; }
+
+    bool framed = !m_framePage.IsEmpty();
+    if (!framed && !child) { ShowScrollBar(SB_BOTH, FALSE); return; }
+
+    int capH = framed ? FrameCaptionHeight(m_hWnd) : 0;
     int artW, artH;
-    if (m_framePage.IsEmpty()) {
+    if (framed) {
+        artW = m_frameContentPx.cx + 2;               // 1px border each side
+        artH = m_frameContentPx.cy + 2 + capH;         // + 1px border top/bottom + the caption band
+    } else {
         RECT wr; ::GetWindowRect(child, &wr);
         artW = wr.right - wr.left; artH = wr.bottom - wr.top;
-    } else {
-        CSize outer = FrameOuterSize();
-        artW = outer.cx; artH = outer.cy;
     }
     CRect client; GetClientRect(&client);
-    CRect cc = FrameContentRect();
     int maxX = max(0, artW - client.Width()), maxY = max(0, artH - client.Height());
     m_scrollX = max(0, min(m_scrollX, maxX));
     m_scrollY = max(0, min(m_scrollY, maxY));
@@ -1936,12 +1873,17 @@ void CThemedHostWnd::RecalcAndReposition() {
     SetScrollInfo(SB_VERT, &si, TRUE);
     si.nMax = artW > 0 ? artW - 1 : 0; si.nPage = client.Width(); si.nPos = m_scrollX;
     SetScrollInfo(SB_HORZ, &si, TRUE);
-    ::SetWindowPos(child, nullptr, cc.left - m_scrollX, cc.top - m_scrollY, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
-    // The whole frame (border + caption bar) is chrome painted in OnEraseBkgnd at the scroll offset, so
-    // it MOVES with a scroll -- moving only the child leaves the old chrome smeared behind (stale caption/
-    // border, half-drawn controls). Repaint the chrome on any framed scroll. WS_CLIPCHILDREN keeps the
-    // erase off the child, so this only redraws the (thin) chrome, not the dialog -- no child flicker.
-    if (!m_framePage.IsEmpty()) Invalidate(TRUE);
+
+    if (framed)
+        m_frame.SetWindowPos(nullptr, -m_scrollX, -m_scrollY, artW, artH, SWP_NOZORDER | SWP_NOACTIVATE);
+    if (child) {
+        int cx = (framed ? 1 : 0) - m_scrollX, cy = (framed ? 1 + capH : 0) - m_scrollY;
+        ::SetWindowPos(child, nullptr, cx, cy, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);
+    }
+    // m_frame and the page dialog are REAL windows now, so a plain move normally repaints correctly on
+    // its own -- but force it explicitly (as the old hand-painted chrome did) so a scroll never leaves a
+    // stale frame position smeared behind, matching RenderCurrentDialog's own no-smear RedrawWindow use.
+    if (framed) RedrawWindow(nullptr, nullptr, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
     if (OnScrolled) OnScrolled();
 }
 void CThemedHostWnd::SyncScroll(bool resetPos) {
