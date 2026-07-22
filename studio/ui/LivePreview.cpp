@@ -463,6 +463,11 @@ void LivePreview::IntegrateSpinners(HWND dlg) {
     }, (LPARAM)&items);
     for (const auto& u : items) {
         if (!u.isUp) continue;
+        // UDS_AUTOBUDDY spinners were already integrated NATIVELY at dialog creation (ALIGNRIGHT
+        // shrank the buddy edit then) -- re-sending UDM_SETBUDDY re-applies the shrink and reduces a
+        // narrow edit to a sliver (IDD_PPAGEPLAYBACK's 25-DLU min%/max% auto-fit edits ended up 11px
+        // wide). Only pair spinners that have NO buddy yet.
+        if (::SendMessageW(u.h, UDM_GETBUDDY, 0, 0)) continue;
         HWND buddy = nullptr; int best = 100000;         // nearest edit to the left, vertically overlapping
         for (const auto& e : items) {
             if (e.isUp || e.r.bottom <= u.r.top || e.r.top >= u.r.bottom) continue;

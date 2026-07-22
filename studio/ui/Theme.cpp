@@ -784,6 +784,17 @@ static LRESULT CALLBACK ThemeProc(HWND h, UINT msg, WPARAM w, LPARAM l, UINT_PTR
         if (cur != hot) { cur = hot; ::InvalidateRect(h, nullptr, TRUE); }
     }
     if (msg == WM_PAINT) {
+        // LIGHT theme: radios/checkboxes paint NATIVELY, exactly like the player -- MPC-HC's themed
+        // radio/check drawing (CMPCThemeRadioOrCheck + the dark glyph sprite strips) exists only for
+        // dark mode; in light the player uses default Windows controls. Our sprites are dark-only, so
+        // owner-drawing them in light rendered black glyph boxes (and clipped labels). Must bail
+        // BEFORE BeginPaint or the native handler sees an empty update region.
+        if (id == 1 && !IsDark()) {
+            DWORD bt0 = (DWORD)(::GetWindowLongPtr(h, GWL_STYLE) & BS_TYPEMASK);
+            if (bt0 == BS_RADIOBUTTON || bt0 == BS_AUTORADIOBUTTON || bt0 == BS_CHECKBOX ||
+                bt0 == BS_AUTOCHECKBOX || bt0 == BS_3STATE || bt0 == BS_AUTO3STATE)
+                return ::DefSubclassProc(h, msg, w, l);
+        }
         PAINTSTRUCT ps; HDC dc = ::BeginPaint(h, &ps);
         switch (id) {
             case 1: {   // BUTTON — dispatch on BS_ style
