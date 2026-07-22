@@ -42,6 +42,11 @@ extern COLORREF CHK_BORDER;
 extern COLORREF CHK_BG_HOVER;
 extern COLORREF CHK_BORDER_HOVER;
 extern COLORREF CHK_MARK;
+extern COLORREF SLIDER_CHANNEL;     // CMPCTheme SliderChannelColor (trackbar channel fill)
+extern COLORREF SLIDER_BORDER;      // CMPCTheme NoBorderColor (trackbar channel/thumb frame; black both modes)
+extern COLORREF SLIDER_THUMB;       // CMPCTheme ScrollThumbColor
+extern COLORREF SLIDER_THUMB_HOVER; // CMPCTheme ScrollThumbHoverColor
+extern COLORREF SLIDER_THUMB_DRAG;  // CMPCTheme ScrollThumbDragColor
 extern COLORREF COMBO_ARROW;          // theme-invariant (CMPCTheme::ComboboxArrowColor)
 extern COLORREF COMBO_ARROW_DISABLED; // theme-invariant (CMPCTheme::ComboboxArrowColorDisabled)
 extern COLORREF HEADER_HOT;    // hot-tracked column header (CMPCTheme ColumnHeaderHotColor)
@@ -78,6 +83,13 @@ HBRUSH contentCtl(HDC dc);   // edit / listbox interiors (CONTENT_BG + white tex
 // msctls_updown32 / SysHeader32 / SysTabControl32 get owner-draw subclasses; SysListView32 /
 // SysTreeView32 get their interior colors set. Idempotent — safe to call more than once.
 void ApplyToChildren(HWND parent);
+
+// Reflected NM_CUSTOMDRAW for a msctls_trackbar32 child (port of CMPCThemeSliderCtrl::OnNMCustomdraw).
+// Upstream's CWnd-derived slider gets this via ON_NOTIFY_REFLECT on itself; a raw HWND child has no
+// such auto-reflection, so the owning dialog's WM_NOTIFY calls this directly (see
+// LivePreview::PreviewDlgProc). Returns false (message unhandled -- let native drawing proceed) for
+// anything that isn't a dark-mode trackbar NM_CUSTOMDRAW notification; light mode is always native.
+bool TrackbarCustomDraw(NMHDR* hdr, LRESULT* result);
 
 // Dark-theme a native menu the MPC way: a dark background brush (MIM_BACKGROUND) + every item made
 // MFT_OWNERDRAW (so Windows keeps all native hover/click/keyboard behaviour, we just draw dark).

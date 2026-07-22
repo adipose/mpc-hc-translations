@@ -81,6 +81,8 @@ COLORREF WINDOW_BG = RGB(25,25,25), CONTENT_BG = RGB(32,32,32), CONTENT_SEL = RG
          BTN_DOT = RGB(195,195,195), BTN_DOT_SEL = RGB(150,150,150), BTN_DOT_HOVER = RGB(181,181,181),
          CHK_BG = RGB(0,0,0), CHK_BORDER = RGB(137,137,137),
          CHK_BG_HOVER = RGB(8,8,8), CHK_BORDER_HOVER = RGB(121,121,121), CHK_MARK = RGB(222,222,222),
+         SLIDER_CHANNEL = RGB(109,109,109), SLIDER_BORDER = RGB(0,0,0),
+         SLIDER_THUMB = RGB(77,77,77), SLIDER_THUMB_HOVER = RGB(144,144,144), SLIDER_THUMB_DRAG = RGB(183,183,183),
          COMBO_ARROW = RGB(200,200,200), COMBO_ARROW_DISABLED = RGB(100,100,100),
          HEADER_HOT = RGB(67,67,67), HEADER_GRID = RGB(99,99,99), HEADER_SORT_ARROW = RGB(200,200,200),
          MENU_BG = RGB(43,43,43), MENU_SEL = RGB(65,65,65), MENUBAR_BG = RGB(43,43,43), MENUBAR_SEL = RGB(65,65,65),
@@ -108,6 +110,8 @@ void SetMode(Mode pref) {
         BTN_DOT = RGB(17,17,17); BTN_DOT_SEL = RGB(60,20,7); BTN_DOT_HOVER = RGB(21,1,11);
         CHK_BG = RGB(255,255,255); CHK_BORDER = RGB(97,121,160);
         CHK_BG_HOVER = RGB(255,255,255); CHK_BORDER_HOVER = RGB(38,160,218); CHK_MARK = RGB(0,0,0);
+        SLIDER_CHANNEL = RGB(128,128,128); SLIDER_BORDER = RGB(0,0,0);
+        SLIDER_THUMB = RGB(205,205,205); SLIDER_THUMB_HOVER = RGB(166,166,166); SLIDER_THUMB_DRAG = RGB(119,119,119);
         HEADER_HOT = RGB(217,235,239); HEADER_GRID = RGB(130,135,144);  // grid sentinel -> GROUP_BORDER's value
         MENU_BG = RGB(238,238,238); MENU_SEL = RGB(255,255,255); MENUBAR_BG = RGB(255,255,255); MENUBAR_SEL = RGB(238,238,238);
         MENU_SEP = RGB(145,145,145);
@@ -124,6 +128,8 @@ void SetMode(Mode pref) {
         BTN_DOT = RGB(195,195,195); BTN_DOT_SEL = RGB(150,150,150); BTN_DOT_HOVER = RGB(181,181,181);
         CHK_BG = RGB(0,0,0); CHK_BORDER = RGB(137,137,137);
         CHK_BG_HOVER = RGB(8,8,8); CHK_BORDER_HOVER = RGB(121,121,121); CHK_MARK = RGB(222,222,222);
+        SLIDER_CHANNEL = RGB(109,109,109); SLIDER_BORDER = RGB(0,0,0);
+        SLIDER_THUMB = RGB(77,77,77); SLIDER_THUMB_HOVER = RGB(144,144,144); SLIDER_THUMB_DRAG = RGB(183,183,183);
         HEADER_HOT = RGB(67,67,67); HEADER_GRID = RGB(99,99,99);
         MENU_BG = RGB(43,43,43); MENU_SEL = RGB(65,65,65); MENUBAR_BG = RGB(43,43,43); MENUBAR_SEL = RGB(65,65,65);
         MENU_SEP = RGB(128,128,128);
@@ -401,9 +407,34 @@ static void draw_check(HWND h, HDC dc, bool radio) {
     ::FillRect(dc, &rc, windowBrush());
     int dpi = DpiOf(h);
     int cbW = MenuCheckMetricForDpi(SM_CXMENUCHECK, dpi), cbH = MenuCheckMetricForDpi(SM_CYMENUCHECK, dpi);
-    RECT g;   // CMPCThemeRadioOrCheck::OnPaint: cbWidth x cbHeight box, left-aligned, vcentered
+
+    // CMPCThemeRadioOrCheck::OnPaint (~L80-104) computes rectCheck.top = (rectItem.Height() - cbHeight)/2
+    // unconditionally, BEFORE any text metrics exist: at that point rectItem is still the untouched
+    // client rect (only .left/.right get shifted in for the check column just above; the DT_CALCRECT
+    // text-measuring block runs later, at L114-144, and never feeds back into rectCheck). So upstream
+    // itself always vcenters the glyph on the FULL control height, even for BS_MULTILINE|BS_TOP -- it
+    // does NOT anchor to the first text line there. That full-height centering is what this function
+    // already replicated below (unconditionally, prior to this change).
+    //
+    // But upstream's OWN full-height centering doesn't match NATIVE (light, non-owner-drawn) multiline
+    // checkboxes, which keep the glyph pinned to the first text line while the rest of the wrapped text
+    // flows below it -- a real dark/light pixel mismatch for BS_MULTILINE|BS_TOP controls (see task
+    // brief). Since upstream has no BS_TOP-specific branch to port verbatim, anchor to the first line's
+    // font metrics ourselves here so dark matches native light behavior; single-line and non-TOP
+    // multiline (BS_VCENTER/BS_BOTTOM) controls keep the original full-height centering unchanged.
+    HGDIOBJ of = wf ? ::SelectObject(dc, wf) : nullptr;   // select font now: needed for GetTextMetricsW below
+    LONG vert = style & BS_VCENTER;                        // BS_VCENTER == BS_TOP|BS_BOTTOM
+    bool topMultiline = (style & BS_MULTILINE) && vert == BS_TOP;
+
+    RECT g;   // CMPCThemeRadioOrCheck::OnPaint: cbWidth x cbHeight box, left-aligned
     g.left = rc.left; g.right = g.left + cbW;
-    g.top = rc.top + ((rc.bottom - rc.top) - cbH) / 2; g.bottom = g.top + cbH;
+    if (topMultiline) {
+        TEXTMETRICW tm{}; ::GetTextMetricsW(dc, &tm);       // one text line's height, for the first-line anchor
+        g.top = rc.top + (tm.tmHeight - cbH) / 2;
+    } else {
+        g.top = rc.top + ((rc.bottom - rc.top) - cbH) / 2;
+    }
+    g.bottom = g.top + cbH;
     RECT textR = rc; textR.left = g.right + 2;
 
     bool hover = isHover(h);
@@ -434,17 +465,16 @@ static void draw_check(HWND h, HDC dc, bool radio) {
         ::SelectObject(mdc, old); ::DeleteDC(mdc);
     }
 
-    HGDIOBJ of = wf ? ::SelectObject(dc, wf) : nullptr;
     ::SetBkMode(dc, TRANSPARENT);
     ::SetTextColor(dc, ::IsWindowEnabled(h) ? TEXT : TEXT_DISABLED);
     // Honor BS_MULTILINE: several MPC-HC radios/checks are multiline and sized for 2+ lines (e.g.
     // IDD_PPAGEPLAYER's IDC_RADIO1/2 are BS_MULTILINE|BS_TOP at 126x27 DLU). Drawing them
     // DT_SINGLELINE clipped long (translated) captions instead of wrapping like the real control.
     // DT_VCENTER/DT_BOTTOM are DT_SINGLELINE-only, so for wrapped text we measure and offset.
+    // (`vert`/font selection computed above, alongside the glyph rect -- topMultiline needed it early.)
     UINT fmt = DT_LEFT;
     if (style & BS_MULTILINE) {
         fmt |= DT_WORDBREAK | DT_TOP;
-        LONG vert = style & BS_VCENTER;          // BS_VCENTER == BS_TOP|BS_BOTTOM
         if (vert != BS_TOP) {                    // bottom- or centre-aligned: place the block ourselves
             RECT calc = textR;
             ::DrawTextW(dc, txt, n, &calc, fmt | DT_CALCRECT);
@@ -724,6 +754,89 @@ static void draw_list(HWND h, HDC dc) {
     if (of) ::SelectObject(dc, of);
 }
 
+// ---- trackbar / slider channel + thumb (port of CMPCThemeSliderCtrl::OnNMCustomdraw) ----
+// Upstream's CWnd-derived CMPCThemeSliderCtrl reflects NM_CUSTOMDRAW back to itself via
+// ON_NOTIFY_REFLECT (src/mpc-hc/CMPCThemeSliderCtrl.cpp:31). A raw HWND child has no equivalent
+// auto-reflection, so this is called directly from the owning dialog's WM_NOTIFY instead (see
+// LivePreview::PreviewDlgProc) -- the drawing logic itself, quoted below, is unaffected by where
+// it runs from; only the trigger differs. Verified against upstream (CMPCThemeSliderCtrl.cpp:39-116):
+//   if (AppIsThemeLoaded()) {
+//       switch (pNMCD->dwDrawStage) {
+//           case CDDS_PREPAINT: lr = CDRF_NOTIFYITEMDRAW; break;
+//           case CDDS_ITEMPREPAINT:
+//               if (pNMCD->dwItemSpec == TBCD_CHANNEL) { ... FillSolidRect(WindowBGColor); ... }
+//               else if (pNMCD->dwItemSpec == TBCD_THUMB) { ... FillSolidRect(Scroll* per state); ... }
+// gated there on AppIsThemeLoaded() (the player's "is a theme active" flag); here on IsDark(), since
+// light mode never gets an owner-drawn look upstream either -- CMPCThemeUtil::fulfillThemeReqs's
+// TRACKBAR_CLASS branch (CMPCThemeUtil.cpp:141-146) subclasses CMPCThemeSliderCtrl unconditionally,
+// and with AppIsThemeLoaded() false every stage just falls through to CDRF_DODEFAULT (native).
+//
+// Also checked and NOT ported: the task brief expected CMPCThemeSliderCtrl::PreSubclassWindow to call
+// SetWindowTheme(L"", L"") to stop DarkMode_Explorer fighting the custom draw. It doesn't --
+// PreSubclassWindow (CMPCThemeSliderCtrl.cpp:18-26) only subclasses the tooltip; makeThemed()
+// (CMPCThemeUtil.cpp:180-184) is a bare SubclassWindow with no theme call either; compare
+// CMPCThemeUtil.cpp:92, which DOES call it for group boxes -- trackbars get no such call anywhere in
+// the codebase. So this doesn't call SetWindowTheme on the trackbar either (see ApplyToChildren).
+bool TrackbarCustomDraw(NMHDR* hdr, LRESULT* result) {
+    if (!hdr || hdr->code != NM_CUSTOMDRAW || !IsDark()) return false;
+    wchar_t cls[32] = {}; ::GetClassNameW(hdr->hwndFrom, cls, 32);
+    if (_wcsicmp(cls, L"msctls_trackbar32") != 0) return false;
+
+    HWND h = hdr->hwndFrom;
+    LPNMCUSTOMDRAW cd = (LPNMCUSTOMDRAW)hdr;
+    LRESULT lr = CDRF_DODEFAULT;
+
+    switch (cd->dwDrawStage) {
+        case CDDS_PREPAINT:
+            lr = CDRF_NOTIFYITEMDRAW;
+            break;
+        case CDDS_ITEMPREPAINT:
+            if (cd->dwItemSpec == TBCD_CHANNEL) {
+                HDC dc = cd->hdc;
+                RECT rc; ::GetClientRect(h, &rc);
+                HBRUSH wb = ::CreateSolidBrush(WINDOW_BG); ::FillRect(dc, &rc, wb); ::DeleteObject(wb);
+
+                RECT channelRect{}; ::SendMessageW(h, TBM_GETCHANNELRECT, 0, (LPARAM)&channelRect);
+                RECT thumbRect{};   ::SendMessageW(h, TBM_GETTHUMBRECT,   0, (LPARAM)&thumbRect);
+                LONG style = (LONG)::GetWindowLongPtr(h, GWL_STYLE);
+
+                RECT r;
+                if (style & TBS_VERT) {   // GetChannelRect returns 90deg-rotated dims for a vertical slider
+                    RECT rot{ channelRect.top, channelRect.left, channelRect.bottom, channelRect.right };
+                    if (rot.left > rot.right)  std::swap(rot.left, rot.right);      // CRect::NormalizeRect
+                    if (rot.top  > rot.bottom) std::swap(rot.top,  rot.bottom);
+                    cd->rc = RECT{ thumbRect.left + 2, rot.top, thumbRect.right - 3, rot.bottom - 2 };
+                    r = cd->rc; ::InflateRect(&r, -6, 0);                           // CRect::DeflateRect(6,0,6,0)
+                } else {
+                    cd->rc = RECT{ channelRect.left, thumbRect.top + 2, channelRect.right - 2, thumbRect.bottom - 3 };
+                    r = cd->rc; ::InflateRect(&r, 0, -6);                           // CRect::DeflateRect(0,6,0,6)
+                }
+
+                HBRUSH cb = ::CreateSolidBrush(SLIDER_CHANNEL); ::FillRect(dc, &r, cb); ::DeleteObject(cb);
+                HBRUSH bd = ::CreateSolidBrush(SLIDER_BORDER);  ::FrameRect(dc, &r, bd); ::DeleteObject(bd);
+                lr = CDRF_SKIPDEFAULT;
+            } else if (cd->dwItemSpec == TBCD_THUMB) {
+                HDC dc = cd->hdc;
+                cd->rc.bottom--;
+                RECT r = cd->rc; r.right -= 1;                                     // CRect::DeflateRect(0,0,1,0)
+
+                // m_bDrag is declared and read upstream (CMPCThemeSliderCtrl.h:15, .cpp:96) but never
+                // set true anywhere in the class -- no OnLButtonDown override, no setter, and
+                // OnLButtonUp only ever clears it. That branch is dead code in upstream today; there is
+                // no "drag" state to reproduce, so it's simply never true here either.
+                bool drag = false;
+                bool hover = isHover(h);
+                COLORREF fill = drag ? SLIDER_THUMB_DRAG : hover ? SLIDER_THUMB_HOVER : SLIDER_THUMB;
+                HBRUSH fb = ::CreateSolidBrush(fill);          ::FillRect(dc, &r, fb); ::DeleteObject(fb);
+                HBRUSH bd = ::CreateSolidBrush(SLIDER_BORDER); ::FrameRect(dc, &r, bd); ::DeleteObject(bd);
+                lr = CDRF_SKIPDEFAULT;
+            }
+            break;
+    }
+    *result = lr;
+    return true;
+}
+
 // One subclass proc handles every owner-drawn class; it dispatches on window class + button style.
 static LRESULT CALLBACK ThemeProc(HWND h, UINT msg, WPARAM w, LPARAM l, UINT_PTR id, DWORD_PTR) {
     if (msg == WM_NCDESTROY) {
@@ -732,7 +845,12 @@ static LRESULT CALLBACK ThemeProc(HWND h, UINT msg, WPARAM w, LPARAM l, UINT_PTR
         return ::DefSubclassProc(h, msg, w, l);
     }
     if (msg == WM_CTLCOLORLISTBOX) { return (LRESULT)contentCtl((HDC)w); }   // a combo's open dropdown
-    if (msg == WM_ERASEBKGND) return 1;   // every branch fully repaints in WM_PAINT -> no erase flicker
+    // id 8 (trackbar, see ApplyToChildren) is excluded from the two checks below: it isn't painted by
+    // this subclass at all (Theme::TrackbarCustomDraw runs at the PARENT, off WM_NOTIFY) -- it's only
+    // subclassed here for hover-rect tracking, so its own WM_ERASEBKGND/WM_PAINT must stay 100% native
+    // (upstream's CMPCThemeSliderCtrl overrides neither), the same way the trackbar is untouched by
+    // this file entirely in light mode.
+    if (msg == WM_ERASEBKGND && id != 8) return 1;   // every OTHER branch fully repaints in WM_PAINT -> no erase flicker
     // The owner-drawn look depends on enabled/checked/focus state; the control class doesn't always
     // repaint the whole rect when those change (e.g. EnableWindow on a push button), so force it.
     if (msg == WM_ENABLE || msg == WM_SETFOCUS || msg == WM_KILLFOCUS ||
@@ -783,7 +901,21 @@ static LRESULT CALLBACK ThemeProc(HWND h, UINT msg, WPARAM w, LPARAM l, UINT_PTR
         int& cur = headerHotMap()[h];
         if (cur != hot) { cur = hot; ::InvalidateRect(h, nullptr, TRUE); }
     }
-    if (msg == WM_PAINT) {
+    // Hover tracking for the trackbar THUMB (CMPCThemeSliderCtrl::checkHover, CMPCThemeSliderCtrl.cpp
+    // ~L125-138: hover is true only over the thumb rect, not the whole control, unlike Button/Combo
+    // above). The actual painting happens in Theme::TrackbarCustomDraw at the PARENT's WM_NOTIFY; this
+    // subclass exists solely to keep hoverMap() current for it.
+    if (id == 8 && (msg == WM_MOUSEMOVE || msg == WM_MOUSELEAVE)) {
+        bool inside = false;
+        if (msg == WM_MOUSEMOVE) {
+            POINT pt{ (short)LOWORD(l), (short)HIWORD(l) };
+            RECT thumb{}; ::SendMessageW(h, TBM_GETTHUMBRECT, 0, (LPARAM)&thumb);
+            inside = ::PtInRect(&thumb, pt) != FALSE;
+            if (!isHover(h)) { TRACKMOUSEEVENT tme{ sizeof(tme), TME_LEAVE, h, 0 }; ::TrackMouseEvent(&tme); }
+        }
+        setHoverState(h, inside);
+    }
+    if (msg == WM_PAINT && id != 8) {   // id 8: native WM_PAINT drives the NM_CUSTOMDRAW this file paints from
         // LIGHT theme: radios/checkboxes paint NATIVELY, exactly like the player -- MPC-HC's themed
         // radio/check drawing (CMPCThemeRadioOrCheck + the dark glyph sprite strips) exists only for
         // dark mode; in light the player uses default Windows controls. Our sprites are dark-only, so
@@ -859,6 +991,12 @@ void ApplyToChildren(HWND parent) {
             ::SetWindowSubclass(c, EditProc, 6, 0);  // redraw the border in EditBorderColor
         } else if (_wcsicmp(cls, L"ListBox") == 0) {
             ::SetWindowTheme(c, ccTheme, nullptr);
+        } else if (_wcsicmp(cls, L"msctls_trackbar32") == 0 && IsDark()) {
+            // Light: leave the trackbar completely untouched (no subclass at all) -- upstream gives it
+            // no light-mode owner-draw path either, and native trackbars need their own WM_PAINT/
+            // WM_ERASEBKGND unmolested. Dark: subclass only for hover-rect tracking (see ThemeProc id 8
+            // above); the actual paint is Theme::TrackbarCustomDraw, off the PARENT dialog's WM_NOTIFY.
+            ::SetWindowSubclass(c, ThemeProc, 8, 0);
         }
         return TRUE;
     }, 0);

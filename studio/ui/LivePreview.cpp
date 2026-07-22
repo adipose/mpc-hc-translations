@@ -323,6 +323,17 @@ INT_PTR CALLBACK LivePreview::PreviewDlgProc(HWND dlg, UINT msg, WPARAM wp, LPAR
             return (INT_PTR)Theme::windowCtl((HDC)wp);
         case WM_CTLCOLOREDIT: case WM_CTLCOLORLISTBOX:
             return (INT_PTR)Theme::contentCtl((HDC)wp);
+        case WM_NOTIFY: {
+            // A msctls_trackbar32 child's reflected NM_CUSTOMDRAW arrives here, at the parent (see
+            // Theme::TrackbarCustomDraw -- port of CMPCThemeSliderCtrl::OnNMCustomdraw). Real dialog
+            // procs return WM_NOTIFY results via DWLP_MSGRESULT, not the return value itself.
+            LRESULT ncdResult = 0;
+            if (Theme::TrackbarCustomDraw((NMHDR*)lp, &ncdResult)) {
+                ::SetWindowLongPtr(dlg, DWLP_MSGRESULT, ncdResult);
+                return TRUE;
+            }
+            break;
+        }
     }
     auto* self = (LivePreview*)::GetWindowLongPtr(dlg, DWLP_USER);
     if (!self || !self->OnControlClicked) return FALSE;
