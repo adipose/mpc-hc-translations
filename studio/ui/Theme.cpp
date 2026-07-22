@@ -565,9 +565,14 @@ static void draw_updown(HWND h, HDC dc) {
     RECT rc; ::GetClientRect(h, &rc);
     ::FillRect(dc, &rc, contentBrush());                       // ContentBGColor
     bool hasBuddy = ::SendMessageW(h, UDM_GETBUDDY, 0, 0) != 0;
-    if (hasBuddy) {                                            // border, minus the shared left edge
+    // UDS_HORZ spinners (e.g. IDD_PPAGELOGO's logo selector) split LEFT/RIGHT with left/right arrows;
+    // vertical ones split TOP/BOTTOM -- CMPCThemeSpinButtonCtrl::OnPaint's horz branch (.cpp:131-195),
+    // ported 1:1 (buddy border excludes the shared TOP edge when horz, LEFT edge when vertical).
+    bool horz = (::GetWindowLongPtr(h, GWL_STYLE) & UDS_HORZ) != 0;
+    if (hasBuddy) {
         int save = ::SaveDC(dc);
-        ::ExcludeClipRect(dc, rc.left, rc.top + 1, rc.left + 1, rc.bottom - 1);
+        if (horz) ::ExcludeClipRect(dc, rc.left + 1, rc.top, rc.right - 1, rc.top + 1);
+        else      ::ExcludeClipRect(dc, rc.left, rc.top + 1, rc.left + 1, rc.bottom - 1);
         HBRUSH eb = ::CreateSolidBrush(CTRL_BORDER); ::FrameRect(dc, &rc, eb); ::DeleteObject(eb);
         ::RestoreDC(dc, save);
     }
@@ -576,16 +581,24 @@ static void draw_updown(HWND h, HDC dc) {
     int buddySpacing = hasBuddy ? 1 : 0;
     bool enabled = ::IsWindowEnabled(h);
     COLORREF arrowClr = enabled ? TEXT : TEXT_DISABLED;
-    for (int i = 0; i < 2; ++i) {                              // 0 = up (top), 1 = down (bottom)
+    for (int i = 0; i < 2; ++i) {                              // 0 = up/left, 1 = down/right
         RECT b = rc;
-        b.left += 1; b.top += 1; b.right -= 1 + buddySpacing; b.bottom -= 1;   // DeflateRect(1,1,1+bs,1)
-        int hh = b.bottom - b.top;
-        if (i == 0) b.bottom -= hh / 2; else b.top += hh / 2;
-        b.top += 1; b.bottom -= 1;                             // DeflateRect(0,1)
+        if (horz) {
+            b.left += 1; b.top += 1; b.right -= 1; b.bottom -= 1 + buddySpacing;   // DeflateRect(1,1,1,1+bs)
+            int ww = b.right - b.left;
+            if (i == 0) b.right -= ww / 2; else b.left += ww / 2;
+            b.left += 1; b.right -= 1;                         // DeflateRect(1,0)
+        } else {
+            b.left += 1; b.top += 1; b.right -= 1 + buddySpacing; b.bottom -= 1;   // DeflateRect(1,1,1+bs,1)
+            int hh = b.bottom - b.top;
+            if (i == 0) b.bottom -= hh / 2; else b.top += hh / 2;
+            b.top += 1; b.bottom -= 1;                         // DeflateRect(0,1)
+        }
         bool pressed = ::PtInRect(&b, dp) != FALSE;
         HBRUSH bf = ::CreateSolidBrush(pressed ? BTN_FILL_SEL : BTN_FILL); ::FillRect(dc, &b, bf); ::DeleteObject(bf);
         HBRUSH bi = ::CreateSolidBrush(BTN_INNER); ::FrameRect(dc, &b, bi); ::DeleteObject(bi);
-        drawSpinArrow(dc, arrowClr, b, i == 0 ? 2 /*top*/ : 3 /*bottom*/, dpi);
+        int orient = horz ? (i == 0 ? 0 /*left*/ : 1 /*right*/) : (i == 0 ? 2 /*top*/ : 3 /*bottom*/);
+        drawSpinArrow(dc, arrowClr, b, orient, dpi);
     }
 }
 
