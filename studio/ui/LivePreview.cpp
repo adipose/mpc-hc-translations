@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "pch.h"
+#include <uxtheme.h>
 #include "LivePreview.h"
 #include "Theme.h"
 #include <commctrl.h>
@@ -710,6 +711,22 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
     if (!dlg) return nullptr;
     ::SetWindowLongPtr(dlg, DWLP_USER, (LONG_PTR)this);
     m_dlg = dlg;
+
+    // 2a. LIGHT-theme property pages: strip the visual style from radios/checkboxes so they render
+    //     CLASSIC, matching the player -- verified empirically against the real player in light mode:
+    //     its Options pages draw classic monochrome glyphs while its modal dialogs (e.g. the Open
+    //     dialog) draw modern themed ones. Dark mode is unaffected (our sprite drawing paints there).
+    if (propSheetLayout && !Theme::IsDark()) {
+        ::EnumChildWindows(dlg, [](HWND c, LPARAM) -> BOOL {
+            wchar_t cls[16]; ::GetClassNameW(c, cls, 16);
+            if (_wcsicmp(cls, L"Button")) return TRUE;
+            DWORD bt = (DWORD)(::GetWindowLongPtr(c, GWL_STYLE) & BS_TYPEMASK);
+            if (bt == BS_RADIOBUTTON || bt == BS_AUTORADIOBUTTON || bt == BS_CHECKBOX ||
+                bt == BS_AUTOCHECKBOX || bt == BS_3STATE || bt == BS_AUTO3STATE)
+                ::SetWindowTheme(c, L"", L"");
+            return TRUE;
+        }, 0);
+    }
 
     // 2b. Fonts: honor the TEMPLATE font, exactly like the player. MPC-HC never re-fonts its dialogs
     //     at runtime (CMPCThemeUtil's DialogFont hack is #if 0), so what the template declares is what
