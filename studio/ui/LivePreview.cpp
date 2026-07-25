@@ -718,7 +718,11 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
     //     dialog) draw modern themed ones. Dark mode is unaffected (our sprite drawing paints there).
     if (propSheetLayout && !Theme::IsDark()) {
         ::EnumChildWindows(dlg, [](HWND c, LPARAM) -> BOOL {
-            wchar_t cls[16]; ::GetClassNameW(c, cls, 16);
+            wchar_t cls[20]; ::GetClassNameW(c, cls, 20);
+            if (!_wcsicmp(cls, L"msctls_updown32")) {   // spinners render classic on light pages too
+                ::SetWindowTheme(c, L"", L"");
+                return TRUE;
+            }
             if (_wcsicmp(cls, L"Button")) return TRUE;
             DWORD bt = (DWORD)(::GetWindowLongPtr(c, GWL_STYLE) & BS_TYPEMASK);
             if (bt == BS_RADIOBUTTON || bt == BS_AUTORADIOBUTTON || bt == BS_CHECKBOX ||

@@ -257,18 +257,25 @@ static void drawSpinArrow(HDC dc, COLORREF clr, RECT r, int orientation, int dpi
     ensureGdiplus();
     float steps = spinnerSteps(dpi);
     int w = r.right - r.left, hgt = r.bottom - r.top;
-    float xPos, yPos; int xsign, ysign;
+    // INTEGER positions, exactly as CMPCThemeSpinButtonCtrl::drawSpinArrow computes them (its
+    // xPos/yPos are ints): float centering put vertices on half-pixels, which with SmoothingModeNone
+    // (the integral-steps path) rendered chopped, asymmetric triangles -- the 'bar with a stem'
+    // up-arrows on IDD_PPAGESUBSTYLE's small spinners.
+    int xPos, yPos; int xsign, ysign;
     switch (orientation) {
-        case 0: xPos = r.right - (w - steps) / 2.f;          yPos = r.top + (hgt - (steps * 2 + 1)) / 2.f; xsign = -1; ysign =  1; break; // left
-        case 1: xPos = r.left + (w - (steps + 1)) / 2.f;     yPos = r.top + (hgt - (steps * 2 + 1)) / 2.f; xsign =  1; ysign =  1; break; // right
-        case 2: xPos = r.left + (w - (steps * 2 + 1)) / 2.f; yPos = r.bottom - (hgt - steps) / 2.f;        xsign =  1; ysign = -1; break; // top
-        default:xPos = r.left + (w - (steps * 2 + 1)) / 2.f; yPos = r.top + (hgt - (steps + 1)) / 2.f;     xsign =  1; ysign =  1; break; // bottom
+        case 0: xPos = r.right - (w - (int)steps) / 2;            yPos = r.top + (hgt - ((int)steps * 2 + 1)) / 2; xsign = -1; ysign =  1; break; // left
+        case 1: xPos = r.left + (w - ((int)steps + 1)) / 2;       yPos = r.top + (hgt - ((int)steps * 2 + 1)) / 2; xsign =  1; ysign =  1; break; // right
+        case 2: xPos = r.left + (w - ((int)steps * 2 + 1)) / 2;   yPos = r.bottom - (hgt - (int)steps) / 2;        xsign =  1; ysign = -1; break; // top
+        default:xPos = r.left + (w - ((int)steps * 2 + 1)) / 2;   yPos = r.top + (hgt - ((int)steps + 1)) / 2;     xsign =  1; ysign =  1; break; // bottom
     }
+    // PointF construction matches upstream: int anchors, float step offsets (implicit widening there;
+    // explicit casts here because brace-init rejects the narrowing int -> REAL path).
+    float fx = (float)xPos, fy = (float)yPos;
     Gdiplus::PointF v[3];
     if (orientation == 0 || orientation == 1) {
-        v[0] = {xPos,yPos}; v[1] = {xPos+steps*xsign, yPos+steps*ysign}; v[2] = {xPos, yPos+steps*2*ysign};
+        v[0] = {fx, fy}; v[1] = {fx + steps * xsign, fy + steps * ysign}; v[2] = {fx, fy + steps * 2 * ysign};
     } else {
-        v[0] = {xPos,yPos}; v[1] = {xPos+steps*xsign, yPos+steps*ysign}; v[2] = {xPos+steps*2*xsign, yPos};
+        v[0] = {fx, fy}; v[1] = {fx + steps * xsign, fy + steps * ysign}; v[2] = {fx + steps * 2 * xsign, fy};
     }
     Gdiplus::Graphics gfx(dc);
     bool frac = (steps != std::floor(steps));
@@ -940,6 +947,11 @@ static LRESULT CALLBACK ThemeProc(HWND h, UINT msg, WPARAM w, LPARAM l, UINT_PTR
                 bt0 == BS_AUTOCHECKBOX || bt0 == BS_3STATE || bt0 == BS_AUTO3STATE)
                 return ::DefSubclassProc(h, msg, w, l);
         }
+        // Up-downs likewise paint natively in light: the player custom-draws spinners only in dark
+        // (CMPCThemeSpinButtonCtrl gates on AppNeedsThemedControls); its light modal dialogs show the
+        // themed native spinner and its light property pages the classic one (see the SetWindowTheme
+        // strip in LivePreview). Our light-palette custom draw also malformed the small arrows.
+        if (id == 3 && !IsDark()) return ::DefSubclassProc(h, msg, w, l);
         PAINTSTRUCT ps; HDC dc = ::BeginPaint(h, &ps);
         switch (id) {
             case 1: {   // BUTTON — dispatch on BS_ style
