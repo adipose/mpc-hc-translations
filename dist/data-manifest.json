@@ -1,7 +1,7 @@
 {
  "schema": 1,
- "version": "0.30",
- "generated": "2026-08-01T00:21:05Z",
+ "version": "0.31",
+ "generated": "2026-08-01T00:46:55Z",
  "files": {
   "dist/core-enrichment.sqlite": {
    "sha256": "43c64d80c43f0c764b5ec347f0e93d9acf47245b05916dd2fbe64fd2ac75b64f",
