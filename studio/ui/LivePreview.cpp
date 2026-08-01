@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "pch.h"
 #include <uxtheme.h>
+#include <vssym32.h>    // BP_CHECKBOX / BP_RADIOBUTTON part ids for the glyph-fit pass
 #include "LivePreview.h"
 #include "Theme.h"
 #include <commctrl.h>
@@ -659,7 +660,13 @@ static void force_propsheet_font(std::vector<unsigned char>& buf, DWORD style) {
     pushW(FW_REGULAR);   // weight (400)
     nb.push_back(0);     // italic
     nb.push_back(DEFAULT_CHARSET);
-    for (const wchar_t* p = L"MS Shell Dlg"; ; ++p) { pushW((unsigned short)*p); if (!*p) break; }
+    // STUDIO_PROPSHEET_FONT overrides the face for testing what OTHER systems' FontSubstitutes
+    // resolve "MS Shell Dlg" to (e.g. "MS UI Gothic" = Japanese Windows, whose 8pt maps 2px
+    // shorter and shrinks the whole DLU grid -- the issue #3 glyph-clip repro).
+    const wchar_t* face = L"MS Shell Dlg";
+    wchar_t dbgFace[64];
+    if (::GetEnvironmentVariableW(L"STUDIO_PROPSHEET_FONT", dbgFace, 64) > 0) face = dbgFace;
+    for (const wchar_t* p = face; ; ++p) { pushW((unsigned short)*p); if (!*p) break; }
     while (nb.size() & 3) nb.push_back(0);    // re-align the control array to DWORD
     nb.insert(nb.end(), buf.begin() + ctrlStart, buf.end());
     buf.swap(nb);
@@ -723,6 +730,40 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
     //     its themed sheet); light modal dialogs keep the native gray dialog background.
     if (propSheetLayout && !Theme::IsDark())
         ::EnableThemeDialogTexture(dlg, ETDT_ENABLETAB);
+
+    // 2a'. Glyph-fit (issue #3, Japanese report): where FontSubstitutes maps the dialog font shorter
+    //      than "Microsoft Sans Serif" (JP: "MS Shell Dlg" -> MS UI Gothic, 11px vs 13px at 8pt/96dpi),
+    //      the DLU grid shrinks and template-height (8 DLU) radios/checks become SHORTER than the
+    //      native glyph -- which centers and clips top+bottom. Grow such controls symmetrically to the
+    //      glyph height; a no-op wherever the grid already fits (Western systems). The real player has
+    //      the same latent clip in its light-native theme on JP systems (upstream candidate fix).
+    ::EnumChildWindows(dlg, [](HWND c, LPARAM) -> BOOL {
+        wchar_t cls[20]; ::GetClassNameW(c, cls, 20);
+        if (_wcsicmp(cls, L"Button")) return TRUE;
+        DWORD bt = (DWORD)(::GetWindowLongPtr(c, GWL_STYLE) & BS_TYPEMASK);
+        bool radio = bt == BS_RADIOBUTTON || bt == BS_AUTORADIOBUTTON;
+        bool check = bt == BS_CHECKBOX || bt == BS_AUTOCHECKBOX || bt == BS_3STATE || bt == BS_AUTO3STATE;
+        if (!radio && !check) return TRUE;
+        int glyphH = 0;
+        if (HTHEME t = ::OpenThemeData(c, L"Button")) {
+            SIZE s{};
+            HDC hdc = ::GetDC(c);
+            if (SUCCEEDED(::GetThemePartSize(t, hdc, radio ? BP_RADIOBUTTON : BP_CHECKBOX,
+                                             1 /*UNCHECKEDNORMAL*/, nullptr, TS_TRUE, &s)))
+                glyphH = s.cy;
+            ::ReleaseDC(c, hdc);
+            ::CloseThemeData(t);
+        }
+        if (!glyphH) glyphH = ::MulDiv(13, Theme::DpiOf(c), 96);   // classic fallback
+        RECT wr; ::GetWindowRect(c, &wr);
+        int deficit = glyphH - (wr.bottom - wr.top);
+        if (deficit <= 0) return TRUE;
+        ::MapWindowPoints(nullptr, ::GetParent(c), (POINT*)&wr, 2);
+        ::SetWindowPos(c, nullptr, wr.left, wr.top - (deficit + 1) / 2,
+                       wr.right - wr.left, (wr.bottom - wr.top) + deficit,
+                       SWP_NOZORDER | SWP_NOACTIVATE);
+        return TRUE;
+    }, 0);
 
     // 2b. Fonts: honor the TEMPLATE font, exactly like the player. MPC-HC never re-fonts its dialogs
     //     at runtime (CMPCThemeUtil's DialogFont hack is #if 0), so what the template declares is what
