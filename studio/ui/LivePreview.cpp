@@ -319,10 +319,14 @@ long long LivePreview::PositionOverListValue(long long listId, long long ctrlId,
 // Owns click-to-edit: a control click surfaces as WM_PARENTNOTIFY; clicks on HTTRANSPARENT
 // children (statics/groupboxes) surface as WM_LBUTTONDOWN on the dialog itself.
 INT_PTR CALLBACK LivePreview::PreviewDlgProc(HWND dlg, UINT msg, WPARAM wp, LPARAM lp) {
-    switch (msg) {   // MPC theme: background + text for the dialog and non-owner-drawn controls
+    switch (msg) {   // MPC theme: background + text for the dialog and non-owner-drawn controls.
+        // DARK only -- in light the player draws dialogs natively (upstream da3aca546: gray modal
+        // dialogs, tab-textured property pages), so return FALSE and let DefDlgProc pick the colors.
         case WM_CTLCOLORDLG: case WM_CTLCOLORSTATIC: case WM_CTLCOLORBTN:
+            if (!Theme::IsDark()) return FALSE;
             return (INT_PTR)Theme::windowCtl((HDC)wp);
         case WM_CTLCOLOREDIT: case WM_CTLCOLORLISTBOX:
+            if (!Theme::IsDark()) return FALSE;
             return (INT_PTR)Theme::contentCtl((HDC)wp);
         case WM_NOTIFY: {
             // A msctls_trackbar32 child's reflected NM_CUSTOMDRAW arrives here, at the parent (see
@@ -712,25 +716,13 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
     ::SetWindowLongPtr(dlg, DWLP_USER, (LONG_PTR)this);
     m_dlg = dlg;
 
-    // 2a. LIGHT-theme property pages: strip the visual style from radios/checkboxes so they render
-    //     CLASSIC, matching the player -- verified empirically against the real player in light mode:
-    //     its Options pages draw classic monochrome glyphs while its modal dialogs (e.g. the Open
-    //     dialog) draw modern themed ones. Dark mode is unaffected (our sprite drawing paints there).
-    if (propSheetLayout && !Theme::IsDark()) {
-        ::EnumChildWindows(dlg, [](HWND c, LPARAM) -> BOOL {
-            wchar_t cls[20]; ::GetClassNameW(c, cls, 20);
-            if (!_wcsicmp(cls, L"msctls_updown32")) {   // spinners render classic on light pages too
-                ::SetWindowTheme(c, L"", L"");
-                return TRUE;
-            }
-            if (_wcsicmp(cls, L"Button")) return TRUE;
-            DWORD bt = (DWORD)(::GetWindowLongPtr(c, GWL_STYLE) & BS_TYPEMASK);
-            if (bt == BS_RADIOBUTTON || bt == BS_AUTORADIOBUTTON || bt == BS_CHECKBOX ||
-                bt == BS_AUTOCHECKBOX || bt == BS_3STATE || bt == BS_AUTO3STATE)
-                ::SetWindowTheme(c, L"", L"");
-            return TRUE;
-        }, 0);
-    }
+    // 2a. LIGHT theme renders every control natively themed, property pages included -- matching the
+    //     player since its light-consistency overhaul (upstream ef3e901c0/631b46f48: custom painting is
+    //     gated on drawThemedControls, true only in dark; nothing is stripped to classic anymore).
+    //     Light property pages get the tab-body texture (white, like the player's native pages inside
+    //     its themed sheet); light modal dialogs keep the native gray dialog background.
+    if (propSheetLayout && !Theme::IsDark())
+        ::EnableThemeDialogTexture(dlg, ETDT_ENABLETAB);
 
     // 2b. Fonts: honor the TEMPLATE font, exactly like the player. MPC-HC never re-fonts its dialogs
     //     at runtime (CMPCThemeUtil's DialogFont hack is #if 0), so what the template declares is what

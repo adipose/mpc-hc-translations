@@ -71,9 +71,10 @@ void InitTopWindow(HWND top) {
 // leaves a RGB(255,0,0) sentinel there because the owner-draw path is gated off entirely in light mode
 // for those widgets) — for those we keep the Studio's own previously-chosen light value, noted below.
 COLORREF WINDOW_BG = RGB(25,25,25), CONTENT_BG = RGB(32,32,32), CONTENT_SEL = RGB(119,119,119),
-         CONTENT_DISABLED = RGB(40,40,40), GRID_LINE = RGB(43,43,43),
+         CONTENT_DISABLED = RGB(40,40,40), GRID_LINE = RGB(43,43,43), FRAME_BORDER = RGB(99,99,99),
          TAB_INACTIVE = RGB(40,40,40), TAB_BORDER = RGB(99,99,99),
-         TEXT = RGB(255,255,255), TEXT_DIM = RGB(200,200,200), TEXT_DISABLED = RGB(109,109,109),
+         TEXT = RGB(255,255,255), PROPPAGE_CAPTION_FG = RGB(255,255,255),
+         TEXT_DIM = RGB(200,200,200), TEXT_DISABLED = RGB(109,109,109),
          GROUP_BORDER = RGB(118,118,118), GROUP_DISABLED = RGB(109,109,109),
          CTRL_BORDER = RGB(106,106,106),
          BTN_FILL = RGB(51,51,51), BTN_OUTER = RGB(240,240,240), BTN_INNER = RGB(155,155,155),
@@ -101,8 +102,10 @@ void SetMode(Mode pref) {
         WINDOW_BG = RGB(255,255,255); CONTENT_BG = RGB(255,255,255); CONTENT_SEL = RGB(0,120,215);
         CONTENT_DISABLED = RGB(255,255,255);  // sentinel upstream (light ListCtrlDisabledBGColor unused) -> = CONTENT_BG
         GRID_LINE = RGB(130,135,144);         // sentinel upstream (light ListCtrlGridColor unused) -> Studio's own choice
+        FRAME_BORDER = RGB(130,135,144);
         TAB_INACTIVE = RGB(246,246,246); TAB_BORDER = RGB(227,227,227);
-        TEXT = RGB(0,0,0); TEXT_DIM = RGB(109,109,109); TEXT_DISABLED = RGB(204,204,204);
+        TEXT = RGB(0,0,0); PROPPAGE_CAPTION_FG = RGB(245,245,245);   // caption text stays near-white on the blue gradient
+        TEXT_DIM = RGB(109,109,109); TEXT_DISABLED = RGB(204,204,204);
         GROUP_BORDER = RGB(130,135,144); GROUP_DISABLED = RGB(176,176,176);
         CTRL_BORDER = RGB(106,106,106);
         BTN_FILL = RGB(225,225,225); BTN_OUTER = RGB(173,173,173); BTN_INNER = RGB(173,173,173);
@@ -118,9 +121,10 @@ void SetMode(Mode pref) {
         MENU_DISABLED = RGB(109,109,109); MENU_BORDER = RGB(255,255,255); MENU_ARROW = RGB(0,0,0);
     } else {                 // MPC-HC dark modern palette (CMPCTheme::InitializeColors, DARK branch)
         WINDOW_BG = RGB(25,25,25); CONTENT_BG = RGB(32,32,32); CONTENT_SEL = RGB(119,119,119);
-        CONTENT_DISABLED = RGB(40,40,40); GRID_LINE = RGB(43,43,43);
+        CONTENT_DISABLED = RGB(40,40,40); GRID_LINE = RGB(43,43,43); FRAME_BORDER = RGB(99,99,99);
         TAB_INACTIVE = RGB(40,40,40); TAB_BORDER = RGB(99,99,99);
-        TEXT = RGB(255,255,255); TEXT_DIM = RGB(200,200,200); TEXT_DISABLED = RGB(109,109,109);
+        TEXT = RGB(255,255,255); PROPPAGE_CAPTION_FG = RGB(255,255,255);
+        TEXT_DIM = RGB(200,200,200); TEXT_DISABLED = RGB(109,109,109);
         GROUP_BORDER = RGB(118,118,118); GROUP_DISABLED = RGB(109,109,109);
         CTRL_BORDER = RGB(106,106,106);
         BTN_FILL = RGB(51,51,51); BTN_OUTER = RGB(240,240,240); BTN_INNER = RGB(155,155,155);
@@ -864,6 +868,14 @@ static LRESULT CALLBACK ThemeProc(HWND h, UINT msg, WPARAM w, LPARAM l, UINT_PTR
         hoverMap().erase(h); downPosMap().erase(h); headerHotMap().erase(h);
         return ::DefSubclassProc(h, msg, w, l);
     }
+    // LIGHT theme: buttons/groups, combos, spinners and tabs paint NATIVELY -- the player's
+    // light-consistency overhaul gates ALL custom control painting on drawThemedControls, which is
+    // true only in dark (upstream ef3e901c0 / 631b46f48 / 0dfe2f18a / 8233693e6 / 0b61498ea). Bail
+    // before any custom erase/color/paint. Headers (4) and list views (7) keep the custom painter in
+    // both modes: they are Studio's own review-list chrome, not part of the preview's player fidelity.
+    if (!IsDark() && (id == 1 || id == 2 || id == 3 || id == 5) &&
+        (msg == WM_PAINT || msg == WM_ERASEBKGND || msg == WM_CTLCOLORLISTBOX))
+        return ::DefSubclassProc(h, msg, w, l);
     if (msg == WM_CTLCOLORLISTBOX) { return (LRESULT)contentCtl((HDC)w); }   // a combo's open dropdown
     // id 8 (trackbar, see ApplyToChildren) is excluded from the two checks below: it isn't painted by
     // this subclass at all (Theme::TrackbarCustomDraw runs at the PARENT, off WM_NOTIFY) -- it's only
@@ -936,22 +948,6 @@ static LRESULT CALLBACK ThemeProc(HWND h, UINT msg, WPARAM w, LPARAM l, UINT_PTR
         setHoverState(h, inside);
     }
     if (msg == WM_PAINT && id != 8) {   // id 8: native WM_PAINT drives the NM_CUSTOMDRAW this file paints from
-        // LIGHT theme: radios/checkboxes paint NATIVELY, exactly like the player -- MPC-HC's themed
-        // radio/check drawing (CMPCThemeRadioOrCheck + the dark glyph sprite strips) exists only for
-        // dark mode; in light the player uses default Windows controls. Our sprites are dark-only, so
-        // owner-drawing them in light rendered black glyph boxes (and clipped labels). Must bail
-        // BEFORE BeginPaint or the native handler sees an empty update region.
-        if (id == 1 && !IsDark()) {
-            DWORD bt0 = (DWORD)(::GetWindowLongPtr(h, GWL_STYLE) & BS_TYPEMASK);
-            if (bt0 == BS_RADIOBUTTON || bt0 == BS_AUTORADIOBUTTON || bt0 == BS_CHECKBOX ||
-                bt0 == BS_AUTOCHECKBOX || bt0 == BS_3STATE || bt0 == BS_AUTO3STATE)
-                return ::DefSubclassProc(h, msg, w, l);
-        }
-        // Up-downs likewise paint natively in light: the player custom-draws spinners only in dark
-        // (CMPCThemeSpinButtonCtrl gates on AppNeedsThemedControls); its light modal dialogs show the
-        // themed native spinner and its light property pages the classic one (see the SetWindowTheme
-        // strip in LivePreview). Our light-palette custom draw also malformed the small arrows.
-        if (id == 3 && !IsDark()) return ::DefSubclassProc(h, msg, w, l);
         PAINTSTRUCT ps; HDC dc = ::BeginPaint(h, &ps);
         switch (id) {
             case 1: {   // BUTTON — dispatch on BS_ style
@@ -1005,15 +1001,33 @@ void ApplyToChildren(HWND parent) {
             TreeView_SetBkColor(c, CONTENT_BG); TreeView_SetTextColor(c, TEXT);
         } else if (_wcsicmp(cls, L"Edit") == 0) {
             ::SetWindowTheme(c, ccTheme, nullptr);   // scrollbars follow the theme; colors via WM_CTLCOLOR
-            // Swap the 2px sunken client edge for a flat 1px border, then paint it EditBorderColor —
-            // MPC-HC's flat field look (a 1px FrameRect can't fully recolor a 2px client edge).
             LONG_PTR st = ::GetWindowLongPtr(c, GWL_STYLE), ex = ::GetWindowLongPtr(c, GWL_EXSTYLE);
-            ::SetWindowLongPtr(c, GWL_STYLE, st | WS_BORDER);
-            ::SetWindowLongPtr(c, GWL_EXSTYLE, ex & ~WS_EX_CLIENTEDGE);
-            ::SetWindowPos(c, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-            RECT er; ::GetClientRect(c, &er); ::InflateRect(&er, -2, -2);
-            ::SendMessageW(c, EM_SETRECT, 0, (LPARAM)&er);   // CMPCThemeEdit::PreSubclassWindow's 2px text inset
-            ::SetWindowSubclass(c, EditProc, 6, 0);  // redraw the border in EditBorderColor
+            if (IsDark()) {
+                // Swap the 2px sunken client edge for a flat 1px border, then paint it EditBorderColor —
+                // MPC-HC's flat field look (a 1px FrameRect can't fully recolor a 2px client edge).
+                // Remember the template chrome (window prop, integer payload) so a later light pass can
+                // restore it: upstream CMPCThemeEdit is 100% native in light (ef724f668).
+                if (!::GetPropW(c, L"StudioEditOrig"))
+                    ::SetPropW(c, L"StudioEditOrig",
+                               (HANDLE)(LONG_PTR)(4 | ((st & WS_BORDER) ? 2 : 0) | ((ex & WS_EX_CLIENTEDGE) ? 1 : 0)));
+                ::SetWindowLongPtr(c, GWL_STYLE, st | WS_BORDER);
+                ::SetWindowLongPtr(c, GWL_EXSTYLE, ex & ~WS_EX_CLIENTEDGE);
+                ::SetWindowPos(c, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+                RECT er; ::GetClientRect(c, &er); ::InflateRect(&er, -2, -2);
+                ::SendMessageW(c, EM_SETRECT, 0, (LPARAM)&er);   // CMPCThemeEdit::PreSubclassWindow's 2px text inset
+                ::SetWindowSubclass(c, EditProc, 6, 0);  // redraw the border in EditBorderColor
+            } else {
+                // LIGHT: fully native edit chrome. Undo a previous dark restyle (main-UI edits persist
+                // across theme switches; preview-dialog edits are recreated and never carry the prop).
+                if (LONG_PTR bits = (LONG_PTR)::GetPropW(c, L"StudioEditOrig")) {
+                    ::SetWindowLongPtr(c, GWL_STYLE, (bits & 2) ? (st | WS_BORDER) : (st & ~WS_BORDER));
+                    ::SetWindowLongPtr(c, GWL_EXSTYLE, (bits & 1) ? (ex | WS_EX_CLIENTEDGE) : (ex & ~WS_EX_CLIENTEDGE));
+                    ::SetWindowPos(c, nullptr, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+                    ::SendMessageW(c, EM_SETRECT, 0, 0);   // NULL rect: back to the default formatting rect
+                    ::RemovePropW(c, L"StudioEditOrig");
+                }
+                ::RemoveWindowSubclass(c, EditProc, 6);    // no flat-border repaint in light
+            }
         } else if (_wcsicmp(cls, L"ListBox") == 0) {
             ::SetWindowTheme(c, ccTheme, nullptr);
         } else if (_wcsicmp(cls, L"msctls_trackbar32") == 0 && IsDark()) {

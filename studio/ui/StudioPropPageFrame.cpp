@@ -31,7 +31,7 @@ void CStudioPropPageFrame::DrawCaption(CDC* pDC, CRect rect, LPCTSTR lpszCaption
 
     rect.left += 2;
 
-    COLORREF clrPrev = pDC->SetTextColor(Theme::TEXT);
+    COLORREF clrPrev = pDC->SetTextColor(Theme::PROPPAGE_CAPTION_FG);
     int nBkStyle = pDC->SetBkMode(TRANSPARENT);
 
     NONCLIENTMETRICSW ncm{ sizeof(ncm) };
@@ -68,14 +68,21 @@ void CStudioPropPageFrame::OnPaint() {
     Draw(&dc);
 }
 
-// Replaces CMPCThemePropPageFrame::OnEraseBkgnd's MPCThemeUtil::MPCThemeEraseBkgnd + WindowBorderColorLight
-// (both MPC-HC-only) with Studio's own Theme:: equivalents: fill the client, then frame it with the
-// grid-line color -- the same look the old hand-painted CThemedHostWnd chrome drew, now painted natively
-// by this real sibling window.
+// Port of CMPCThemePropPageFrame::OnEraseBkgnd after the player's light-consistency overhaul
+// (upstream a65aa71ce): dark fills the themed window background; light defers to the DEFAULT frame
+// erase (themed TABP_BODY, matching its native pages). The frame border is drawn in BOTH modes with
+// WindowBorderColorLight -- "the caption is themed in light too, so keep the matching frame border".
 BOOL CStudioPropPageFrame::OnEraseBkgnd(CDC* pDC) {
+    BOOL ret;
+    if (Theme::IsDark()) {
+        CRect rect; GetClientRect(&rect);
+        pDC->FillSolidRect(rect, Theme::WINDOW_BG);
+        ret = TRUE;
+    } else {
+        ret = __super::OnEraseBkgnd(pDC);
+    }
     CRect rect; GetClientRect(&rect);
-    pDC->FillSolidRect(rect, Theme::WINDOW_BG);
-    CBrush border(Theme::GRID_LINE);
+    CBrush border(Theme::FRAME_BORDER);
     pDC->FrameRect(rect, &border);
-    return TRUE;
+    return ret;
 }

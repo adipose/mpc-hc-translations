@@ -20,9 +20,11 @@ extern COLORREF CONTENT_BG;    // edit / combo / list / tree interior
 extern COLORREF CONTENT_SEL;   // selected row (CMPCTheme ContentSelectedColor)
 extern COLORREF CONTENT_DISABLED; // disabled list row band (CMPCTheme ListCtrlDisabledBGColor)
 extern COLORREF GRID_LINE;     // list-view grid lines (CMPCTheme ListCtrlGridColor)
+extern COLORREF FRAME_BORDER;  // options page frame outline (CMPCTheme WindowBorderColorLight, kept in BOTH modes)
 extern COLORREF TAB_INACTIVE;  // unselected tab fill (CMPCTheme TabCtrlInactiveColor)
 extern COLORREF TAB_BORDER;    // tab outline / content baseline (CMPCTheme TabCtrlBorderColor)
 extern COLORREF TEXT;
+extern COLORREF PROPPAGE_CAPTION_FG; // options-page caption text on the gradient (CMPCTheme PropPageCaptionFGColor: near-white in BOTH modes)
 extern COLORREF TEXT_DIM;      // faded text (CMPCTheme TextFGColorFade — unfocused menubar caption, etc.)
 extern COLORREF TEXT_DISABLED; // disabled button/check/combo label (CMPCTheme ButtonDisabledFGColor)
 extern COLORREF GROUP_BORDER;
