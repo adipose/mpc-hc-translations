@@ -638,11 +638,45 @@ static size_t skip_sz_or_ord(const std::vector<unsigned char>& b, size_t pos) {
     return pos;
 }
 
-// Force a DLGTEMPLATEEX's DS_SETFONT font to "MS Shell Dlg" 8pt -- the dialog-unit grid COMCTL32 uses
-// for property-sheet pages regardless of the template's declared FONT (see RenderDialog's caller).
-// Text is still drawn in the real 9pt Segoe UI applied via WM_SETFONT after creation; only the layout
-// grid (control sizes/positions) is affected. Rebuilds the byte vector because the typeface length
-// changes; the control array is kept DWORD-aligned so its self-contained, individually-aligned control
+// The property-sheet layout grid font comes from COMCTL32's OWN dialog template (#1006), and that
+// template is MUI-LOCALIZED: en-US declares 8pt "MS Shell Dlg" (-> Microsoft Sans Serif, 13px grid),
+// Japanese declares 9pt "Yu Gothic UI" (15px grid), and so on -- each locale's template guarantees
+// its glyphs fit. Hardcoding the en-US values here made Japanese-system previews lay out on an
+// 11px MS UI Gothic grid the real player NEVER uses, clipping every 8-DLU radio/check (issue #3).
+// Read the live template so the preview grid always matches the user's actual property sheets.
+static void propsheet_grid_font(CStringW& face, WORD& pt) {
+    face = L"MS Shell Dlg"; pt = 8;                        // en-US values as a fallback
+    HMODULE cc = ::GetModuleHandleW(L"comctl32.dll");
+    HRSRC r = cc ? ::FindResourceW(cc, MAKEINTRESOURCEW(1006), (LPCWSTR)RT_DIALOG) : nullptr;
+    if (!r) return;
+    auto* d = (const unsigned char*)::LockResource(::LoadResource(cc, r));
+    DWORD sz = ::SizeofResource(cc, r);
+    if (!d || sz < 20) return;
+    auto rdW = [&](size_t p) -> unsigned short { unsigned short v; memcpy(&v, d + p, 2); return v; };
+    bool ex = rdW(2) == 0xFFFF;
+    DWORD st; memcpy(&st, d + (ex ? 12 : 0), 4);
+    if (!(st & DS_SETFONT)) return;
+    size_t pos = ex ? 26 : 18;
+    auto skip = [&](size_t p) -> size_t {                  // menu / class / title sz_or_ord
+        unsigned short v = rdW(p);
+        if (v == 0) return p + 2;
+        if (v == 0xFFFF) return p + 4;
+        while (p + 2 <= sz && rdW(p)) p += 2;
+        return p + 2;
+    };
+    pos = skip(pos); pos = skip(pos); pos = skip(pos);
+    if (pos + 4 > sz) return;
+    WORD tpt = rdW(pos);
+    pos += ex ? 6 : 2;                                     // EX adds weight(2) italic(1) charset(1)
+    CStringW f;
+    while (pos + 2 <= sz && rdW(pos)) { f += (wchar_t)rdW(pos); pos += 2; }
+    if (tpt && !f.IsEmpty()) { face = f; pt = tpt; }
+}
+
+// Force a DLGTEMPLATEEX's DS_SETFONT font to the comctl32 property-sheet grid font (see above) --
+// the dialog-unit grid COMCTL32 uses for property-sheet pages regardless of the template's declared
+// FONT (see RenderDialog's caller). Rebuilds the byte vector because the typeface length changes;
+// the control array is kept DWORD-aligned so its self-contained, individually-aligned control
 // entries copy verbatim without breaking alignment.
 static void force_propsheet_font(std::vector<unsigned char>& buf, DWORD style) {
     if (!(style & DS_SETFONT)) return;
@@ -654,19 +688,24 @@ static void force_propsheet_font(std::vector<unsigned char>& buf, DWORD style) {
     size_t tfEnd = pos + 6;
     for (; tfEnd + 2 <= buf.size(); ) { unsigned short c; memcpy(&c, buf.data() + tfEnd, 2); tfEnd += 2; if (!c) break; }
     size_t ctrlStart = (tfEnd + 3) & ~size_t(3);   // control array is DWORD-aligned from the template start
+    CStringW face; WORD pt;
+    propsheet_grid_font(face, pt);
+    // STUDIO_PROPSHEET_FONT ("face" or "face:pt") overrides for cross-locale testing -- e.g.
+    // "MS UI Gothic" reproduces a JP system running the en-US comctl template (the old bug), while
+    // "Yu Gothic UI:9" simulates the real Japanese comctl grid.
+    wchar_t dbg[80];
+    if (::GetEnvironmentVariableW(L"STUDIO_PROPSHEET_FONT", dbg, 80) > 0) {
+        face = dbg;
+        int colon = face.ReverseFind(L':');
+        if (colon > 0) { pt = (WORD)_wtoi(face.Mid(colon + 1)); face = face.Left(colon); }
+    }
     std::vector<unsigned char> nb(buf.begin(), buf.begin() + pos);
     auto pushW = [&](unsigned short w){ nb.push_back((unsigned char)(w & 0xFF)); nb.push_back((unsigned char)(w >> 8)); };
-    pushW(8);            // pointsize
+    pushW(pt);           // pointsize
     pushW(FW_REGULAR);   // weight (400)
     nb.push_back(0);     // italic
     nb.push_back(DEFAULT_CHARSET);
-    // STUDIO_PROPSHEET_FONT overrides the face for testing what OTHER systems' FontSubstitutes
-    // resolve "MS Shell Dlg" to (e.g. "MS UI Gothic" = Japanese Windows, whose 8pt maps 2px
-    // shorter and shrinks the whole DLU grid -- the issue #3 glyph-clip repro).
-    const wchar_t* face = L"MS Shell Dlg";
-    wchar_t dbgFace[64];
-    if (::GetEnvironmentVariableW(L"STUDIO_PROPSHEET_FONT", dbgFace, 64) > 0) face = dbgFace;
-    for (const wchar_t* p = face; ; ++p) { pushW((unsigned short)*p); if (!*p) break; }
+    for (const wchar_t* p = (const wchar_t*)face; ; ++p) { pushW((unsigned short)*p); if (!*p) break; }
     while (nb.size() & 3) nb.push_back(0);    // re-align the control array to DWORD
     nb.insert(nb.end(), buf.begin() + ctrlStart, buf.end());
     buf.swap(nb);
