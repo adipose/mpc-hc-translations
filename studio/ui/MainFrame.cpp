@@ -867,6 +867,7 @@ bool MainFrame::LoadLanguage(const CString& code, bool fromGithub, bool refreshR
 
     for (int r = 0; r < RES_COUNT; ++r) { m_po[r] = std::move(parsed[r]); m_dirty[r].clear(); }
     m_lang = code;
+    m_preview.SetTargetLang(code);   // per-language propsheet grid font (comctl MUI simulation)
     m_checkedOut = true;
     ApplyDrafts();                       // restore this language's locally-saved pending edits
     if (fromGithub && gotGithub) TransifexOverlay(code);   // offer to fill base-empty strings (online only)
@@ -3047,6 +3048,7 @@ void MainFrame::EnsureFitScan() {
 
         LivePreview lp;
         lp.LoadNeutralDll(neutralDll);
+        lp.SetTargetLang(CString(langKey.c_str()));   // fit-scan measures on the language's own grid
         if (useRcCopy && !rcCopy.empty()) lp.SetRcDialogs(rcCopy);
 
         auto* result = new FitScanResult;
@@ -3982,13 +3984,15 @@ MainFrame::AiPrepContext MainFrame::BuildAiPrepContext(const Row& row, const std
 // never-shown WS_POPUP host technique, but keeps EVERY measurement instead of only overflowing ones).
 std::map<std::pair<std::string, std::string>, int> MainFrame::MeasureAvailablePx(
         const std::set<long long>& dialogIds, const ControlIndex& idx, const PoFile& dialogsPo,
-        const CString& neutralDll, bool useRc, const std::vector<RcDialog>& rcDialogs) {
+        const CString& neutralDll, bool useRc, const std::vector<RcDialog>& rcDialogs,
+        const CString& lang) {
     std::map<std::pair<std::string, std::string>, int> out;
     CWnd host;
     host.CreateEx(0, AfxRegisterWndClass(0, nullptr, nullptr, nullptr), L"",
                  WS_POPUP, 0, 0, 10, 10, nullptr, nullptr);
     LivePreview lp;
     lp.LoadNeutralDll(neutralDll);
+    lp.SetTargetLang(lang);   // measure on the language's own propsheet grid
     if (useRc && !rcDialogs.empty()) lp.SetRcDialogs(rcDialogs);
     for (long long dialogId : dialogIds) {
         HWND dlg = lp.RenderDialog(dialogId, &host, idx, dialogsPo);
@@ -4110,7 +4114,7 @@ void MainFrame::OnExportAiContextString() {
     if (dlg >= 0) {
         std::set<long long> ids{ dlg };
         auto measured = MeasureAvailablePx(ids, Idx(), m_po[RES_DIALOGS], m_bundle.neutral_dll,
-                                           m_preview.UsingRc(), m_preview.RcDialogs());
+                                           m_preview.UsingRc(), m_preview.RcDialogs(), m_lang);
         auto it = measured.find({ row.msgctxt, row.msgid });
         if (it != measured.end()) availablePx = it->second;
     }
@@ -4241,7 +4245,7 @@ void MainFrame::OnExportAiContextLanguage() {
         result->lang = langCode; result->path = path;
 
         std::map<std::pair<std::string, std::string>, int> availByKey =
-            MeasureAvailablePx(dialogIds, idxCopy, poCopy[RES_DIALOGS], neutralDll, useRcCopy, rcCopy);
+            MeasureAvailablePx(dialogIds, idxCopy, poCopy[RES_DIALOGS], neutralDll, useRcCopy, rcCopy, langCode);
 
         std::string buf;
         buf.reserve(worklist.size() * 128);
@@ -4809,6 +4813,7 @@ void MainFrame::OnGenerateAiSuggestions() {
                      WS_POPUP, 0, 0, 10, 10, nullptr, nullptr);
         LivePreview lp;
         lp.LoadNeutralDll(neutralDll);
+        lp.SetTargetLang(langCode);   // fit checks on the language's own propsheet grid
         if (useRcCopy && !rcCopy.empty()) lp.SetRcDialogs(rcCopy);
 
         // Precompute each row's owning dialog id (idxCopy is a plain in-memory copy -- no sqlite, safe
@@ -5221,6 +5226,7 @@ void MainFrame::OnGenerateAiSuggestionsAll() {
             ++langIndex;
             if (cancel->load()) { result->cancelled = true; break; }
             std::string langUtf8 = std::string(CW2A(langCode, CP_UTF8));
+            lp.SetTargetLang(langCode);   // this iteration's renders use its own propsheet grid
 
             // ---- Phase A: this language's po, via a blocking UI-thread round trip ----
             HANDLE evA = ::CreateEventW(nullptr, FALSE, FALSE, nullptr);

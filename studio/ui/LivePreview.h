@@ -27,6 +27,11 @@ public:
     void  SetRcMenus(std::vector<mpctrans::RcMenu> m) { m_rcMenus = std::move(m); }
     const std::vector<mpctrans::RcMenu>& RcMenus() const { return m_rcMenus; }
     void  ClearRcSource() { m_useRc = false; m_rcDialogs.clear(); }
+
+    // Target LANGUAGE of the strings being previewed (PO code, e.g. "de", "ja", "zh_CN"). Drives the
+    // property-sheet grid font simulation: each Windows UI language's comctl32 declares its own
+    // propsheet template font, so previews lay out (and render text) like that language's real player.
+    void  SetTargetLang(const CString& l) { m_targetLang = l; }
     bool  UsingRc() const { return m_useRc; }
     const std::vector<mpctrans::RcDialog>& RcDialogs() const { return m_rcDialogs; }
 
@@ -145,6 +150,7 @@ private:
     static INT_PTR CALLBACK PreviewDlgProc(HWND, UINT, WPARAM, LPARAM);
     HMODULE m_neutral = nullptr;
     std::vector<mpctrans::RcDialog> m_rcDialogs;   // parsed RC source (Approach C)
+    CString m_targetLang;                          // PO language code of the previewed strings
     std::vector<mpctrans::RcMenu>   m_rcMenus;     // parsed RC menu hierarchy (live, for menu-in-context)
     bool    m_useRc = false;
     HWND    m_dlg = nullptr;

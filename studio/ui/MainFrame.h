@@ -481,7 +481,7 @@ private:
     static std::map<std::pair<std::string, std::string>, int> MeasureAvailablePx(
         const std::set<long long>& dialogIds, const mpctrans::ControlIndex& idx,
         const mpctrans::PoFile& dialogsPo, const CString& neutralDll, bool useRc,
-        const std::vector<mpctrans::RcDialog>& rcDialogs);
+        const std::vector<mpctrans::RcDialog>& rcDialogs, const CString& lang);
 
     // Shared by OnGenerateAiSuggestions and OnGenerateAiSuggestionsAll: resolve the configured AI
     // provider/model, auto-opening AiSettingsDlg if no key is stored yet (Save persists; Cancel leaves
