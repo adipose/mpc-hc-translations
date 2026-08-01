@@ -6,12 +6,29 @@
 
 using namespace mpctrans;
 
-// Embedded tab characters render as invisible tab stops in the edit boxes, which confuses
-// translators — several strings (command-line help especially) are "switch\tdescription". Show
-// them as a visible glyph in the edits and convert back to a real tab when reading the value.
+// Embedded control characters render invisibly in the edit boxes, which misleads translators:
+// tabs as silent tab stops (several strings are "switch\tdescription"), and bare-LF line breaks as
+// NOTHING AT ALL (a Windows edit control only breaks on CRLF, so "a.\nb" displays as "a.b" — issue
+// #5). Show both as visible glyphs, Transifex-style, and convert back when reading the value. The
+// ⏎ glyph is decoration for the eye; the CRLF that follows it carries the actual break — so a
+// translator who types plain Enter still gets a break, and deleting a lone ⏎ removes nothing but
+// the marker's line break stays visible as the wrap it no longer has.
 static const wchar_t* kTabGlyph = L"⇥";   // ⇥ (visible tab marker)
-static CString showTabs(const CString& s) { CString t(s); t.Replace(L"\t", kTabGlyph); return t; }
-static CString hideTabs(const CString& s) { CString t(s); t.Replace(kTabGlyph, L"\t"); return t; }
+static const wchar_t* kNlGlyph  = L"⏎";   // ⏎ (visible line-break marker, precedes the real CRLF)
+static CString showCtl(const CString& s) {
+    CString t(s);
+    t.Replace(L"\t", kTabGlyph);
+    t.Replace(L"\r\n", L"\n");                          // normalize first (idempotent round-trips)
+    t.Replace(L"\n", CString(kNlGlyph) + L"\r\n");
+    return t;
+}
+static CString hideCtl(const CString& s) {
+    CString t(s);
+    t.Replace(kTabGlyph, L"\t");
+    t.Replace(kNlGlyph, L"");                           // the break itself is the CRLF, glyph or not
+    t.Replace(L"\r\n", L"\n");                          // PO strings carry bare \n
+    return t;
+}
 
 BEGIN_MESSAGE_MAP(EditPanel, CWnd)
     ON_WM_CREATE()
@@ -22,6 +39,8 @@ BEGIN_MESSAGE_MAP(EditPanel, CWnd)
     ON_BN_CLICKED(IDC_EP_AI_ACCEPT, OnAcceptAi)
     ON_BN_CLICKED(IDC_EP_AI_SUGGEST, OnSuggestAiClicked)
     ON_LBN_DBLCLK(IDC_EP_REFS, OnRefDblClk)
+    ON_BN_CLICKED(IDC_EP_INS_NL, OnInsertNl)
+    ON_BN_CLICKED(IDC_EP_INS_TAB, OnInsertTab)
     ON_EN_CHANGE(IDC_EP_TRANSLATION, OnTranslationChanged)
 END_MESSAGE_MAP()
 
@@ -80,6 +99,9 @@ int EditPanel::OnCreate(LPCREATESTRUCT lpcs) {
     m_lblEnglish.Create(L"English", ST, z, this, 0);
     m_english.Create(ED | ES_READONLY | WS_TABSTOP, z, this, IDC_EP_ENGLISH);   // tabbable to read/copy
     m_lblCurrent.Create(L"Translation", ST, z, this, 0);
+    // Transifex-style control-char chips: click to insert the (visible-glyph) char at the caret.
+    m_btnInsNl.Create(kNlGlyph, ST | WS_TABSTOP, z, this, IDC_EP_INS_NL);
+    m_btnInsTab.Create(kTabGlyph, ST | WS_TABSTOP, z, this, IDC_EP_INS_TAB);
     m_translation.Create(ED | WS_TABSTOP, z, this, IDC_EP_TRANSLATION);
     m_btnApply.Create(L"&Apply edit", ST | WS_TABSTOP | BS_DEFPUSHBUTTON, z, this, IDC_EP_APPLY);
     m_lblAi.Create(L"AI suggestion", ST, z, this, 0);
@@ -92,9 +114,13 @@ int EditPanel::OnCreate(LPCREATESTRUCT lpcs) {
     m_validation.Create(ED | ES_READONLY | WS_TABSTOP, z, this, IDC_EP_VALIDATION);
 
     for (CWnd* w : std::initializer_list<CWnd*>{ &m_ctx, &m_lblEnglish, &m_english, &m_lblCurrent,
+             &m_btnInsNl, &m_btnInsTab,
              &m_translation, &m_btnApply, &m_lblAi, &m_btnAcceptAi, &m_btnAiSuggest, &m_lblRefs, &m_refs,
              &m_info, &m_validation })
         w->SetFont(&m_font);
+    m_symFont.CreatePointFont(90, L"Segoe UI Symbol");
+    m_btnInsNl.SetFont(&m_symFont);
+    m_btnInsTab.SetFont(&m_symFont);
     Theme::ApplyToChildren(GetSafeHwnd());   // owner-draw the Apply / Accept-AI buttons
     ClearString();
     return 0;
@@ -109,7 +135,13 @@ void EditPanel::Layout() {
     place(m_ctx, 20);
     place(m_lblEnglish, 18);
     place(m_english, 58);
-    place(m_lblCurrent, 18);
+    {   // Translation label row, with the ⏎ / ⇥ insert chips right-aligned on the same line
+        int h = S(20), bw = S(30);
+        m_lblCurrent.MoveWindow(M, y, W - 2 * bw - 2 * gap, S(18));
+        m_btnInsNl.MoveWindow(M + W - 2 * bw - gap, y - S(2), bw, h);
+        m_btnInsTab.MoveWindow(M + W - bw, y - S(2), bw, h);
+        y += S(18) + gap;
+    }
     place(m_translation, 76);            // the editable field gets the most room
     m_btnApply.MoveWindow(M, y, S(130), S(30)); y += S(30) + gap;
     place(m_lblAi, 40);                  // clean "AI suggestion: <text>" one-liner (wraps to ~2 lines
@@ -133,10 +165,12 @@ void EditPanel::ShowString(const CString& msgctxt, const CString& english, const
     m_msgid = english;
     m_overflowNote.Empty();
     m_ctx.SetWindowText(L"Context: " + msgctxt);
-    m_english.SetWindowText(showTabs(english));
-    m_translation.SetWindowText(showTabs(current));
+    m_english.SetWindowText(showCtl(english));
+    m_translation.SetWindowText(showCtl(current));
     m_translation.EnableWindow(TRUE);
     m_btnApply.EnableWindow(TRUE);
+    m_btnInsNl.EnableWindow(TRUE);
+    m_btnInsTab.EnableWindow(TRUE);
 
     // A fresh selection cancels any stale "requesting…" state left over from an on-demand AI
     // suggestion for the PREVIOUS string (OnAiSuggestDone drops stale results, but the UI mustn't be
@@ -189,6 +223,8 @@ void EditPanel::ClearString() {
     m_translation.SetWindowText(L"");
     m_translation.EnableWindow(FALSE);
     m_btnApply.EnableWindow(FALSE);
+    m_btnInsNl.EnableWindow(FALSE);
+    m_btnInsTab.EnableWindow(FALSE);
     m_lblAi.SetWindowText(L"AI suggestion: none for this string");
     m_btnAcceptAi.EnableWindow(FALSE);
     m_btnAcceptAi.ShowWindow(SW_HIDE);
@@ -213,7 +249,7 @@ void EditPanel::SetFlagNote(const CString& note) {
 }
 
 CString EditPanel::GetEdited() const {
-    CString s; m_translation.GetWindowText(s); return hideTabs(s);
+    CString s; m_translation.GetWindowText(s); return hideCtl(s);
 }
 
 void EditPanel::OnApply() {
@@ -221,7 +257,7 @@ void EditPanel::OnApply() {
 }
 void EditPanel::OnAcceptAi() {
     if (!m_active || m_aiText.IsEmpty()) return;
-    m_translation.SetWindowText(showTabs(m_aiText));
+    m_translation.SetWindowText(showCtl(m_aiText));
     if (OnCommit) OnCommit(m_aiText);
 }
 // Double-clicked reference: insert its translation into the edit box but do NOT commit -- unlike an
@@ -230,11 +266,25 @@ void EditPanel::OnAcceptAi() {
 void EditPanel::OnRefDblClk() {
     int i = m_refs.GetCurSel();
     if (!m_active || i == LB_ERR || i >= (int)m_refTexts.size()) return;
-    m_translation.SetWindowText(showTabs(m_refTexts[i]));
+    m_translation.SetWindowText(showCtl(m_refTexts[i]));
     m_translation.SetFocus();
     int n = m_translation.GetWindowTextLength();
     m_translation.SetSel(n, n);        // caret at the end, ready to adjust then Apply
     RunInlineValidation();
+}
+// The chips insert the DISPLAY form (glyph + CRLF / glyph); hideCtl converts on read like any typed
+// text. The edit keeps its selection while unfocused, so clicking a chip replaces/inserts exactly at
+// the translator's caret. ReplaceSel(TRUE) makes it a single Ctrl+Z-undoable edit and fires
+// EN_CHANGE -> live validation.
+void EditPanel::OnInsertNl() {
+    if (!m_active) return;
+    m_translation.SetFocus();
+    m_translation.ReplaceSel(CString(kNlGlyph) + L"\r\n", TRUE);
+}
+void EditPanel::OnInsertTab() {
+    if (!m_active) return;
+    m_translation.SetFocus();
+    m_translation.ReplaceSel(kTabGlyph, TRUE);
 }
 void EditPanel::OnTranslationChanged() { if (m_active) RunInlineValidation(); }
 

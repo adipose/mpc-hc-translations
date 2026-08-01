@@ -54,6 +54,8 @@
 #define IDC_EP_INFO          2008
 #define IDC_EP_VALIDATION    2009
 #define IDC_EP_AI_SUGGEST    2010
+#define IDC_EP_INS_NL        2011
+#define IDC_EP_INS_TAB       2012
 
 // AiSettingsDlg children (Save/Cancel use IDOK/IDCANCEL directly, same as SuggestFixDlg's
 // m_btnSubmit/m_btnCancel, so CDialog's default OnOK/OnCancel command routing + Enter/Esc apply)

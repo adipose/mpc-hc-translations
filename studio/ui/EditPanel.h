@@ -74,6 +74,8 @@ protected:
     afx_msg void OnApply();
     afx_msg void OnAcceptAi();
     afx_msg void OnRefDblClk();        // double-clicked reference -> insert into the edit (no commit)
+    afx_msg void OnInsertNl();         // ⏎ chip -> insert a line break at the caret (Transifex-style)
+    afx_msg void OnInsertTab();        // ⇥ chip -> insert a tab at the caret
     afx_msg void OnTranslationChanged();
     afx_msg void OnSuggestAiClicked();
     DECLARE_MESSAGE_MAP()
@@ -87,9 +89,12 @@ private:
     CStatic m_ctx, m_lblEnglish, m_lblCurrent, m_lblAi, m_lblRefs, m_info;
     CEdit   m_english, m_translation, m_validation;
     CButton m_btnApply, m_btnAcceptAi, m_btnAiSuggest;
+    CButton m_btnInsNl, m_btnInsTab;   // control-char insert chips on the Translation label row
     CListBox m_refs;
     std::vector<CString> m_refTexts;   // raw reference msgstr per row (no "source: " prefix)
     CFont   m_font;
+    CFont   m_symFont;   // "Segoe UI Symbol" for the ⏎/⇥ chips — buttons get no font fallback, so
+                         // U+23CE would render as tofu in plain Segoe UI (owner-drawn AND native)
     CString m_msgctxt, m_msgid, m_aiText, m_overflowNote, m_flagNote;
     bool m_active = false;
     bool m_aiRequestInFlight = false;   // guards against double-clicks while a suggestion is in flight
