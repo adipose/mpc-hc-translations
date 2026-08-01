@@ -318,6 +318,11 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
                             : (int)Theme::Mode::Dark;
     Theme::SetMode((Theme::Mode)saved);    // restore the last-chosen theme (default MPC-HC Dark)
     Theme::InitTopWindow(GetSafeHwnd());   // dark mode (scrollbars) + title bar, before children
+    // App icon (issue #4): title bar + taskbar. Explorer reads the exe's lowest-id icon on its own.
+    SetIcon((HICON)::LoadImageW(AfxGetInstanceHandle(), MAKEINTRESOURCEW(IDI_STUDIO), IMAGE_ICON,
+                                ::GetSystemMetrics(SM_CXICON), ::GetSystemMetrics(SM_CYICON), 0), TRUE);
+    SetIcon((HICON)::LoadImageW(AfxGetInstanceHandle(), MAKEINTRESOURCEW(IDI_STUDIO), IMAGE_ICON,
+                                ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON), 0), FALSE);
     m_dpi = Theme::DpiOf(GetSafeHwnd());   // GetDpiForWindow (per-window; == system DPI while the app is system-DPI aware)
     m_font.CreatePointFont(90, L"Segoe UI");                        // 9pt, DPI-scaled by the screen DC
     const DWORD ST = WS_CHILD | WS_VISIBLE;

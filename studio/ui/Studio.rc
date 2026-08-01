@@ -4,6 +4,10 @@
 #include "resource.h"
 #include "afxres.h"
 
+// App icon (issue #4): MPC-HC clapperboard + translation badge, composed from upstream's GPL
+// res/icon.ico by scratch tooling; sizes 256/48/32/24/16.
+IDI_STUDIO ICON "res\\studio.ico"
+
 IDR_MAINFRAME MENU
 BEGIN
     POPUP "&File"

@@ -3,6 +3,7 @@
 // DLL at runtime and keep their upstream ids).
 #pragma once
 
+#define IDI_STUDIO           1     // app icon; lowest icon id = what Explorer shows for the exe
 #define IDR_MAINFRAME        128
 
 #define ID_FILE_SUBMITPR     32771
