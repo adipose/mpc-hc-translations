@@ -1880,8 +1880,10 @@ void CThemedHostWnd::RecalcAndReposition() {
     si.nMax = artW > 0 ? artW - 1 : 0; si.nPage = client.Width(); si.nPos = m_scrollX;
     SetScrollInfo(SB_HORZ, &si, TRUE);
 
-    if (framed)
-        m_frame.SetWindowPos(nullptr, -m_scrollX, -m_scrollY, artW, artH, SWP_NOZORDER | SWP_NOACTIVATE);
+    if (framed)   // ALWAYS re-pin to the bottom: renders/re-renders can leave the frame above the page
+                  // (issue #3 scroll blanking -- paint order then decides whether the frame's fill
+                  // covers the page's content, which is why it "flickered" and went blank on scroll)
+        m_frame.SetWindowPos(&wndBottom, -m_scrollX, -m_scrollY, artW, artH, SWP_NOACTIVATE);
     if (child) {
         int cx = (framed ? 1 : 0) - m_scrollX, cy = (framed ? 1 + capH : 0) - m_scrollY;
         ::SetWindowPos(child, nullptr, cx, cy, 0, 0, SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE);

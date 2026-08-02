@@ -730,7 +730,8 @@ HWND LivePreview::RenderDialog(long long dialogNum, CWnd* parent,
     // Drop the caption/frame chrome too: embedded in our pane, the light system title bar + modal
     // frame clash with the dark theme (property pages have none; only modal dialogs like About do).
     style &= ~(WS_CAPTION | WS_THICKFRAME | WS_DLGFRAME | WS_BORDER | DS_MODALFRAME);
-    style |= WS_CHILD;
+    style |= WS_CHILD | WS_CLIPSIBLINGS;   // CLIPSIBLINGS: deterministic painting against the page
+                                           // frame sibling behind it (both clip -> z-order wins)
     exStyle &= ~(WS_EX_CLIENTEDGE | WS_EX_DLGMODALFRAME | WS_EX_WINDOWEDGE | WS_EX_STATICEDGE);
     memcpy(buf.data() + 8, &exStyle, 4);
     memcpy(buf.data() + 12, &style, 4);
