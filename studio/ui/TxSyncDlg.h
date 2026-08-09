@@ -53,6 +53,7 @@ private:
 
     mpctrans::txsync::TxSyncResult m_result;
     bool m_haveResult = false;
+    std::string m_login;   // signed-in GitHub user ("" until known) -- gates the branch-update button
     std::thread m_computeThread;
     // Index into m_result.decisions for each row currently shown in m_list (post-filter); the
     // checkbox column's LVN_ITEMCHANGED handler writes back through this to the right decision.

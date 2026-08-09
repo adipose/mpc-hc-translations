@@ -29,6 +29,7 @@ struct ComputeResult {
     txsync::TxSyncResult result;
     bool ok = true;
     CString error;
+    std::string login;   // signed-in GitHub user from the stored token; "" = unknown
 };
 } // namespace
 
@@ -133,6 +134,12 @@ BOOL TxSyncDlg::OnInitDialog() {
         auto* out = new ComputeResult;
         try { out->result = txsync::tx_compute(fetchUpstream, fetchTx, langs, progress); }
         catch (const std::exception& ex) { out->ok = false; out->error = CString(CA2W(ex.what(), CP_UTF8)); }
+        // Only the fork's owner can move its transifex branch; resolve who is signed in (stored token
+        // only -- never an interactive sign-in from a worker thread) so the button can be gated
+        // up front. Absent/failed = "unknown": the click path re-checks after its own sign-in.
+        if (auto stored = github::load_token()) {
+            try { out->login = github::whoami(*stored); } catch (const std::exception&) {}
+        }
         if (!::PostMessage(hwnd, WM_APP_TXSYNC_DONE, (WPARAM)out, 0)) delete out;   // dialog gone
     });
 
@@ -181,8 +188,19 @@ LRESULT TxSyncDlg::OnComputeDone(WPARAM wp, LPARAM) {
     }
     m_result = std::move(out->result);
     m_haveResult = true;
+    m_login = out->login;
     m_progressText.SetWindowText(L"");
-    m_btnUpdateBranch.EnableWindow(TRUE);
+    // The branch update writes straight to TRANSIFEX_OWNER's fork -- owner-only. A known non-owner
+    // login disables the button outright; unknown (not signed in yet) leaves it enabled and the
+    // click path verifies after its sign-in. The PR path stays open to everyone (it forks).
+    bool ownerKnownForeign = !m_login.empty() && _stricmp(m_login.c_str(), config::TRANSIFEX_OWNER) != 0;
+    m_btnUpdateBranch.EnableWindow(!ownerKnownForeign);
+    if (ownerKnownForeign) {
+        CString hint; hint.Format(L"Signed in as %s — the Transifex branch update is owner (%s) only.",
+                                  (LPCWSTR)CString(CA2W(m_login.c_str(), CP_UTF8)),
+                                  (LPCWSTR)CString(config::TRANSIFEX_OWNER));
+        m_progressText.SetWindowText(hint);
+    }
     m_btnProposePr.EnableWindow(TRUE);
     RebuildRows();
     RepopulateList();
@@ -327,6 +345,18 @@ void TxSyncDlg::OnUpdateBranchClicked() {
         CWaitCursor wait;
         auto tok = EnsureGithubToken(this);
         if (!tok) return;
+        // Authoritative owner check on the JUST-authenticated identity (the up-front button gating
+        // only covers a token that was already stored when the dialog computed).
+        std::string login = github::whoami(*tok);
+        if (_stricmp(login.c_str(), config::TRANSIFEX_OWNER) != 0) {
+            MessageBox(L"Signed in as \"" + CString(CA2W(login.c_str(), CP_UTF8)) +
+                       L"\" — only " + CString(config::TRANSIFEX_OWNER) +
+                       L" can update the Transifex branch.\n\nUse \"Propose upstream PR…\" instead.",
+                       L"Update Transifex branch", MB_ICONWARNING);
+            m_login = login;
+            m_btnUpdateBranch.EnableWindow(FALSE);
+            return;
+        }
         std::string sha = github::update_transifex_branch(*tok, edits,
             "Merge upstream develop + Transifex sync (Studio)");
         MessageBox(L"Updated the transifex branch.\n\nNew commit: " + CString(CA2W(sha.c_str(), CP_UTF8)),
