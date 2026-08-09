@@ -96,4 +96,18 @@ std::string open_translation_pr(const Token&, const std::string& lang,
                                 const std::vector<FileEdit>& edits, const std::string& title,
                                 const std::string& body = "");
 
+// ---- Transifex sync (mpctrans::txsync) ----
+
+// Fast-forwards TRANSIFEX_OWNER/TRANSIFEX_REPO@TRANSIFEX_BRANCH with `edits`, as a real merge commit
+// of upstream's CURRENT develop into it (parents = [current transifex HEAD, upstream develop HEAD] —
+// first parent is the transifex branch, so this reads as "merge develop into transifex" the way `git
+// merge` would record it). Unlike open_pr, this pushes directly (no fork, no PR): the user owns
+// TRANSIFEX_OWNER/TRANSIFEX_REPO, so a straight PATCH of the branch ref is the equivalent of the old
+// `uptransifex.sh` flow's local push, just done via the Git Data API. Blobs are created directly in
+// that repo (edits are already the FULL merged file content — see txsync::tx_build_edits). The ref
+// update is NOT forced: if the branch moved since the caller last read it, this throws (HTTP 422/409
+// from the PATCH) rather than silently discarding whatever landed there. Returns the new commit sha.
+std::string update_transifex_branch(const Token&, const std::vector<FileEdit>& edits,
+                                    const std::string& message);
+
 } // namespace mpctrans::github

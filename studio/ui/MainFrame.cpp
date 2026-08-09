@@ -5,6 +5,7 @@
 #include "Theme.h"
 #include "SuggestFixDlg.h"
 #include "AiSettingsDlg.h"
+#include "TxSyncDlg.h"
 #include "mpctrans/config.h"
 #include "mpctrans/github.h"
 #include "mpctrans/fetch_cache.h"
@@ -281,6 +282,7 @@ BEGIN_MESSAGE_MAP(MainFrame, CFrameWnd)
     ON_COMMAND(ID_FILE_EXPORT_AI_CTX, OnExportAiContextString)
     ON_COMMAND(ID_FILE_EXPORT_AI_CTX_LANG, OnExportAiContextLanguage)
     ON_COMMAND(ID_FILE_CHECK_DATA_UPDATE, OnCheckDataUpdate)
+    ON_COMMAND(ID_FILE_TXSYNC, OnTransifexSync)
     ON_COMMAND(ID_FILE_DEMO_SELECT, OnDemoSelect)
     ON_COMMAND_RANGE(ID_VIEW_THEME_DARK, ID_VIEW_THEME_SYSTEM, OnViewTheme)
     ON_UPDATE_COMMAND_UI_RANGE(ID_VIEW_THEME_DARK, ID_VIEW_THEME_SYSTEM, OnUpdateViewTheme)
@@ -600,6 +602,14 @@ void MainFrame::PopulateLanguages() {
     }
     if (m_langCombo.SelectString(-1, L"de") == CB_ERR && m_langCombo.GetCount() > 0)
         m_langCombo.SetCurSel(0);
+}
+
+std::vector<CString> MainFrame::LanguageList() const {
+    std::vector<CString> out;
+    for (int i = 0; i < m_langCombo.GetCount(); ++i) {
+        CString c; m_langCombo.GetLBText(i, c); out.push_back(c);
+    }
+    return out;
 }
 
 // Background bulk-download: fetch the live RC + every language's .po from GitHub (raw CDN, no rate
@@ -1577,15 +1587,33 @@ BOOL MainFrame::OnCopyData(CWnd* wnd, COPYDATASTRUCT* cds) {
     if (colon == std::string::npos) return TRUE;
     int tab = atoi(msg.substr(0, colon).c_str());
     std::string ctx = msg.substr(colon + 1);
+    SelectTabAndRow(tab, ctx);
+    return TRUE;
+}
+
+// Shared by OnCopyData (automation protocol "tab:msgctxt") and NavigateToString (TxSyncDlg's
+// double-click navigation) so the row-matching logic can't drift between the two callers.
+void MainFrame::SelectTabAndRow(int tab, const std::string& ctx, int res) {
     if (m_tabs.GetCurSel() != tab) { m_tabs.SetCurSel(tab); LRESULT r = 0; OnTabChanged(nullptr, &r); }
     for (int i = 0; i < (int)m_rows.size(); ++i)
-        if (m_rows[i].msgctxt == ctx) {
+        if (m_rows[i].msgctxt == ctx && (res < 0 || m_rows[i].res == res)) {
             m_list.EnsureVisible(i, FALSE);
             m_list.SetItemState(i, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
             SelectRow(i);
             break;
         }
-    return TRUE;
+}
+
+// TxSyncDlg's double-click-a-row navigation (see MainFrame.h). Mirrors OnLanguageChanged's load path
+// exactly -- SetCurSel doesn't fire CBN_SELCHANGE on its own, so LoadLanguage is called directly, same
+// fromGithub choice OnLanguageChanged makes (instant from cache, unless "latest mode" is active).
+void MainFrame::NavigateToString(const CString& lang, const std::string& msgctxt, int res) {
+    if (lang != m_lang) {
+        int idx = m_langCombo.FindStringExact(-1, lang);
+        if (idx != CB_ERR) m_langCombo.SetCurSel(idx);
+        LoadLanguage(lang, /*fromGithub=*/m_useRcIndex, /*refreshRc=*/false);
+    }
+    SelectTabAndRow(RES_STRINGS, msgctxt, res);   // "All strings" tab
 }
 
 void MainFrame::OnDialogPicked() {
@@ -4562,6 +4590,12 @@ LRESULT MainFrame::OnAiSuggestDone(WPARAM wp, LPARAM) {
 // no key is configured yet.
 void MainFrame::OnFileAiProvider() {
     AiSettingsDlg dlg(this);
+    dlg.DoModal();
+}
+
+// File > Transifex sync... -> TxSyncDlg (fetches + merges on its own worker thread; see TxSyncDlg.cpp).
+void MainFrame::OnTransifexSync() {
+    TxSyncDlg dlg(this);
     dlg.DoModal();
 }
 

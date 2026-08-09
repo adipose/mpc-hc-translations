@@ -24,6 +24,7 @@ BEGIN
         MENUITEM "Export AI-prep context for current &language...",  ID_FILE_EXPORT_AI_CTX_LANG
         MENUITEM SEPARATOR
         MENUITEM "Check for &data updates...",          ID_FILE_CHECK_DATA_UPDATE
+        MENUITEM "&Transifex sync...",                  ID_FILE_TXSYNC
         MENUITEM SEPARATOR
         MENUITEM "E&xit",                               ID_APP_EXIT
     END
@@ -59,6 +60,17 @@ END
 IDD_AI_SETTINGS DIALOGEX 0, 0, 300, 200
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "AI provider"
+FONT 9, "Segoe UI"
+BEGIN
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// "Transifex sync…" modal (TxSyncDlg.cpp). No RC controls — same empty-template, code-driven
+// style as IDD_SUGGEST_FIX / IDD_AI_SETTINGS.
+
+IDD_TXSYNC DIALOGEX 0, 0, 300, 200
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Transifex sync"
 FONT 9, "Segoe UI"
 BEGIN
 END

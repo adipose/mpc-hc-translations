@@ -175,6 +175,16 @@ public:
     // (Re)position the red locator ring around the selected command-help usage-list entry. Public: the
     // m_cmdHelp scroll/resize subclass (a free WndProc in MainFrame.cpp) calls it on the frame pointer.
     void UpdateCmdRing();
+    // Every language code in the picker combo (see PopulateLanguages) -- the "languages the app
+    // already knows" TxSyncDlg reuses instead of duplicating that discovery (its own upstream PO dir
+    // listing). Safe to call from the UI thread only (reads m_langCombo).
+    std::vector<CString> LanguageList() const;
+    // TxSyncDlg's double-click-a-row navigation: select `lang` in the picker if it isn't already
+    // current (loading it the same way OnLanguageChanged's CBN_SELCHANGE does -- SetCurSel alone
+    // doesn't fire that notification), then select `msgctxt`'s row on the All strings tab (RES_STRINGS
+    // == tab index 2). `res` disambiguates same-msgctxt rows across resources (dialogs/menus/strings);
+    // pass -1 to match on msgctxt alone.
+    void NavigateToString(const CString& lang, const std::string& msgctxt, int res);
 
 protected:
     afx_msg int  OnCreate(LPCREATESTRUCT);
@@ -232,6 +242,7 @@ protected:
     afx_msg LRESULT OnExportDone(WPARAM, LPARAM);             // background whole-language AI-prep export completed
     afx_msg void OnCheckDataUpdate();                         // File > Check for data updates...
     afx_msg LRESULT OnDataUpdateDone(WPARAM, LPARAM);         // background data-update check/apply completed
+    afx_msg void OnTransifexSync();                            // File > Transifex sync... -> TxSyncDlg
     DECLARE_MESSAGE_MAP()
 
 private:
@@ -488,6 +499,10 @@ private:
     // things unconfigured). Returns false (nothing else touched) if still unconfigured afterward.
     bool ResolveAiProvider(std::string& providerId, std::string& model, std::string& apiKey);
     void SelectRow(int item);
+    // Shared by OnCopyData (automation: "tab:msgctxt") and NavigateToString (TxSyncDlg's double-click
+    // navigation): switch to `tab` if needed, then find+select the row matching `ctx` (and `res` when
+    // >= 0, to disambiguate a msgctxt that appears under more than one resource).
+    void SelectTabAndRow(int tab, const std::string& ctx, int res = -1);
     void ReapplyHighlight();   // reposition the red locator frame after the window moves/resizes
     void OnPreviewClick(HWND ctrl);
     void CommitEdit(const CString& msgstr);

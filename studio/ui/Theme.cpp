@@ -735,7 +735,15 @@ static void draw_list(HWND h, HDC dc) {
     bool showSelAlways = (style & LVS_SHOWSELALWAYS) != 0;
     bool listHasFocus = ::GetFocus() == h;
     bool enabled = ::IsWindowEnabled(h);
-    bool gridLines = (ListView_GetExtendedListViewStyle(h) & LVS_EX_GRIDLINES) != 0;
+    DWORD ext = ListView_GetExtendedListViewStyle(h);
+    bool gridLines = (ext & LVS_EX_GRIDLINES) != 0;
+    // LVS_EX_CHECKBOXES (TxSyncDlg's decision list): comctl32 normally draws the checkbox glyph
+    // itself as part of native item painting, which this function entirely replaces (own
+    // BeginPaint/EndPaint in ThemeProc, id 7) -- so it must be drawn here too, or checked items would
+    // show no glyph at all. Click-to-toggle keeps working regardless (LVM_HITTEST's
+    // LVHT_ONITEMSTATEICON region is comctl32-internal geometry, unaffected by how we paint over it).
+    bool checkboxes = (ext & LVS_EX_CHECKBOXES) != 0;
+    int checkBox = S(dc, 13), checkPad = S(dc, 4);
     HFONT f = (HFONT)::SendMessage(h, WM_GETFONT, 0, 0); HGDIOBJ of = f ? ::SelectObject(dc, f) : nullptr;
     ::SetBkMode(dc, OPAQUE);
     HPEN gridPen = gridLines ? ::CreatePen(PS_SOLID, 1, GRID_LINE) : nullptr;
@@ -764,6 +772,20 @@ static void draw_list(HWND h, HDC dc) {
             else                            { fmt |= DT_LEFT;  rText.left += S(dc, sub == 0 ? 2 : 6); }
             COLORREF bg = !enabled ? CONTENT_DISABLED : (selected ? CONTENT_SEL : CONTENT_BG);
             if (enabled) { HBRUSH b = ::CreateSolidBrush(bg); ::FillRect(dc, &rBounds, b); ::DeleteObject(b); }
+            if (sub == 0 && checkboxes) {
+                RECT cb{ rBounds.left + checkPad, rBounds.top + ((rBounds.bottom - rBounds.top) - checkBox) / 2, 0, 0 };
+                cb.right = cb.left + checkBox; cb.bottom = cb.top + checkBox;
+                HBRUSH cbg = ::CreateSolidBrush(CHK_BG); ::FillRect(dc, &cb, cbg); ::DeleteObject(cbg);
+                HPEN pen = ::CreatePen(PS_SOLID, 1, CHK_BORDER);
+                HGDIOBJ opPen = ::SelectObject(dc, pen), opBrush = ::SelectObject(dc, ::GetStockObject(NULL_BRUSH));
+                ::Rectangle(dc, cb.left, cb.top, cb.right, cb.bottom);
+                ::SelectObject(dc, opBrush); ::SelectObject(dc, opPen); ::DeleteObject(pen);
+                if (ListView_GetCheckState(h, item)) {
+                    RECT mk{ cb.left + S(dc, 3), cb.top + S(dc, 3), cb.right - S(dc, 3), cb.bottom - S(dc, 3) };
+                    HBRUSH mkb = ::CreateSolidBrush(CHK_MARK); ::FillRect(dc, &mk, mkb); ::DeleteObject(mkb);
+                }
+                rText.left = cb.right + checkPad;
+            }
             ::SetTextColor(dc, TEXT); ::SetBkColor(dc, bg);
             ::DrawTextW(dc, txt, -1, &rText, fmt);
             if (gridLines) {
