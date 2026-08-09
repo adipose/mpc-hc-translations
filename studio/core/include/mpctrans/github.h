@@ -98,16 +98,33 @@ std::string open_translation_pr(const Token&, const std::string& lang,
 
 // ---- Transifex sync (mpctrans::txsync) ----
 
-// Fast-forwards TRANSIFEX_OWNER/TRANSIFEX_REPO@TRANSIFEX_BRANCH with `edits`, as a real merge commit
-// of upstream's CURRENT develop into it (parents = [current transifex HEAD, upstream develop HEAD] —
-// first parent is the transifex branch, so this reads as "merge develop into transifex" the way `git
-// merge` would record it). Unlike open_pr, this pushes directly (no fork, no PR): the user owns
-// TRANSIFEX_OWNER/TRANSIFEX_REPO, so a straight PATCH of the branch ref is the equivalent of the old
-// `uptransifex.sh` flow's local push, just done via the Git Data API. Blobs are created directly in
-// that repo (edits are already the FULL merged file content — see txsync::tx_build_edits). The ref
-// update is NOT forced: if the branch moved since the caller last read it, this throws (HTTP 422/409
-// from the PATCH) rather than silently discarding whatever landed there. Returns the new commit sha.
-std::string update_transifex_branch(const Token&, const std::vector<FileEdit>& edits,
+// Fast-forwards `owner`/`repo`@`branch` with `edits`, as a real merge commit of upstream's CURRENT
+// develop into it (parents = [current `branch` HEAD, upstream develop HEAD] — first parent is the
+// branch being updated, so this reads as "merge develop into <branch>" the way `git merge` would
+// record it). Unlike open_pr, this pushes directly (no fork, no PR): `owner`/`repo` is normally the
+// user's own Transifex-staging fork (see TxSyncDlg's fork/branch picker — TRANSIFEX_OWNER/
+// TRANSIFEX_REPO@TRANSIFEX_BRANCH is just the default selection, not baked in here), so a straight
+// PATCH of the branch ref is the equivalent of the old `uptransifex.sh` flow's local push, just done
+// via the Git Data API. Blobs are created directly in that repo (edits are already the FULL merged
+// file content — see txsync::tx_build_edits). The ref update is NOT forced: if the branch moved since
+// the caller last read it, this throws (HTTP 422/409 from the PATCH) rather than silently discarding
+// whatever landed there. Returns the new commit sha.
+std::string update_transifex_branch(const Token&, const std::string& owner, const std::string& repo,
+                                    const std::string& branch, const std::vector<FileEdit>& edits,
                                     const std::string& message);
+
+// ---- Transifex sync: fork/branch discovery (TxSyncDlg's picker) ----
+
+// "owner/repo" for every fork of UPSTREAM_OWNER/UPSTREAM_REPO (GET .../forks, single page — 100 is
+// far more than mpc-hc has ever had), with TRANSIFEX_OWNER/TRANSIFEX_REPO always FIRST (prepended if
+// the API didn't happen to return it, e.g. rate-limited or genuinely forkless) so the app's own
+// long-standing default is always a selectable, first-listed entry even if this call partially fails.
+// Anonymous (default Token) works — GETs against /repos are fine unauthenticated, just under the
+// stricter 60/hr cap (acceptable: this is one call per dialog-open/fork-change, not a hot path).
+std::vector<std::string> list_forks(const Token&);
+
+// Branch names for `owner`/`repo` (GET .../branches, single page). Empty on any failure — the caller
+// (TxSyncDlg) falls back to TRANSIFEX_BRANCH when this comes back empty, same posture as list_forks.
+std::vector<std::string> list_branches(const Token&, const std::string& owner, const std::string& repo);
 
 } // namespace mpctrans::github

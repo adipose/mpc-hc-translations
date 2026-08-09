@@ -397,11 +397,12 @@ std::string open_translation_pr(const Token& t, const std::string& lang,
                    "trans/" + lang, edits, title, body);
 }
 
-std::string update_transifex_branch(const Token& t, const std::vector<FileEdit>& edits,
+std::string update_transifex_branch(const Token& t, const std::string& owner, const std::string& repo,
+                                    const std::string& branch, const std::vector<FileEdit>& edits,
                                     const std::string& message) {
     if (edits.empty()) throw std::runtime_error("github: no edits to commit");
     const std::string up = std::string(cfg::UPSTREAM_OWNER) + "/" + cfg::UPSTREAM_REPO;
-    const std::string tx = std::string(cfg::TRANSIFEX_OWNER) + "/" + cfg::TRANSIFEX_REPO;
+    const std::string tx = owner + "/" + repo;
 
     // upstream develop HEAD + its tree (base_tree for the new tree below — same "apply onto CURRENT
     // upstream" posture as open_pr)
@@ -410,11 +411,11 @@ std::string update_transifex_branch(const Token& t, const std::vector<FileEdit>&
     std::string upTreeSha = api(t, L"GET", "/repos/" + up + "/git/commits/" + upHeadSha)
                                 .at("tree").at("sha").get<std::string>();
 
-    // transifex branch HEAD (first parent of the merge commit)
-    json txRef = api(t, L"GET", "/repos/" + tx + "/git/ref/heads/" + cfg::TRANSIFEX_BRANCH);
+    // target branch HEAD (first parent of the merge commit)
+    json txRef = api(t, L"GET", "/repos/" + tx + "/git/ref/heads/" + branch);
     std::string txHeadSha = txRef.at("object").at("sha").get<std::string>();
 
-    // blobs + tree created directly in the fork (no PR object involved, unlike open_pr)
+    // blobs + tree created directly in the target repo (no PR object involved, unlike open_pr)
     json tree_items = json::array();
     for (const auto& e : edits) {
         json blob = {{"content", base64(e.content)}, {"encoding", "base64"}};
@@ -427,8 +428,8 @@ std::string update_transifex_branch(const Token& t, const std::vector<FileEdit>&
     std::string treeSha = api(t, L"POST", "/repos/" + tx + "/git/trees", &tree_req)
                               .at("sha").get<std::string>();
 
-    // parents = [transifex HEAD, upstream HEAD]: first parent is the branch being updated, so this
-    // reads as "merge upstream develop into transifex" (the direction `git merge` would record).
+    // parents = [target-branch HEAD, upstream HEAD]: first parent is the branch being updated, so
+    // this reads as "merge upstream develop into <branch>" (the direction `git merge` would record).
     json commit_req = {{"message", message}, {"tree", treeSha},
                        {"parents", json::array({ txHeadSha, upHeadSha })}};
     std::string commitSha = api(t, L"POST", "/repos/" + tx + "/git/commits", &commit_req)
@@ -437,9 +438,40 @@ std::string update_transifex_branch(const Token& t, const std::vector<FileEdit>&
     // NOT forced -- if the branch moved since the caller last read it, this throws rather than
     // silently discarding whatever landed there in the meantime.
     json patch = {{"sha", commitSha}, {"force", false}};
-    api(t, L"PATCH", "/repos/" + tx + "/git/refs/heads/" + cfg::TRANSIFEX_BRANCH, &patch);
+    api(t, L"PATCH", "/repos/" + tx + "/git/refs/heads/" + branch, &patch);
 
     return commitSha;
+}
+
+// ---- fork/branch discovery ----
+
+std::vector<std::string> list_forks(const Token& t) {
+    std::vector<std::string> out;
+    std::string def = std::string(cfg::TRANSIFEX_OWNER) + "/" + cfg::TRANSIFEX_REPO;
+    out.push_back(def);   // the app's long-standing default is always first, even if the GET below fails
+    try {
+        json j = api(t, L"GET", "/repos/" + std::string(cfg::UPSTREAM_OWNER) + "/" +
+                          cfg::UPSTREAM_REPO + "/forks?per_page=100");
+        if (j.is_array())
+            for (const auto& f : j)
+                if (f.is_object() && f.contains("full_name") && f["full_name"].is_string()) {
+                    std::string full = f["full_name"].get<std::string>();
+                    if (full != def) out.push_back(full);
+                }
+    } catch (const std::exception&) {}   // network/rate-limit failure -> just the default entry
+    return out;
+}
+
+std::vector<std::string> list_branches(const Token& t, const std::string& owner, const std::string& repo) {
+    std::vector<std::string> out;
+    try {
+        json j = api(t, L"GET", "/repos/" + owner + "/" + repo + "/branches?per_page=100");
+        if (j.is_array())
+            for (const auto& b : j)
+                if (b.is_object() && b.contains("name") && b["name"].is_string())
+                    out.push_back(b["name"].get<std::string>());
+    } catch (const std::exception&) {}
+    return out;
 }
 
 } // namespace mpctrans::github
@@ -465,7 +497,9 @@ RawSession::~RawSession() {}
 std::string RawSession::fetch(const std::string&) { throw std::logic_error("github: Windows only"); }
 std::string open_pr(const Token&, const std::string&, const std::string&, const std::string&, const std::string&, const std::vector<FileEdit>&, const std::string&, const std::string&) { throw std::logic_error("github: Windows only"); }
 std::string open_translation_pr(const Token&, const std::string&, const std::vector<FileEdit>&, const std::string&, const std::string&) { throw std::logic_error("github: Windows only"); }
-std::string update_transifex_branch(const Token&, const std::vector<FileEdit>&, const std::string&) { throw std::logic_error("github: Windows only"); }
+std::string update_transifex_branch(const Token&, const std::string&, const std::string&, const std::string&, const std::vector<FileEdit>&, const std::string&) { throw std::logic_error("github: Windows only"); }
+std::vector<std::string> list_forks(const Token&) { return {}; }
+std::vector<std::string> list_branches(const Token&, const std::string&, const std::string&) { return {}; }
 } // namespace mpctrans::github
 
 #endif

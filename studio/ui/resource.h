@@ -76,6 +76,8 @@
 #define IDC_TXSYNC_BTN_UPDATE     2205
 #define IDC_TXSYNC_BTN_PR         2206
 #define IDC_TXSYNC_BTN_CLOSE      2207
+#define IDC_TXSYNC_FORK           2208
+#define IDC_TXSYNC_BRANCH         2209
 
 // Dark-theme checkbox / radio sprite strips (Theme.cpp), copied verbatim from upstream
 // res/darktheme/checkboxes-*.png and radios-*.png — see CMPCTheme::ThemeCheckBoxes / ThemeRadios.

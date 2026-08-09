@@ -7,6 +7,7 @@
 #include "mpctrans/config.h"
 #include "mpctrans/github.h"
 
+#include <algorithm>
 #include <commctrl.h>
 #include <memory>
 #include <optional>
@@ -18,19 +19,69 @@ using mpctrans::txsync::TxDecision;
 // range, same posture as every other CDialog worker-thread handoff in the Studio (AiSettingsDlg has
 // none; SuggestFixDlg posts back to MainFrame instead -- this is the first dialog that owns its own
 // background compute end-to-end).
-#define WM_APP_TXSYNC_PROGRESS (WM_APP + 100)
-#define WM_APP_TXSYNC_DONE     (WM_APP + 101)
+#define WM_APP_TXSYNC_PROGRESS  (WM_APP + 100)
+#define WM_APP_TXSYNC_DONE      (WM_APP + 101)
+#define WM_APP_TXSYNC_FORKS     (WM_APP + 102)   // initial fork list + resolved branch list, see OnInitDialog
+#define WM_APP_TXSYNC_BRANCHES  (WM_APP + 103)   // fork changed -> that fork's branch list, see OnForkChanged
 
 namespace {
 // Heap-allocated by the worker thread, ownership passed to the UI thread via WM_APP_TXSYNC_DONE (same
 // pattern as MainFrame's PrefetchResult/DataUpdateResult/etc). `ok=false` means tx_compute (or one of
 // its fetchers) threw -- e.g. a transient network failure -- and `error` carries what()'s text.
+// owner/repo/branch echo back exactly what this compute ran against -- see TxSyncDlg.h's m_txOwner/
+// m_txRepo/m_txBranch comment for why the dialog trusts THIS over live combo state.
 struct ComputeResult {
     txsync::TxSyncResult result;
     bool ok = true;
     CString error;
     std::string login;   // signed-in GitHub user from the stored token; "" = unknown
+    std::string owner, repo, branch;
 };
+// WM_APP_TXSYNC_FORKS payload: the resolved fork list + the branch list for whichever fork ended up
+// selected (saved profile pref if still valid, else the list's first entry -- see OnInitDialog).
+struct ForksResult {
+    std::vector<std::string> forks, branches;
+    std::string selFork, selBranch;
+};
+// WM_APP_TXSYNC_BRANCHES payload: OnForkChanged's branch-list refetch for the newly picked fork.
+struct BranchesResult {
+    std::vector<std::string> branches;
+    std::string selBranch;
+};
+
+void SplitOwnerRepo(const std::string& s, std::string& owner, std::string& repo) {
+    size_t slash = s.find('/');
+    if (slash == std::string::npos) { owner = s; repo.clear(); }
+    else { owner = s.substr(0, slash); repo = s.substr(slash + 1); }
+}
+
+// Shared tail of every background task variant (initial load, fork change, branch change): run
+// tx_compute against the given (owner,repo,branch) tx source and post the result back. Factored out
+// so the three worker-thread lambdas in this file can't drift on what "run a compute" means.
+void RunComputeAndPost(HWND hwnd, const std::vector<std::string>& langs, const std::string& owner,
+                       const std::string& repo, const std::string& branch, const github::Token& tok) {
+    auto fetchUpstream = [&](const std::string& path) {
+        return github::fetch_latest(tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO,
+                                    config::UPSTREAM_BRANCH, path);
+    };
+    auto fetchTx = [&](const std::string& path) {
+        return github::fetch_latest(tok, owner, repo, branch, path);
+    };
+    auto progress = [hwnd](int done, int total) {
+        ::PostMessage(hwnd, WM_APP_TXSYNC_PROGRESS, (WPARAM)done, (LPARAM)total);
+    };
+    auto* out = new ComputeResult;
+    out->owner = owner; out->repo = repo; out->branch = branch;
+    try { out->result = txsync::tx_compute(fetchUpstream, fetchTx, langs, progress); }
+    catch (const std::exception& ex) { out->ok = false; out->error = CString(CA2W(ex.what(), CP_UTF8)); }
+    // Only the target repo's owner can move its branch; resolve who is signed in (stored token only --
+    // never an interactive sign-in from a worker thread) so the button can be gated up front. Absent/
+    // failed = "unknown": the click path re-checks after its own sign-in.
+    if (auto stored = github::load_token()) {
+        try { out->login = github::whoami(*stored); } catch (const std::exception&) {}
+    }
+    if (!::PostMessage(hwnd, WM_APP_TXSYNC_DONE, (WPARAM)out, 0)) delete out;   // dialog gone
+}
 } // namespace
 
 BEGIN_MESSAGE_MAP(TxSyncDlg, CDialog)
@@ -41,8 +92,12 @@ BEGIN_MESSAGE_MAP(TxSyncDlg, CDialog)
     ON_NOTIFY(LVN_ITEMCHANGED, IDC_TXSYNC_LIST, OnListItemChanged)
     ON_BN_CLICKED(IDC_TXSYNC_BTN_UPDATE, OnUpdateBranchClicked)
     ON_BN_CLICKED(IDC_TXSYNC_BTN_PR, OnProposePrClicked)
+    ON_CBN_SELCHANGE(IDC_TXSYNC_FORK, OnForkChanged)
+    ON_CBN_SELCHANGE(IDC_TXSYNC_BRANCH, OnBranchChanged)
     ON_MESSAGE(WM_APP_TXSYNC_PROGRESS, OnComputeProgress)
     ON_MESSAGE(WM_APP_TXSYNC_DONE, OnComputeDone)
+    ON_MESSAGE(WM_APP_TXSYNC_FORKS, OnForksDone)
+    ON_MESSAGE(WM_APP_TXSYNC_BRANCHES, OnBranchesDone)
 END_MESSAGE_MAP()
 
 TxSyncDlg::TxSyncDlg(MainFrame* mainFrame) : CDialog(IDD_TXSYNC, mainFrame), m_mainFrame(mainFrame) {}
@@ -81,6 +136,14 @@ BOOL TxSyncDlg::OnInitDialog() {
     CRect z(0, 0, 0, 0);
 
     m_status.Create(L"Transifex sync: computing…", ST | SS_LEFT, z, this, IDC_TXSYNC_STATUS);
+
+    m_lblFork.Create(L"Fork:", ST | SS_LEFT, z, this, 0);
+    m_forkCombo.Create(ST | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, z, this, IDC_TXSYNC_FORK);
+    m_lblBranch.Create(L"Branch:", ST | SS_LEFT, z, this, 0);
+    m_branchCombo.Create(ST | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, z, this, IDC_TXSYNC_BRANCH);
+    m_forkCombo.EnableWindow(FALSE);     // enabled once the initial fork/branch fetch lands (OnForksDone)
+    m_branchCombo.EnableWindow(FALSE);
+
     m_progressText.Create(L"", ST | SS_LEFT, z, this, IDC_TXSYNC_PROGRESS_TEXT);
     m_showProtected.Create(L"Show protected (upstream-only translations)",
                            ST | WS_TABSTOP | BS_AUTOCHECKBOX, z, this, IDC_TXSYNC_SHOW_PROTECTED);
@@ -102,8 +165,9 @@ BOOL TxSyncDlg::OnInitDialog() {
     m_btnUpdateBranch.EnableWindow(FALSE);   // enabled once the background compute lands (OnComputeDone)
     m_btnProposePr.EnableWindow(FALSE);
 
-    for (CWnd* w : std::initializer_list<CWnd*>{ &m_status, &m_progressText, &m_showProtected,
-             &m_btnUpdateBranch, &m_btnProposePr, &m_btnClose })
+    for (CWnd* w : std::initializer_list<CWnd*>{ &m_status, &m_lblFork, &m_forkCombo, &m_lblBranch,
+             &m_branchCombo, &m_progressText, &m_showProtected, &m_btnUpdateBranch, &m_btnProposePr,
+             &m_btnClose })
         w->SetFont(&m_font);
     m_list.SetFont(&m_font);
     Theme::ApplyToChildren(GetSafeHwnd());
@@ -112,35 +176,50 @@ BOOL TxSyncDlg::OnInitDialog() {
     // Snapshot the language list on the UI thread -- MainFrame's combo isn't safe to read from the
     // worker (see StartPrefetch's identical rationale). Reuses MainFrame's own known-good language
     // set (the bundle's .po dir listing, see MainFrame::LanguageList/PopulateLanguages) rather than
-    // duplicating that discovery here.
-    std::vector<std::string> langs;
+    // duplicating that discovery here. Kept as a member (m_langs) so the fork/branch-change recomputes
+    // (OnForkChanged/OnBranchChanged) can reuse it without going back to MainFrame.
+    m_langs.clear();
     if (m_mainFrame)
-        for (const CString& c : m_mainFrame->LanguageList()) langs.push_back(std::string(CW2A(c, CP_UTF8)));
+        for (const CString& c : m_mainFrame->LanguageList()) m_langs.push_back(std::string(CW2A(c, CP_UTF8)));
 
+    // Saved fork/branch selection (defaults to the app's long-standing TRANSIFEX_* constants) -- read
+    // on the UI thread, then handed to the worker to validate/resolve against the actual fork/branch
+    // lists (a saved pref that no longer exists, e.g. a deleted branch, falls back gracefully there).
+    CWinApp* app = AfxGetApp();
+    CString defaultFork = CString(config::TRANSIFEX_OWNER) + L"/" + CString(config::TRANSIFEX_REPO);
+    CString savedForkCs = app ? app->GetProfileString(L"txsync", L"fork", defaultFork) : defaultFork;
+    CString savedBranchCs = app ? app->GetProfileString(L"txsync", L"branch", CString(config::TRANSIFEX_BRANCH))
+                                : CString(config::TRANSIFEX_BRANCH);
+    std::string savedFork = std::string(CW2A(savedForkCs, CP_UTF8));
+    std::string savedBranch = std::string(CW2A(savedBranchCs, CP_UTF8));
+
+    m_status.SetWindowText(L"Transifex sync: loading forks…");
     HWND hwnd = GetSafeHwnd();
-    m_computeThread = std::thread([hwnd, langs = std::move(langs)]() {
-        github::Token tok{};   // fetch_latest's raw.githubusercontent.com path works tokenless
-        auto fetchUpstream = [&](const std::string& path) {
-            return github::fetch_latest(tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO,
-                                        config::UPSTREAM_BRANCH, path);
-        };
-        auto fetchTx = [&](const std::string& path) {
-            return github::fetch_latest(tok, config::TRANSIFEX_OWNER, config::TRANSIFEX_REPO,
-                                        config::TRANSIFEX_BRANCH, path);
-        };
-        auto progress = [hwnd](int done, int total) {
-            ::PostMessage(hwnd, WM_APP_TXSYNC_PROGRESS, (WPARAM)done, (LPARAM)total);
-        };
-        auto* out = new ComputeResult;
-        try { out->result = txsync::tx_compute(fetchUpstream, fetchTx, langs, progress); }
-        catch (const std::exception& ex) { out->ok = false; out->error = CString(CA2W(ex.what(), CP_UTF8)); }
-        // Only the fork's owner can move its transifex branch; resolve who is signed in (stored token
-        // only -- never an interactive sign-in from a worker thread) so the button can be gated
-        // up front. Absent/failed = "unknown": the click path re-checks after its own sign-in.
-        if (auto stored = github::load_token()) {
-            try { out->login = github::whoami(*stored); } catch (const std::exception&) {}
+    m_computeThread = std::thread([hwnd, langs = m_langs, savedFork, savedBranch]() {
+        // Stored token (if any) buys the higher authenticated rate limit for the /repos listing calls
+        // below; anonymous still works (60/hr), same tolerance as MainFrame::head_sha.
+        auto stored = github::load_token();
+        github::Token tok = stored.value_or(github::Token{});
+
+        std::vector<std::string> forks = github::list_forks(tok);
+        std::string selFork = savedFork;
+        if (selFork.empty() || std::find(forks.begin(), forks.end(), selFork) == forks.end())
+            selFork = forks.empty() ? (std::string(config::TRANSIFEX_OWNER) + "/" + config::TRANSIFEX_REPO)
+                                    : forks.front();
+
+        std::string owner, repo; SplitOwnerRepo(selFork, owner, repo);
+        std::vector<std::string> branches = github::list_branches(tok, owner, repo);
+        std::string selBranch = savedBranch;
+        if (selBranch.empty() || std::find(branches.begin(), branches.end(), selBranch) == branches.end()) {
+            auto it = std::find(branches.begin(), branches.end(), "transifex");
+            selBranch = it != branches.end() ? *it
+                       : branches.empty() ? std::string(config::TRANSIFEX_BRANCH) : branches.front();
         }
-        if (!::PostMessage(hwnd, WM_APP_TXSYNC_DONE, (WPARAM)out, 0)) delete out;   // dialog gone
+
+        auto* fr = new ForksResult{ forks, branches, selFork, selBranch };
+        if (!::PostMessage(hwnd, WM_APP_TXSYNC_FORKS, (WPARAM)fr, 0)) { delete fr; return; }  // dialog gone
+
+        RunComputeAndPost(hwnd, langs, owner, repo, selBranch, tok);
     });
 
     return TRUE;   // no control needs the initial focus more than the list will once it's populated
@@ -160,6 +239,16 @@ void TxSyncDlg::Layout() {
     int y = M;
     auto place = [&](CWnd& w, int h) { w.MoveWindow(M, y, W, S(h)); y += S(h) + gap; };
     place(m_status, 34);
+
+    // Fork:/Branch: row -- fixed-width labels + two dropdown combos, left to right.
+    const int rowH = 22, lblFork = 40, comboFork = S(340), lblBranch = 55, comboBranch = S(200);
+    int x = M, rowY = y;
+    m_lblFork.MoveWindow(x, rowY + S(3), S(lblFork), S(rowH)); x += S(lblFork);
+    m_forkCombo.MoveWindow(x, rowY, comboFork, S(200)); x += comboFork + S(10);
+    m_lblBranch.MoveWindow(x, rowY + S(3), S(lblBranch), S(rowH)); x += S(lblBranch);
+    m_branchCombo.MoveWindow(x, rowY, comboBranch, S(200));
+    y += S(rowH) + gap;
+
     place(m_progressText, 18);
     place(m_showProtected, 20);
     const int btnW = S(160), btnH = S(28);
@@ -183,22 +272,30 @@ LRESULT TxSyncDlg::OnComputeDone(WPARAM wp, LPARAM) {
     if (!out->ok) {
         m_progressText.SetWindowText(L"Fetch failed.");
         m_status.SetWindowText(L"Transifex sync failed.");
+        m_forkCombo.EnableWindow(TRUE); m_branchCombo.EnableWindow(TRUE);   // let the user try a different selection
         AfxMessageBox(L"Transifex sync failed:\n" + out->error, MB_ICONERROR);
         return 0;
     }
     m_result = std::move(out->result);
     m_haveResult = true;
     m_login = out->login;
+    // Echoed back from the worker -- see ComputeResult's comment: this IS the selection that produced
+    // m_result, regardless of whatever the combos show by the time this message is processed.
+    m_txOwner = out->owner; m_txRepo = out->repo; m_txBranch = out->branch;
     m_progressText.SetWindowText(L"");
-    // The branch update writes straight to TRANSIFEX_OWNER's fork -- owner-only. A known non-owner
-    // login disables the button outright; unknown (not signed in yet) leaves it enabled and the
-    // click path verifies after its sign-in. The PR path stays open to everyone (it forks).
-    bool ownerKnownForeign = !m_login.empty() && _stricmp(m_login.c_str(), config::TRANSIFEX_OWNER) != 0;
+    m_forkCombo.EnableWindow(TRUE);
+    m_branchCombo.EnableWindow(TRUE);
+    // The branch update writes straight to the SELECTED fork -- owner-only. A known non-owner login
+    // disables the button outright; unknown (not signed in yet) leaves it enabled and the click path
+    // verifies after its sign-in. The PR path stays open to everyone (it forks).
+    bool ownerKnownForeign = !m_login.empty() && _stricmp(m_login.c_str(), m_txOwner.c_str()) != 0;
     m_btnUpdateBranch.EnableWindow(!ownerKnownForeign);
     if (ownerKnownForeign) {
-        CString hint; hint.Format(L"Signed in as %s — the Transifex branch update is owner (%s) only.",
+        CString hint; hint.Format(L"Signed in as %s — the %s/%s branch update is owner (%s) only.",
                                   (LPCWSTR)CString(CA2W(m_login.c_str(), CP_UTF8)),
-                                  (LPCWSTR)CString(config::TRANSIFEX_OWNER));
+                                  (LPCWSTR)CString(CA2W(m_txOwner.c_str(), CP_UTF8)),
+                                  (LPCWSTR)CString(CA2W(m_txRepo.c_str(), CP_UTF8)),
+                                  (LPCWSTR)CString(CA2W(m_txOwner.c_str(), CP_UTF8)));
         m_progressText.SetWindowText(hint);
     }
     m_btnProposePr.EnableWindow(TRUE);
@@ -206,6 +303,105 @@ LRESULT TxSyncDlg::OnComputeDone(WPARAM wp, LPARAM) {
     RepopulateList();
     RefreshStatusText();
     return 0;
+}
+
+// WM_APP_TXSYNC_FORKS: the initial fork+branch discovery landed (see OnInitDialog) -- populate both
+// combos and let the (already-launched, same worker thread) compute continue in the background.
+LRESULT TxSyncDlg::OnForksDone(WPARAM wp, LPARAM) {
+    std::unique_ptr<ForksResult> fr((ForksResult*)wp);
+    m_forkCombo.ResetContent();
+    for (const auto& f : fr->forks) m_forkCombo.AddString(CString(CA2W(f.c_str(), CP_UTF8)));
+    int fi = m_forkCombo.FindStringExact(-1, CString(CA2W(fr->selFork.c_str(), CP_UTF8)));
+    m_forkCombo.SetCurSel(fi != CB_ERR ? fi : 0);
+
+    m_branchCombo.ResetContent();
+    for (const auto& b : fr->branches) m_branchCombo.AddString(CString(CA2W(b.c_str(), CP_UTF8)));
+    int bi = m_branchCombo.FindStringExact(-1, CString(CA2W(fr->selBranch.c_str(), CP_UTF8)));
+    m_branchCombo.SetCurSel(bi != CB_ERR ? bi : 0);
+
+    // Combos stay disabled (SetBusy(true) is still in effect from OnInitDialog) until OnComputeDone --
+    // the compute this fork/branch feeds is already running on the same worker thread.
+    m_status.SetWindowText(L"Transifex sync: computing…");
+    return 0;
+}
+
+// WM_APP_TXSYNC_BRANCHES: OnForkChanged's branch-list refetch landed -- populate the branch combo;
+// the compute for the newly resolved branch is already running (same worker thread, see OnForkChanged).
+LRESULT TxSyncDlg::OnBranchesDone(WPARAM wp, LPARAM) {
+    std::unique_ptr<BranchesResult> br((BranchesResult*)wp);
+    m_branchCombo.ResetContent();
+    for (const auto& b : br->branches) m_branchCombo.AddString(CString(CA2W(b.c_str(), CP_UTF8)));
+    int bi = m_branchCombo.FindStringExact(-1, CString(CA2W(br->selBranch.c_str(), CP_UTF8)));
+    m_branchCombo.SetCurSel(bi != CB_ERR ? bi : 0);
+
+    if (CWinApp* app = AfxGetApp())
+        app->WriteProfileString(L"txsync", L"branch", CString(CA2W(br->selBranch.c_str(), CP_UTF8)));
+    return 0;
+}
+
+void TxSyncDlg::SetBusy(bool busy) {
+    m_forkCombo.EnableWindow(!busy);
+    m_branchCombo.EnableWindow(!busy);
+    // Re-enabling is OnComputeDone's job (it re-applies the owner-gate) -- SetBusy only ever tightens.
+    if (busy) { m_btnUpdateBranch.EnableWindow(FALSE); m_btnProposePr.EnableWindow(FALSE); }
+}
+
+// Plain recompute (branch changed, same fork -- no branch-list refetch needed): used directly by
+// OnBranchChanged, and as OnForkChanged's tail once its branch-list refetch resolves.
+void TxSyncDlg::StartCompute(const std::string& owner, const std::string& repo, const std::string& branch) {
+    if (m_computeThread.joinable()) m_computeThread.join();   // defensive; disabled combos already prevent this
+    SetBusy(true);
+    m_progressText.SetWindowText(L"Fetching files…");
+    HWND hwnd = GetSafeHwnd();
+    std::vector<std::string> langs = m_langs;
+    auto stored = github::load_token();
+    github::Token tok = stored.value_or(github::Token{});
+    m_computeThread = std::thread([hwnd, langs, owner, repo, branch, tok]() {
+        RunComputeAndPost(hwnd, langs, owner, repo, branch, tok);
+    });
+}
+
+// Fork combo changed: refetch that fork's branch list (background -- everything stays disabled via
+// SetBusy), auto-select "transifex" if present else the fork's first branch, then recompute against
+// it. The whole thing is one worker thread, same shape as OnInitDialog's initial sequence.
+void TxSyncDlg::OnForkChanged() {
+    int sel = m_forkCombo.GetCurSel();
+    if (sel == CB_ERR) return;
+    CString forkCs; m_forkCombo.GetLBText(sel, forkCs);
+    if (CWinApp* app = AfxGetApp()) app->WriteProfileString(L"txsync", L"fork", forkCs);
+
+    if (m_computeThread.joinable()) m_computeThread.join();   // defensive; disabled combos already prevent this
+    SetBusy(true);
+    m_progressText.SetWindowText(L"Loading branches…");
+
+    std::string owner, repo; SplitOwnerRepo(std::string(CW2A(forkCs, CP_UTF8)), owner, repo);
+    HWND hwnd = GetSafeHwnd();
+    std::vector<std::string> langs = m_langs;
+    auto stored = github::load_token();
+    github::Token tok = stored.value_or(github::Token{});
+    m_computeThread = std::thread([hwnd, langs, owner, repo, tok]() {
+        std::vector<std::string> branches = github::list_branches(tok, owner, repo);
+        auto it = std::find(branches.begin(), branches.end(), "transifex");
+        std::string selBranch = it != branches.end() ? *it
+                                : branches.empty() ? std::string(config::TRANSIFEX_BRANCH) : branches.front();
+
+        auto* br = new BranchesResult{ branches, selBranch };
+        if (!::PostMessage(hwnd, WM_APP_TXSYNC_BRANCHES, (WPARAM)br, 0)) { delete br; return; }  // dialog gone
+
+        RunComputeAndPost(hwnd, langs, owner, repo, selBranch, tok);
+    });
+}
+
+// Branch combo changed (same fork): no branch-list refetch needed, just recompute.
+void TxSyncDlg::OnBranchChanged() {
+    int selF = m_forkCombo.GetCurSel(); if (selF == CB_ERR) return;
+    int selB = m_branchCombo.GetCurSel(); if (selB == CB_ERR) return;
+    CString forkCs; m_forkCombo.GetLBText(selF, forkCs);
+    CString branchCs; m_branchCombo.GetLBText(selB, branchCs);
+    if (CWinApp* app = AfxGetApp()) app->WriteProfileString(L"txsync", L"branch", branchCs);
+
+    std::string owner, repo; SplitOwnerRepo(std::string(CW2A(forkCs, CP_UTF8)), owner, repo);
+    StartCompute(owner, repo, std::string(CW2A(branchCs, CP_UTF8)));
 }
 
 CString TxSyncDlg::KindLabel(TxDecision::Kind k) {
@@ -334,8 +530,10 @@ void TxSyncDlg::OnUpdateBranchClicked() {
     std::vector<github::FileEdit> edits = txsync::tx_build_edits(m_result.upstreamPoBytes, m_result);
     if (edits.empty()) { AfxMessageBox(L"No changes selected to apply.", MB_ICONINFORMATION); return; }
 
-    CString txRepo = CString(config::TRANSIFEX_OWNER) + L"/" + CString(config::TRANSIFEX_REPO) +
-                     L"@" + CString(config::TRANSIFEX_BRANCH);
+    // m_txOwner/m_txRepo/m_txBranch, not the live combo selection -- see their comment in TxSyncDlg.h:
+    // this must match what m_result was actually computed against.
+    CString txRepo = CString(CA2W(m_txOwner.c_str(), CP_UTF8)) + L"/" + CString(CA2W(m_txRepo.c_str(), CP_UTF8)) +
+                     L"@" + CString(CA2W(m_txBranch.c_str(), CP_UTF8));
     CString msg; msg.Format(L"Push %d changed file(s) directly to the %s branch?\n\n"
                             L"This updates the branch immediately -- there is no PR review step.",
                             (int)edits.size(), (LPCWSTR)txRepo);
@@ -348,18 +546,18 @@ void TxSyncDlg::OnUpdateBranchClicked() {
         // Authoritative owner check on the JUST-authenticated identity (the up-front button gating
         // only covers a token that was already stored when the dialog computed).
         std::string login = github::whoami(*tok);
-        if (_stricmp(login.c_str(), config::TRANSIFEX_OWNER) != 0) {
+        if (_stricmp(login.c_str(), m_txOwner.c_str()) != 0) {
             MessageBox(L"Signed in as \"" + CString(CA2W(login.c_str(), CP_UTF8)) +
-                       L"\" — only " + CString(config::TRANSIFEX_OWNER) +
-                       L" can update the Transifex branch.\n\nUse \"Propose upstream PR…\" instead.",
+                       L"\" — only " + CString(CA2W(m_txOwner.c_str(), CP_UTF8)) +
+                       L" can update this branch.\n\nUse \"Propose upstream PR…\" instead.",
                        L"Update Transifex branch", MB_ICONWARNING);
             m_login = login;
             m_btnUpdateBranch.EnableWindow(FALSE);
             return;
         }
-        std::string sha = github::update_transifex_branch(*tok, edits,
+        std::string sha = github::update_transifex_branch(*tok, m_txOwner, m_txRepo, m_txBranch, edits,
             "Merge upstream develop + Transifex sync (Studio)");
-        MessageBox(L"Updated the transifex branch.\n\nNew commit: " + CString(CA2W(sha.c_str(), CP_UTF8)),
+        MessageBox(L"Updated the branch.\n\nNew commit: " + CString(CA2W(sha.c_str(), CP_UTF8)),
                   L"Update Transifex branch", MB_ICONINFORMATION);
     } catch (const std::exception& ex) {
         MessageBox(L"Update failed:\n" + CString(CA2W(ex.what(), CP_UTF8)),
