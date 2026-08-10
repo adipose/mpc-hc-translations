@@ -355,7 +355,6 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_list.InsertColumn(1, L"English", LVCFMT_LEFT, S(150));
     m_list.InsertColumn(2, L"Translation", LVCFMT_LEFT, S(150));
     m_list.InsertColumn(3, L"Flag", LVCFMT_LEFT, S(220));   // Review tab only; harmless on other tabs
-    m_list.InsertColumn(4, L"Lang", LVCFMT_LEFT, S(60));    // Sync review tab only; harmless on other tabs
     m_previewHost.Create(AfxRegisterWndClass(0, ::LoadCursor(nullptr, IDC_ARROW), Theme::windowBrush()),
                          L"", ST | WS_BORDER | WS_CLIPCHILDREN | WS_VSCROLL | WS_HSCROLL, z, this, 0);
     m_previewHost.OnScrolled = [this] { ReapplyHighlight(); };   // keep the ring synced to the scrolled child
@@ -1113,10 +1112,18 @@ void MainFrame::PopulateList() {
 CString MainFrame::RowText(int i, int col) {
     if (i < 0 || i >= (int)m_rows.size()) return CString();
     const Row& row = m_rows[i];
-    if (col == 0) return CA2W(row.msgctxt.c_str(), CP_UTF8);
+    if (col == 0) {
+        // Sync review spans every language, so each row's language IS its primary key -- prefix the
+        // context with it ("ja  ·  IDD_...") rather than a separate Lang column (a reordered
+        // SetColumnOrderArray column mis-painted under this list's owner-draw at some DPIs). Every
+        // other tab is single-language, so no prefix.
+        if (row.syncDecisionIdx >= 0 && !row.lang.empty())
+            return CString(CA2W(row.lang.c_str(), CP_UTF8)) + L"  \x00b7  " +
+                   CString(CA2W(row.msgctxt.c_str(), CP_UTF8));
+        return CA2W(row.msgctxt.c_str(), CP_UTF8);
+    }
     if (col == 1) return CA2W(row.msgid.c_str(), CP_UTF8);
     if (col == 3) return row.evidence;
-    if (col == 4) return CA2W(row.lang.c_str(), CP_UTF8);   // RES_SYNC only; empty on every other tab's rows
     // RES_SYNC's Translation column is the sync decision's MERGED value (txStr for TxNew/TxWins,
     // upstreamStr for Discarded) -- a snapshot from the last Transifex sync run, not a live lookup in
     // m_po (which holds only the CURRENTLY LOADED language, whereas sync rows span every language).
@@ -2462,21 +2469,10 @@ void MainFrame::OnTabChanged(NMHDR*, LRESULT* res) {
     int tab = m_tabs.GetCurSel();
     if (tab == RES_DIALOGS)     PopulateDialogCombo();
     else if (tab == RES_MENUS)  PopulateMenuCombo();
-    // Sync review spans every language, so the Lang column is the row's primary key -- reorder it to
-    // lead (SetColumnOrderArray shifts only the VISUAL order; logical indices + RowText stay put) and
-    // give it real width. Every other tab restores the natural order with Lang collapsed to nothing.
-    if (CHeaderCtrl* hc = m_list.GetHeaderCtrl(); hc && hc->GetItemCount() >= 5) {
-        if (tab == RES_SYNC) {
-            int order[5] = { 4, 0, 1, 2, 3 };   // Lang, Context, English, Translation, Flag
-            m_list.SetColumnOrderArray(5, order);
-            m_list.SetColumnWidth(4, S(56)); m_list.SetColumnWidth(0, S(150));
-            m_list.SetColumnWidth(1, S(150)); m_list.SetColumnWidth(2, S(150)); m_list.SetColumnWidth(3, S(220));
-        } else {
-            int order[5] = { 0, 1, 2, 3, 4 };
-            m_list.SetColumnOrderArray(5, order);
-            m_list.SetColumnWidth(4, 0);
-        }
-    }
+    // The Context column carries a "<lang>  ·  " prefix on the sync tab (see RowText) -- widen it so the
+    // language and the symbol both fit. Width-only (no column reorder), so no owner-draw geometry risk.
+    if (m_list.GetHeaderCtrl() && m_list.GetHeaderCtrl()->GetItemCount() >= 1)
+        m_list.SetColumnWidth(0, S(tab == RES_SYNC ? 230 : 150));
     Layout();
     PopulateList();
     if (tab == RES_DIALOGS)     RenderCurrentDialog();
