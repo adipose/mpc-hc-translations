@@ -23,6 +23,7 @@
 #include "mpctrans/ai_client.h"
 #include "mpctrans/suggestion_store.h"
 #include "mpctrans/confidence.h"
+#include "mpctrans/txsync.h"
 #include <tuple>
 
 // The menu-bar preview is an owned popup that natively displays a (dark-themed) menu bar. Its menu
@@ -185,6 +186,13 @@ public:
     // == tab index 2). `res` disambiguates same-msgctxt rows across resources (dialogs/menus/strings);
     // pass -1 to match on msgctxt alone.
     void NavigateToString(const CString& lang, const std::string& msgctxt, int res);
+    // TxSyncDlg::OnComputeDone hands MainFrame a COPY of its result + the (owner,repo,branch) it ran
+    // against right after a compute lands, so the "Sync review" tab / "Propose Transifex sync PR..."
+    // survive the (modal) dialog closing. Both dialog and MainFrame run on the same UI thread, so this
+    // direct call is safe (no cross-thread marshaling needed). Refreshes the Sync review tab in place
+    // if it's the active tab when a fresh result arrives (e.g. re-running Transifex sync mid-review).
+    void SetTxSyncResult(const mpctrans::txsync::TxSyncResult& result, const std::string& owner,
+                         const std::string& repo, const std::string& branch);
 
 protected:
     afx_msg int  OnCreate(LPCREATESTRUCT);
@@ -243,18 +251,28 @@ protected:
     afx_msg void OnCheckDataUpdate();                         // File > Check for data updates...
     afx_msg LRESULT OnDataUpdateDone(WPARAM, LPARAM);         // background data-update check/apply completed
     afx_msg void OnTransifexSync();                            // File > Transifex sync... -> TxSyncDlg
+    afx_msg void OnProposeTxSyncPr();                           // File > Propose Transifex sync PR...
+    afx_msg void OnUpdateTxSyncPr(CCmdUI* pCmdUI);              // enabled only once m_txSync is set
     DECLARE_MESSAGE_MAP()
 
 private:
     // 0..2 index the per-resource PoFiles; RES_UNTRANS is a surface tab only (all untranslated);
-    // RES_REVIEW is the M1 deterministic-flags Review Queue (also a surface tab only).
-    enum Res { RES_DIALOGS = 0, RES_MENUS = 1, RES_STRINGS = 2, RES_COUNT = 3, RES_UNTRANS = 3, RES_REVIEW = 4 };
+    // RES_REVIEW is the M1 deterministic-flags Review Queue (also a surface tab only); RES_SYNC is the
+    // Transifex sync review tab (also a surface tab only -- see PopulateList's RES_SYNC branch).
+    enum Res { RES_DIALOGS = 0, RES_MENUS = 1, RES_STRINGS = 2, RES_COUNT = 3, RES_UNTRANS = 3,
+              RES_REVIEW = 4, RES_SYNC = 5 };
     struct Row {
         std::string msgctxt, msgid; int res;
         enum class Flag { None, FitHard, Placeholder, Accelerator, FitTight, Category } flag = Flag::None;
-        CString evidence;              // "overflows by 104px", "placeholder %d missing", etc.
+        CString evidence;              // "overflows by 104px", "placeholder %d missing", etc.; RES_SYNC
+                                        // reuses this for "New" / "Conflict: ... -> ..." / "Discarded: ..."
         long long flagDialog = -1;     // dialog id owning a fit flag (-1 = n/a)
         long long flagControlId = -1;  // control id owning a fit flag (-1 = n/a, or for non-fit flags)
+        // RES_SYNC only: the language this row's decision belongs to (rows span every language, unlike
+        // every other tab), and this row's index into m_txSync->decisions (-1 = not a sync row) --
+        // SelectRow's language-switch re-selection matches on this after a repopulate.
+        std::string lang;
+        int syncDecisionIdx = -1;
     };
     // Per-language cache entry the fit worker produces and PopulateReviewRows() reads; kept separate
     // from Row because Row is transient/tab-specific while this persists across tab switches.
@@ -534,6 +552,13 @@ private:
     std::map<std::wstring, std::array<mpctrans::PoFile, RES_COUNT>> m_sessionPo;
     // TransifexOverlay: languages already offered this session (dedup — ask at most once per language).
     std::set<std::string> m_txHandled;
+
+    // The most recent File > Transifex sync... result (see SetTxSyncResult), surviving TxSyncDlg's
+    // closing so the maintainer can review every changed string ACROSS ALL LANGUAGES here (the "Sync
+    // review" tab, RES_SYNC) before proposing the upstream PR (OnProposeTxSyncPr). nullopt = never run
+    // this session -- the tab shows "Run File > Transifex sync first." (PopulateList's RES_SYNC branch).
+    std::optional<mpctrans::txsync::TxSyncResult> m_txSync;
+    std::string m_txSyncOwner, m_txSyncRepo, m_txSyncBranch;   // the fork/branch m_txSync came from
     std::thread        m_prefetchThread;   // background bulk-download of all languages
     std::atomic<bool>  m_prefetchCancel{false};
 

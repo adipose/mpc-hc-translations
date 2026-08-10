@@ -283,6 +283,8 @@ BEGIN_MESSAGE_MAP(MainFrame, CFrameWnd)
     ON_COMMAND(ID_FILE_EXPORT_AI_CTX_LANG, OnExportAiContextLanguage)
     ON_COMMAND(ID_FILE_CHECK_DATA_UPDATE, OnCheckDataUpdate)
     ON_COMMAND(ID_FILE_TXSYNC, OnTransifexSync)
+    ON_COMMAND(ID_FILE_TXSYNC_PR, OnProposeTxSyncPr)
+    ON_UPDATE_COMMAND_UI(ID_FILE_TXSYNC_PR, OnUpdateTxSyncPr)
     ON_COMMAND(ID_FILE_DEMO_SELECT, OnDemoSelect)
     ON_COMMAND_RANGE(ID_VIEW_THEME_DARK, ID_VIEW_THEME_SYSTEM, OnViewTheme)
     ON_UPDATE_COMMAND_UI_RANGE(ID_VIEW_THEME_DARK, ID_VIEW_THEME_SYSTEM, OnUpdateViewTheme)
@@ -344,6 +346,7 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_tabs.InsertItem(RES_STRINGS, L"All strings");
     m_tabs.InsertItem(RES_UNTRANS, L"Untranslated");
     m_tabs.InsertItem(RES_REVIEW, L"Review");
+    m_tabs.InsertItem(RES_SYNC, L"Sync review");
     m_dlgCombo.Create(ST | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL, z, this, IDC_DLG_COMBO);
     m_list.Create(ST | WS_TABSTOP | WS_BORDER | LVS_REPORT | LVS_SINGLESEL | LVS_SHOWSELALWAYS |
                   LVS_OWNERDATA, z, this, IDC_STR_LIST);   // virtual: instant fill of the huge list
@@ -352,6 +355,7 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_list.InsertColumn(1, L"English", LVCFMT_LEFT, S(150));
     m_list.InsertColumn(2, L"Translation", LVCFMT_LEFT, S(150));
     m_list.InsertColumn(3, L"Flag", LVCFMT_LEFT, S(220));   // Review tab only; harmless on other tabs
+    m_list.InsertColumn(4, L"Lang", LVCFMT_LEFT, S(60));    // Sync review tab only; harmless on other tabs
     m_previewHost.Create(AfxRegisterWndClass(0, ::LoadCursor(nullptr, IDC_ARROW), Theme::windowBrush()),
                          L"", ST | WS_BORDER | WS_CLIPCHILDREN | WS_VSCROLL | WS_HSCROLL, z, this, 0);
     m_previewHost.OnScrolled = [this] { ReapplyHighlight(); };   // keep the ring synced to the scrolled child
@@ -458,8 +462,8 @@ void MainFrame::Layout() {
     int cx = left + S(6), cw = W - right - cx - S(6);
     int tab = m_tabs.GetCurSel();
     bool dlgTab = tab == RES_DIALOGS, menuTab = tab == RES_MENUS, untransTab = tab == RES_UNTRANS,
-         strTab = tab == RES_STRINGS, reviewTab = tab == RES_REVIEW;
-    bool previewTab = dlgTab || untransTab || strTab || reviewTab;   // tabs that render a string preview / mock-up
+         strTab = tab == RES_STRINGS, reviewTab = tab == RES_REVIEW, syncTab = tab == RES_SYNC;
+    bool previewTab = dlgTab || untransTab || strTab || reviewTab || syncTab;   // tabs that render a string preview / mock-up
     const int resH = S(150), resGap = S(6);             // research write-up under the render
     // the picker combo serves both Dialogs (dialog list) and Menus (menu-resource list)
     m_dlgCombo.ShowWindow(dlgTab || menuTab ? SW_SHOW : SW_HIDE);
@@ -1045,6 +1049,39 @@ void MainFrame::PopulateList() {
     } else if (tab == RES_REVIEW) {
         PopulateReviewRows();   // sets m_rows + SetItemCountEx/EnsureVisible/Invalidate + its own status text
         return;
+    } else if (tab == RES_SYNC) {
+        // Every changed-string decision ACROSS ALL LANGUAGES from the last File > Transifex sync...
+        // run -- Protected is excluded (never applied, see tx_build_edits; reviewing it is what the
+        // TxSyncDlg "Show protected" checkbox is for). Ordered lang, then res, then msgctxt so a
+        // maintainer can review one language at a time. `evidence` reused as the human-readable Flag
+        // text (RowText's col==3 already returns row.evidence for every tab); `lang`/`syncDecisionIdx`
+        // are RES_SYNC-only (see Row's comment).
+        if (m_txSync) {
+            std::vector<size_t> idxs;
+            for (size_t i = 0; i < m_txSync->decisions.size(); ++i)
+                if (m_txSync->decisions[i].kind != txsync::TxDecision::Protected) idxs.push_back(i);
+            std::sort(idxs.begin(), idxs.end(), [this](size_t a, size_t b) {
+                const auto& da = m_txSync->decisions[a]; const auto& db = m_txSync->decisions[b];
+                if (da.lang != db.lang) return da.lang < db.lang;
+                if (da.res != db.res) return da.res < db.res;
+                return da.msgctxt < db.msgctxt;
+            });
+            for (size_t i : idxs) {
+                const auto& d = m_txSync->decisions[i];
+                Row row{ d.msgctxt, d.msgid, d.res };
+                row.lang = d.lang;
+                row.syncDecisionIdx = (int)i;
+                if (d.kind == txsync::TxDecision::TxNew) {
+                    row.evidence = L"New";
+                } else if (d.kind == txsync::TxDecision::TxWins) {
+                    row.evidence = L"Conflict: '" + CString(CA2W(d.upstreamStr.c_str(), CP_UTF8)) +
+                                   L"' \x2192 '" + CString(CA2W(d.txStr.c_str(), CP_UTF8)) + L"'";
+                } else {   // Discarded
+                    row.evidence = L"Discarded: bad placeholders";
+                }
+                m_rows.push_back(std::move(row));
+            }
+        }
     } else {   // RES_STRINGS = every string; RES_UNTRANS = empty translations (+ ones you just filled,
                // kept visible with the edited highlight so you can see your progress)
         bool untransOnly = (tab == RES_UNTRANS);
@@ -1063,6 +1100,12 @@ void MainFrame::PopulateList() {
     if (tab == RES_UNTRANS) {
         CString s; s.Format(L"%zu untranslated string(s) in '%s'.", m_rows.size(), (LPCWSTR)m_lang);
         SetStatus(s);
+    } else if (tab == RES_SYNC) {
+        if (!m_txSync) SetStatus(L"Run File > Transifex sync first.");
+        else {
+            CString s; s.Format(L"Sync review: %zu changed string(s) across all languages.", m_rows.size());
+            SetStatus(s);
+        }
     }
 }
 
@@ -1073,6 +1116,15 @@ CString MainFrame::RowText(int i, int col) {
     if (col == 0) return CA2W(row.msgctxt.c_str(), CP_UTF8);
     if (col == 1) return CA2W(row.msgid.c_str(), CP_UTF8);
     if (col == 3) return row.evidence;
+    if (col == 4) return CA2W(row.lang.c_str(), CP_UTF8);   // RES_SYNC only; empty on every other tab's rows
+    // RES_SYNC's Translation column is the sync decision's MERGED value (txStr for TxNew/TxWins,
+    // upstreamStr for Discarded) -- a snapshot from the last Transifex sync run, not a live lookup in
+    // m_po (which holds only the CURRENTLY LOADED language, whereas sync rows span every language).
+    if (row.syncDecisionIdx >= 0 && m_txSync && row.syncDecisionIdx < (int)m_txSync->decisions.size()) {
+        const auto& d = m_txSync->decisions[row.syncDecisionIdx];
+        const std::string& merged = (d.kind == txsync::TxDecision::Discarded) ? d.upstreamStr : d.txStr;
+        return CA2W(merged.c_str(), CP_UTF8);
+    }
     if (const PoFile* po = PoFor(row.msgctxt, row.msgid))
         if (auto* e = po->find(row.msgctxt, row.msgid))
             return CA2W(e->msgstr.c_str(), CP_UTF8);
@@ -1614,6 +1666,15 @@ void MainFrame::NavigateToString(const CString& lang, const std::string& msgctxt
         LoadLanguage(lang, /*fromGithub=*/m_useRcIndex, /*refreshRc=*/false);
     }
     SelectTabAndRow(RES_STRINGS, msgctxt, res);   // "All strings" tab
+}
+
+// TxSyncDlg::OnComputeDone's hand-off (see MainFrame.h) -- stores a COPY of the result so it survives
+// the (modal) dialog closing, feeding the "Sync review" tab and "Propose Transifex sync PR...".
+void MainFrame::SetTxSyncResult(const txsync::TxSyncResult& result, const std::string& owner,
+                                const std::string& repo, const std::string& branch) {
+    m_txSync = result;
+    m_txSyncOwner = owner; m_txSyncRepo = repo; m_txSyncBranch = branch;
+    if (m_tabs.GetCurSel() == RES_SYNC) PopulateList();   // live-refresh if already on the tab
 }
 
 void MainFrame::OnDialogPicked() {
@@ -2401,6 +2462,21 @@ void MainFrame::OnTabChanged(NMHDR*, LRESULT* res) {
     int tab = m_tabs.GetCurSel();
     if (tab == RES_DIALOGS)     PopulateDialogCombo();
     else if (tab == RES_MENUS)  PopulateMenuCombo();
+    // Sync review spans every language, so the Lang column is the row's primary key -- reorder it to
+    // lead (SetColumnOrderArray shifts only the VISUAL order; logical indices + RowText stay put) and
+    // give it real width. Every other tab restores the natural order with Lang collapsed to nothing.
+    if (CHeaderCtrl* hc = m_list.GetHeaderCtrl(); hc && hc->GetItemCount() >= 5) {
+        if (tab == RES_SYNC) {
+            int order[5] = { 4, 0, 1, 2, 3 };   // Lang, Context, English, Translation, Flag
+            m_list.SetColumnOrderArray(5, order);
+            m_list.SetColumnWidth(4, S(56)); m_list.SetColumnWidth(0, S(150));
+            m_list.SetColumnWidth(1, S(150)); m_list.SetColumnWidth(2, S(150)); m_list.SetColumnWidth(3, S(220));
+        } else {
+            int order[5] = { 0, 1, 2, 3, 4 };
+            m_list.SetColumnOrderArray(5, order);
+            m_list.SetColumnWidth(4, 0);
+        }
+    }
     Layout();
     PopulateList();
     if (tab == RES_DIALOGS)     RenderCurrentDialog();
@@ -2480,9 +2556,43 @@ std::optional<MainFrame::StoredView> MainFrame::LoadStoredView(const std::string
 
 void MainFrame::SelectRow(int item) {
     if (item < 0 || item >= (int)m_rows.size() || !m_checkedOut) return;
+    int tab = m_tabs.GetCurSel();
+
+    // Sync review tab: rows span EVERY language, unlike every other tab. If this row's language isn't
+    // the one currently loaded, switch first -- COPY the fields we need (not a reference into m_rows)
+    // because LoadLanguage -> RefreshAfterLoad -> PopulateList clears+rebuilds m_rows/m_curRow, which
+    // would leave a `const Row&` dangling.
+    if (tab == RES_SYNC) {
+        std::string rowLangUtf8 = m_rows[item].lang;
+        int decisionIdx = m_rows[item].syncDecisionIdx;
+        CString rowLang = CString(CA2W(rowLangUtf8.c_str(), CP_UTF8));
+        if (rowLang != m_lang) {
+            // Suppress TransifexOverlay's "load these as drafts?" nag for this switch -- same guard
+            // TransifexOverlay itself checks (m_txHandled), inserted BEFORE loading so it no-ops
+            // immediately inside LoadLanguage; reviewing a sync decision shouldn't also prompt to
+            // overlay MORE unrelated Transifex fills on top of it.
+            m_txHandled.insert(rowLangUtf8);
+            LoadLanguage(rowLang, /*fromGithub=*/m_useRcIndex, /*refreshRc=*/false);
+            // LoadLanguage -> RefreshAfterLoad -> PopulateList already rebuilt the SYNC rows (same
+            // decisions/order, language-independent) -- re-find this row by its stable decision index
+            // and reselect it. LVS_SINGLESEL means SetItemState below both clears any prior selection
+            // and (via LVN_ITEMCHANGED) reenters SelectRow for the new item BEFORE returning here --
+            // same reentrant-but-idempotent double-call SelectTabAndRow already relies on (it also
+            // calls SetItemState then SelectRow explicitly); the second, explicit call below is
+            // defensive belt-and-braces, not a new pattern.
+            for (int i = 0; i < (int)m_rows.size(); ++i)
+                if (m_rows[i].syncDecisionIdx == decisionIdx) {
+                    m_list.EnsureVisible(i, FALSE);
+                    m_list.SetItemState(i, LVIS_SELECTED | LVIS_FOCUSED, LVIS_SELECTED | LVIS_FOCUSED);
+                    SelectRow(i);
+                    break;
+                }
+            return;
+        }
+    }
+
     m_curRow = item;
     const Row& row = m_rows[item];
-    int tab = m_tabs.GetCurSel();
     m_curRowFlag = (tab == RES_REVIEW) ? row.flag : Row::Flag::None;
     m_edit.SetFlagNote(CString());   // cleared unconditionally; set again below only for Review rows
     m_btnDismiss.EnableWindow(tab == RES_REVIEW);
@@ -2578,7 +2688,7 @@ void MainFrame::SelectRow(int item) {
     bool        comboShown = false;       // a combo-item dropdown owns the ring/list this pass
     if (tab == RES_DIALOGS) {
         ringEnglish = row.msgid;          // dialog already shown; just ring the selected control
-    } else if (tab == RES_UNTRANS || tab == RES_STRINGS || tab == RES_REVIEW) {
+    } else if (tab == RES_UNTRANS || tab == RES_STRINGS || tab == RES_REVIEW || tab == RES_SYNC) {
         CString text = CString(CA2W((e && !e->msgstr.empty() ? e->msgstr : row.msgid).c_str(), CP_UTF8));
         long long dlg = DialogForString(row.msgctxt, row.msgid);
         CString ctlEng; long long tdlg = -1;
@@ -4597,6 +4707,139 @@ void MainFrame::OnFileAiProvider() {
 void MainFrame::OnTransifexSync() {
     TxSyncDlg dlg(this);
     dlg.DoModal();
+}
+
+// Same counts sentence as TxSyncDlg::BuildSummaryText (private to that class, so duplicated here rather
+// than exposed cross-class for one shared string) -- kept byte-for-byte identical on purpose so the
+// wording matches whether it's read from the dialog or from the PR body this produces.
+static CString BuildTxSyncSummaryText(const txsync::TxSyncResult& r) {
+    int nNew = 0, nWins = 0, nDiscarded = 0, nProtected = 0;
+    for (const auto& d : r.decisions) {
+        switch (d.kind) {
+            case txsync::TxDecision::TxNew:     ++nNew; break;
+            case txsync::TxDecision::TxWins:    ++nWins; break;
+            case txsync::TxDecision::Discarded: ++nDiscarded; break;
+            case txsync::TxDecision::Protected: ++nProtected; break;
+        }
+    }
+    CString s;
+    s.Format(L"Transifex sync: %d new, %d conflicts (Transifex wins), %d discarded (bad placeholders), "
+             L"%d protected upstream-only translations, %d unchanged.",
+             nNew, nWins, nDiscarded, nProtected, r.unchanged);
+    return s;
+}
+
+void MainFrame::OnUpdateTxSyncPr(CCmdUI* pCmdUI) { pCmdUI->Enable(m_txSync.has_value()); }
+
+// "Propose Transifex sync PR..." -- the maintainer's workflow's LAST step: apply the whole merge
+// (already pushed live to the Transifex branch by "Update Transifex branch", unreviewed), review every
+// changed string across every language here (the Sync review tab), then propose it upstream carrying
+// whatever review fixes were made along the way. Reuses tx_build_edits for the base merge and the same
+// github::open_pr flow TxSyncDlg::OnProposePrClicked uses (fork -> branch -> compare URL; nothing is
+// PR'd until the user clicks "Create pull request" on GitHub).
+void MainFrame::OnProposeTxSyncPr() {
+    if (!m_txSync) { MessageBox(L"Run File > Transifex sync first.", L"Propose Transifex sync PR", MB_ICONINFORMATION); return; }
+
+    std::vector<github::FileEdit> edits = txsync::tx_build_edits(m_txSync->upstreamPoBytes, *m_txSync);
+
+    // Overlay review fixes: for every non-Protected decision key (lang,res,msgctxt,msgid), if there's a
+    // pending edit for it -- either live in THIS session (m_dirty/m_po, only possible for the CURRENTLY
+    // loaded language) or already saved to disk from a PREVIOUS review session (any other language,
+    // read read-only via the shared drafts.json -- see DraftsPath/ApplyDrafts) -- and that edit's value
+    // actually differs from what the plain merge would have produced, splice it in. Strictly scoped to
+    // decision keys: an unrelated draft (ordinary translation work outside this sync) is never pulled
+    // in here -- it stays the translator's own Submit PR's job.
+    Drafts allDrafts = parse_drafts(read_file_raw(DraftsPath()));
+    std::string curLangUtf8 = std::string(CW2A(m_lang, CP_UTF8));
+    std::map<std::string, std::vector<PoEntry>> fixesByPath;   // repo_path -> review-fix edits
+    int reviewFixCount = 0;
+
+    for (const auto& d : m_txSync->decisions) {
+        if (d.kind == txsync::TxDecision::Protected) continue;   // never applied by tx_build_edits/PR
+
+        std::string fixVal; bool haveFix = false;
+        if (d.lang == curLangUtf8 && m_dirty[d.res].count({ d.msgctxt, d.msgid })) {
+            if (const PoEntry* e = m_po[d.res].find(d.msgctxt, d.msgid)) { fixVal = e->msgstr; haveFix = true; }
+        } else if (auto it = allDrafts.find(d.lang); it != allDrafts.end()) {
+            for (const auto& de : it->second)
+                if (de.res == d.res && de.msgctxt == d.msgctxt && de.msgid == d.msgid) {
+                    fixVal = de.msgstr; haveFix = true; break;
+                }
+        }
+        if (!haveFix) continue;
+        std::string mergedBase = (d.kind == txsync::TxDecision::Discarded) ? d.upstreamStr : d.txStr;
+        if (fixVal == mergedBase) continue;   // draft matches the merge already -- nothing to overlay
+
+        std::string path = std::string(config::PO_DIR) + "/mpc-hc." + d.lang + "." +
+                           config::RESOURCES[d.res] + ".po";
+        fixesByPath[path].push_back(PoEntry{ d.msgctxt, d.msgid, fixVal, {} });
+        ++reviewFixCount;
+    }
+
+    // Splice the review fixes onto whatever tx_build_edits already produced for that file, or (a file
+    // with zero INCLUDEd decisions isn't in `edits` yet) start from the cached upstream bytes -- either
+    // way splice() is the only writer touched, same as tx_build_edits itself.
+    for (auto& [path, poEdits] : fixesByPath) {
+        auto editIt = std::find_if(edits.begin(), edits.end(),
+                                   [&](const github::FileEdit& e) { return e.repo_path == path; });
+        std::string base;
+        if (editIt != edits.end()) base = editIt->content;
+        else {
+            auto upIt = m_txSync->upstreamPoBytes.find(path);
+            if (upIt == m_txSync->upstreamPoBytes.end()) continue;   // shouldn't happen
+            base = upIt->second;
+        }
+        std::string spliced = PoFile::splice(base, poEdits, "Transifex sync review (Studio)");
+        if (editIt != edits.end()) editIt->content = spliced;
+        else if (spliced != base) edits.push_back({ path, spliced });
+    }
+
+    if (edits.empty()) {
+        MessageBox(L"No changes to propose.", L"Propose Transifex sync PR", MB_ICONINFORMATION);
+        return;
+    }
+
+    CString upRepo = CString(config::UPSTREAM_OWNER) + L"/" + CString(config::UPSTREAM_REPO) +
+                     L"@" + CString(config::UPSTREAM_BRANCH);
+    CString msg; msg.Format(L"Open a pull request against %s with %d changed file(s)%s?",
+                            (LPCWSTR)upRepo, (int)edits.size(),
+                            reviewFixCount > 0 ? L" (including review fixes)" : L"");
+    if (MessageBox(msg, L"Propose Transifex sync PR", MB_YESNO | MB_ICONQUESTION) != IDYES) return;
+
+    try {
+        CWaitCursor wait;
+        auto tok = github::load_token();
+        if (!tok) {
+            github::DeviceCode dc = github::request_device_code(config::DEVICE_SCOPE);
+            github::Token t = github::poll_for_token(dc, [this](const github::DeviceCode& d) {
+                ::ShellExecuteW(nullptr, L"open", CA2W(d.verification_uri.c_str(), CP_UTF8),
+                                nullptr, nullptr, SW_SHOWNORMAL);
+                MessageBox(L"A browser was opened at " +
+                           CString(CA2W(d.verification_uri.c_str(), CP_UTF8)) +
+                           L"\n\nEnter this code to authorize the Studio:\n\n        " +
+                           CString(CA2W(d.user_code.c_str(), CP_UTF8)) +
+                           L"\n\nClick OK AFTER you have authorized.", L"GitHub sign-in");
+            });
+            github::store_token(t);
+            tok = t;
+        }
+        CString body = BuildTxSyncSummaryText(*m_txSync);
+        if (reviewFixCount > 0) {
+            CString fixLine; fixLine.Format(L"\n\nreview fixes: %d", reviewFixCount);
+            body += fixLine;
+        }
+        std::string url = github::open_pr(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO,
+                                          config::UPSTREAM_BRANCH, "transifex-sync", edits,
+                                          "Transifex updates", std::string(CW2A(body, CP_UTF8)));
+        ::ShellExecuteW(nullptr, L"open", CA2W(url.c_str(), CP_UTF8), nullptr, nullptr, SW_SHOWNORMAL);
+        MessageBox(L"Your changes were pushed to a branch and GitHub's “Open a pull request” "
+                  L"page was opened in your browser.\n\nReview the diff there and click "
+                  L"“Create pull request” to submit — nothing is submitted until you do.",
+                  L"Propose Transifex sync PR", MB_ICONINFORMATION);
+    } catch (const std::exception& ex) {
+        MessageBox(L"Propose failed:\n" + CString(CA2W(ex.what(), CP_UTF8)),
+                  L"Propose Transifex sync PR", MB_ICONERROR);
+    }
 }
 
 // Shared by OnGenerateAiSuggestions and OnGenerateAiSuggestionsAll (M4): resolve the configured AI

@@ -302,6 +302,10 @@ LRESULT TxSyncDlg::OnComputeDone(WPARAM wp, LPARAM) {
     RebuildRows();
     RepopulateList();
     RefreshStatusText();
+    // Hand MainFrame a COPY so the maintainer's later review (Sync review tab) + "Propose Transifex
+    // sync PR..." survive this (modal) dialog closing -- see MainFrame::SetTxSyncResult's comment.
+    // Same UI thread as MainFrame (this dialog IS modal to it), so a direct call is safe.
+    if (m_mainFrame) m_mainFrame->SetTxSyncResult(m_result, m_txOwner, m_txRepo, m_txBranch);
     return 0;
 }
 

@@ -22,6 +22,7 @@
 #define ID_FILE_EXPORT_AI_CTX_LANG 32788
 #define ID_FILE_CHECK_DATA_UPDATE  32789
 #define ID_FILE_TXSYNC             32790
+#define ID_FILE_TXSYNC_PR          32791
 
 // MainFrame children
 #define IDC_LANG_COMBO       1001
