@@ -4,6 +4,10 @@
 #include "mpctrans/po.h"
 #include "mpctrans/validate.h"
 
+#include <atomic>
+#include <mutex>
+#include <thread>
+
 namespace mpctrans::txsync {
 
 namespace cfg = mpctrans::config;
@@ -19,22 +23,58 @@ TxSyncResult tx_compute(const std::function<std::optional<std::string>(const std
                         std::function<void(int done, int total)> progress) {
     TxSyncResult result;
     result.languages = languages;
-    int total = (int)languages.size() * (int)(sizeof(cfg::RESOURCES) / sizeof(cfg::RESOURCES[0]));
-    int done = 0;
+    const int NRES = (int)(sizeof(cfg::RESOURCES) / sizeof(cfg::RESOURCES[0]));
+    int total = (int)languages.size() * NRES;
 
-    for (const auto& lang : languages) {
-        for (int res = 0; res < (int)(sizeof(cfg::RESOURCES) / sizeof(cfg::RESOURCES[0])); ++res) {
-            std::string path = std::string(cfg::PO_DIR) + "/mpc-hc." + lang + "." +
-                               cfg::RESOURCES[res] + ".po";
-            auto upBytes = fetchUpstream(path);
-            if (!upBytes) { ++done; if (progress) progress(done, total); continue; }   // file skipped
-            auto txBytesOpt = fetchTx(path);
-            std::string txBytes = txBytesOpt.value_or(std::string());   // absent tx file -> empty PO
+    // Flatten the (lang,res) grid into a work list. Each item is TWO network fetches (upstream + tx).
+    struct Item { std::string lang; int res; std::string path; };
+    std::vector<Item> items;
+    items.reserve(total);
+    for (const auto& lang : languages)
+        for (int res = 0; res < NRES; ++res)
+            items.push_back({ lang, res, std::string(cfg::PO_DIR) + "/mpc-hc." + lang + "." +
+                                          cfg::RESOURCES[res] + ".po" });
 
-            result.upstreamPoBytes[path] = *upBytes;
-            PoFile upPo = PoFile::parse_bytes(*upBytes);
-            PoFile txPo = PoFile::parse_bytes(txBytes);
+    // Prefetch every file CONCURRENTLY. The old code fetched all 264 files one-at-a-time, each opening
+    // a fresh TLS connection -- so wall-clock was ~264 x (handshake + round-trip) even though every
+    // fetch is independent (raw.githubusercontent.com is a CDN, no ordering, no server state). A bounded
+    // pool overlaps that latency: N in flight at once turns a ~40s serial crawl into a few seconds. The
+    // merge below stays a pure-CPU pass over the fetched bytes. (Not git-fast -- git ships one delta
+    // pack over one connection -- but the same order of magnitude for this many small files.)
+    struct Fetched { std::optional<std::string> up; std::string tx; bool haveUp = false; };
+    std::vector<Fetched> fetched(items.size());
+    std::atomic<size_t> next{ 0 };
+    std::atomic<int> done{ 0 };
+    std::mutex progressMx;
+    unsigned hw = std::thread::hardware_concurrency();
+    int workers = (int)std::min<size_t>(items.size(), hw ? std::min(hw * 2u, 16u) : 12u);
+    auto worker = [&]() {
+        for (;;) {
+            size_t i = next.fetch_add(1);
+            if (i >= items.size()) break;
+            auto up = fetchUpstream(items[i].path);
+            if (up) { fetched[i].up = std::move(up); fetched[i].haveUp = true;
+                      fetched[i].tx = fetchTx(items[i].path).value_or(std::string()); }
+            int d = ++done;
+            if (progress) { std::lock_guard<std::mutex> lk(progressMx); progress(d, total); }
+        }
+    };
+    std::vector<std::thread> pool;
+    for (int w = 0; w < workers; ++w) pool.emplace_back(worker);
+    for (auto& th : pool) th.join();
 
+    // Merge pass -- deterministic (grid order), reads only the prefetched bytes, no network.
+    for (size_t i = 0; i < items.size(); ++i) {
+        const std::string& lang = items[i].lang;
+        const int res = items[i].res;
+        const std::string& path = items[i].path;
+        if (!fetched[i].haveUp) continue;   // file absent upstream -> skipped, like before
+
+        result.upstreamPoBytes[path] = *fetched[i].up;
+        PoFile upPo = PoFile::parse_bytes(*fetched[i].up);
+        PoFile txPo = PoFile::parse_bytes(fetched[i].tx);
+
+        {
             for (const auto& e : upPo.entries) {
                 const PoEntry* txEntry = txPo.find(e.msgctxt, e.msgid);
                 const std::string& up = e.msgstr;
@@ -61,7 +101,6 @@ TxSyncResult tx_compute(const std::function<std::optional<std::string>(const std
                     } else ++result.untranslated;
                 }
             }
-            ++done; if (progress) progress(done, total);
         }
     }
     return result;
