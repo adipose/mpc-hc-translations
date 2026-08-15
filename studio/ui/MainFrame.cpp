@@ -3236,12 +3236,28 @@ void MainFrame::RecomputeFitForDialog(long long dialogId) {
     cache.erase(std::remove_if(cache.begin(), cache.end(),
                                [&](const ReviewFlag& f) { return f.dialog == dialogId; }),
                cache.end());
-    HWND dlg = m_preview.RenderDialog(dialogId, &m_previewHost, Idx(), m_po[RES_DIALOGS]);
+    // Measure on a throwaway OFF-SCREEN host + a LOCAL LivePreview -- never the visible m_preview/
+    // m_previewHost. Rendering dialogId on the visible preview here tears down and recreates the page
+    // dialog that CommitEdit's RenderCurrentDialog() just framed and positioned, then leaves it
+    // unframed/unpositioned (no SetFrame/SyncScroll follows) -- the page area goes blank while the
+    // caption band survives (issue #3: preview blanks when applying an edit; worst on framed property
+    // pages). The old code assumed the caller re-rendered AFTERWARD, but CommitEdit renders BEFORE this.
+    // Same never-shown WS_POPUP technique as the background fit-scan worker (EnsureFitScan); on the UI
+    // thread here, one dialog, so no threading concerns.
+    CWnd host;
+    host.CreateEx(0, AfxRegisterWndClass(0, nullptr, nullptr, nullptr), L"",
+                  WS_POPUP, 0, 0, 10, 10, nullptr, nullptr);
+    LivePreview lp;
+    lp.LoadNeutralDll(m_bundle.neutral_dll);
+    lp.SetTargetLang(m_lang);                       // measure on this language's own DLU grid
+    if (m_preview.UsingRc()) {
+        std::vector<RcDialog> rc = m_preview.RcDialogs();
+        if (!rc.empty()) lp.SetRcDialogs(rc);
+    }
+    HWND dlg = lp.RenderDialog(dialogId, &host, Idx(), m_po[RES_DIALOGS]);
     if (!dlg) return;
-    AppendFitFlags(cache, dialogId, m_preview.MeasureFit(dlg, dialogId, Idx()));
-    // Caller (CommitEdit) re-renders the CURRENT dialog again afterward via its own existing
-    // RenderCurrentDialog() call for the active row, so it's fine that this leaves `m_preview`
-    // pointed at `dialogId` rather than whatever was showing before.
+    AppendFitFlags(cache, dialogId, lp.MeasureFit(dlg, dialogId, Idx()));
+    lp.DestroyPreview();
 }
 
 // M2: the single-flag eligibility check shared by BuildGenWorklist (what gets generated) and SelectRow
