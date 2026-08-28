@@ -44,6 +44,10 @@ add_executable(validate_conformance_test tests/validate_conformance_test.cpp)
 target_link_libraries(validate_conformance_test PRIVATE mpctrans)
 add_test(NAME validate COMMAND validate_conformance_test)
 
+add_executable(bad_translation_scenarios tests/bad_translation_scenarios.cpp)
+target_link_libraries(bad_translation_scenarios PRIVATE mpctrans)
+add_test(NAME bad_translation_scenarios COMMAND bad_translation_scenarios)
+
 add_executable(po_roundtrip_test tests/po_roundtrip_test.cpp)
 target_link_libraries(po_roundtrip_test PRIVATE mpctrans)
 # THE FIDELITY GATE — needs the submodule checked out (git submodule update --init).
@@ -104,6 +108,13 @@ if(WIN32)
     add_test(NAME rc_render
         COMMAND rc_render_test ${CMAKE_CURRENT_SOURCE_DIR}/../../upstream/src/mpc-hc/mpc-hc.rc
                                ${CMAKE_CURRENT_SOURCE_DIR}/../../upstream/src/mpc-hc/resource.h)
+
+    add_executable(fit_overflow_scenario tests/fit_overflow_scenario.cpp)
+    target_link_libraries(fit_overflow_scenario PRIVATE mpctrans comctl32)
+    # THE FIT-OVERFLOW SCENARIO -- ports LivePreview::DetectOverflow's fit rule onto two real
+    # Win32 controls (no RC/DLL needed) and asserts short captions fit / long ones overflow.
+    # SKIPs (exit 0) if window/control creation fails (e.g. session 0).
+    add_test(NAME fit_overflow_scenario COMMAND fit_overflow_scenario)
 
     add_executable(rc_index_test tests/rc_index_test.cpp)
     target_link_libraries(rc_index_test PRIVATE mpctrans)

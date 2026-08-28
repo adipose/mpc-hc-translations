@@ -28,7 +28,7 @@ venv/
 # --- C++ / MSVC build outputs (studio/) ---
 bin/
 obj/
-studio/core/build/
+studio/core/build*/
 # msbuild per-project intermediate + output dirs (x64\{Debug,Release}, <Proj>\x64\...)
 studio/**/x64/
 .vs/
