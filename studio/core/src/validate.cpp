@@ -136,6 +136,100 @@ bool has_error(const std::vector<Finding>& f) {
     return std::any_of(f.begin(), f.end(), [](const Finding& x){ return x.sev == Severity::Error; });
 }
 
+// Options-tree consistency: a property-page title is a STRING-table entry whose msgctxt is the BARE
+// dialog symbol and whose msgid/msgstr use "::" to separate the Options tree CATEGORY from the page
+// name ("Player::General"). See validate.h for the full rule description.
+static bool isBareDialogSymbol(const std::string& ctx) {
+    if (ctx.rfind("IDD_", 0) != 0 || ctx.size() <= 4) return false;
+    for (size_t i = 4; i < ctx.size(); ++i) {
+        char c = ctx[i];
+        if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) return false;
+    }
+    return true;
+}
+
+std::vector<CategoryFinding> analyze_category_tree(const PoFile& strings) {
+    struct Node { std::string msgctxt, msgid, engParent, transParent, msgstr; };
+    std::vector<CategoryFinding> out;
+    std::vector<Node> nodes;
+    for (const auto& e : strings.entries) {
+        if (e.msgid.empty() || e.msgstr.empty() || !isBareDialogSymbol(e.msgctxt)) continue;
+        size_t midSep = e.msgid.find("::");
+        std::string engParent = (midSep == std::string::npos) ? e.msgid : e.msgid.substr(0, midSep);
+        size_t strSep = e.msgstr.find("::");
+        if (midSep != std::string::npos && strSep == std::string::npos) {
+            out.push_back({ e.msgctxt, e.msgid, CatDefect::MissingSeparator,
+                "the \"::\" category separator is missing (Options tree needs \"" + engParent + "::<page>\")",
+                e.msgstr });
+            continue;   // parent unknown -- don't add to the maps
+        }
+        std::string transParent = (strSep == std::string::npos) ? e.msgstr : e.msgstr.substr(0, strSep);
+        nodes.push_back({ e.msgctxt, e.msgid, engParent, transParent, e.msgstr });
+    }
+
+    // Disagreement: group node indices by engParent; any group with >1 DISTINCT transParent gets a
+    // finding for EVERY node in the group.
+    std::map<std::string, std::vector<size_t>> byEngParent;   // first-seen order preserved by insertion
+    std::vector<std::string> engParentOrder;
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        auto& v = byEngParent[nodes[i].engParent];
+        if (v.empty() && std::find(engParentOrder.begin(), engParentOrder.end(), nodes[i].engParent) == engParentOrder.end())
+            engParentOrder.push_back(nodes[i].engParent);
+        v.push_back(i);
+    }
+    for (const auto& engParent : engParentOrder) {
+        const auto& idxs = byEngParent[engParent];
+        std::vector<std::string> variants;   // distinct translated parents, first-seen order
+        for (size_t i : idxs) {
+            const std::string& got = nodes[i].transParent;
+            if (std::find(variants.begin(), variants.end(), got) == variants.end())
+                variants.push_back(got);
+        }
+        if (variants.size() <= 1) continue;
+        std::string variantList;
+        for (size_t v = 0; v < variants.size(); ++v) {
+            if (v) variantList += " / ";
+            variantList += "\"" + variants[v] + "\"";
+        }
+        std::string message = "category \"" + engParent + "\" is translated " +
+                               std::to_string(variants.size()) + " different ways here: " + variantList;
+        for (size_t i : idxs)
+            out.push_back({ nodes[i].msgctxt, nodes[i].msgid, CatDefect::Disagreement, message, nodes[i].msgstr });
+    }
+
+    // Collision: group node indices by transParent; any transParent shared by >1 DISTINCT engParent
+    // gets a finding for EVERY node with that transParent.
+    std::map<std::string, std::vector<size_t>> byTransParent;
+    std::vector<std::string> transParentOrder;
+    for (size_t i = 0; i < nodes.size(); ++i) {
+        auto& v = byTransParent[nodes[i].transParent];
+        if (v.empty() && std::find(transParentOrder.begin(), transParentOrder.end(), nodes[i].transParent) == transParentOrder.end())
+            transParentOrder.push_back(nodes[i].transParent);
+        v.push_back(i);
+    }
+    for (const auto& transParent : transParentOrder) {
+        const auto& idxs = byTransParent[transParent];
+        std::vector<std::string> engParents;   // distinct English parents, first-seen order
+        for (size_t i : idxs) {
+            const std::string& eng = nodes[i].engParent;
+            if (std::find(engParents.begin(), engParents.end(), eng) == engParents.end())
+                engParents.push_back(eng);
+        }
+        if (engParents.size() <= 1) continue;
+        std::string engList;
+        for (size_t v = 0; v < engParents.size(); ++v) {
+            if (v) engList += " / ";
+            engList += "\"" + engParents[v] + "\"";
+        }
+        std::string message = "Options-tree node \"" + transParent + "\" is shared by different categories: " +
+                               engList + " (their branches would merge)";
+        for (size_t i : idxs)
+            out.push_back({ nodes[i].msgctxt, nodes[i].msgid, CatDefect::Collision, message, nodes[i].msgstr });
+    }
+
+    return out;
+}
+
 // ---- file-level (TODO — port from potool: encoding/BOM, msgfmt -c, structural integrity) ----
 std::vector<Finding> check_encoding(const std::string&) { return {}; /* TODO: BOM + UTF-8 decode */ }
 std::vector<Finding> check_msgfmt(const std::string&)   { return {}; /* TODO: run msgfmt -c if present */ }

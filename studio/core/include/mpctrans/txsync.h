@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "mpctrans/github.h"
+#include "mpctrans/validate.h"
 
 // Transifex -> upstream translation sync — C++ port of tools/transifex_sync.py (read that file's
 // docstring first; the merge rules below MUST stay identical). Merges the fork's `transifex` branch
@@ -68,5 +69,11 @@ TxSyncResult tx_compute(const std::function<std::optional<std::string>(const std
 // key vanished from upstream since tx_compute ran, produces no edit).
 std::vector<github::FileEdit> tx_build_edits(const std::map<std::string, std::string>& upstreamPoBytes,
                                              const TxSyncResult& result);
+
+struct CategoryMismatch { std::string lang; validate::CategoryFinding finding; };
+// Runs analyze_category_tree on every language that has >=1 STRINGS (res==2, non-Protected) decision,
+// against that language's merged strings .po (upstream bytes from result.upstreamPoBytes, with each
+// decision's merged value overlaid: txStr for TxNew/TxWins, upstreamStr for Discarded).
+std::vector<CategoryMismatch> find_category_mismatches(const TxSyncResult& result);
 
 } // namespace mpctrans::txsync

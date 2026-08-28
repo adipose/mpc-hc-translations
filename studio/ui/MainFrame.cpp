@@ -43,6 +43,7 @@ using namespace mpctrans;
 #define WM_APP_EXPORT_PROGRESS   (WM_APP + 14)  // background whole-language AI-prep export progress
 #define WM_APP_EXPORT_DONE       (WM_APP + 15)  // background whole-language AI-prep export completed
 #define WM_APP_DATA_UPDATE_DONE  (WM_APP + 16)  // background "Check for data updates" completed
+#define WM_APP_SYNCFIT_DONE      (WM_APP + 17)  // background Sync-review cross-language fit scan completed
 
 // The prompt's version tag, stored alongside every generated suggestion (suggestion_store's
 // prompt_version column) — bump this if AiSystemPrompt()/BuildAiUserPromptCore's rules change so old
@@ -312,7 +313,10 @@ BEGIN_MESSAGE_MAP(MainFrame, CFrameWnd)
     ON_MESSAGE(WM_APP_EXPORT_PROGRESS, OnExportProgress)
     ON_MESSAGE(WM_APP_EXPORT_DONE, OnExportDone)
     ON_MESSAGE(WM_APP_DATA_UPDATE_DONE, OnDataUpdateDone)
+    ON_MESSAGE(WM_APP_SYNCFIT_DONE, OnSyncFitDone)
     ON_BN_CLICKED(IDC_BTN_DISMISS, OnDismissClicked)
+    ON_BN_CLICKED(IDC_SYNC_FIT_FILTER, OnSyncFitFilterToggled)
+    ON_BN_CLICKED(IDC_SYNC_TREE_FILTER, OnSyncTreeFilterToggled)
     ON_WM_COPYDATA()
 END_MESSAGE_MAP()
 
@@ -384,6 +388,18 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_btnDismiss.SetFont(&m_font);
     m_btnDismiss.EnableWindow(FALSE);
     m_btnDismiss.ShowWindow(SW_HIDE);
+    // "Show only strings that don't fit" — Sync review tab only; a cross-language reviewer can't judge
+    // translation correctness, only layout fit (see EnsureSyncFitScan).
+    m_chkSyncFit.Create(L"Show only strings that don't fit",
+                        ST | WS_TABSTOP | BS_AUTOCHECKBOX, z, this, IDC_SYNC_FIT_FILTER);
+    m_chkSyncFit.SetFont(&m_font);
+    m_chkSyncFit.ShowWindow(SW_HIDE);
+    // "Show only Options-tree mismatches" — Sync review tab only; stacks below "Show only strings that
+    // don't fit" (see Layout()).
+    m_chkSyncTree.Create(L"Show only Options-tree mismatches",
+                        ST | WS_TABSTOP | BS_AUTOCHECKBOX, z, this, IDC_SYNC_TREE_FILTER);
+    m_chkSyncTree.SetFont(&m_font);
+    m_chkSyncTree.ShowWindow(SW_HIDE);
     m_menuTree.Create(WS_CHILD | WS_BORDER | WS_TABSTOP | TVS_HASBUTTONS | TVS_HASLINES |
                       TVS_LINESATROOT | TVS_SHOWSELALWAYS, z, this, IDC_MENU_TREE);
     // The menu-bar preview is an OWNED popup (owner = this frame) positioned over the top of the
@@ -429,6 +445,7 @@ void MainFrame::OnDestroy() {
     if (m_dataUpdateThread.joinable()) m_dataUpdateThread.join();   // a data-update check/apply in flight
     if (m_fitThread.joinable()) { m_fitCancel = true; m_fitThread.join(); }   // a fit scan in flight
                                   // (no mid-loop cancel check -- blocks until the current dialog finishes)
+    if (m_syncFitThread.joinable()) m_syncFitThread.join();   // a Sync-review fit scan in flight
     if (m_genThread.joinable()) { m_genCancel = true; JoinGenThreadPumping(m_genThread); }
                                   // a bulk generation in flight -- pumping join (NOT a plain join()):
                                   // the M4 ALL-languages worker may be mid per-language handoff, blocked
@@ -457,11 +474,21 @@ void MainFrame::Layout() {
     m_progress.MoveWindow(sx, S(20), S(320), S(12));   // fixed, modest width under the text
     m_tabs.MoveWindow(0, top, W, tabs);
     int y = top + tabs + S(2), h = H - y;
-    m_list.MoveWindow(0, y, left, h);
     int cx = left + S(6), cw = W - right - cx - S(6);
     int tab = m_tabs.GetCurSel();
     bool dlgTab = tab == RES_DIALOGS, menuTab = tab == RES_MENUS, untransTab = tab == RES_UNTRANS,
          strTab = tab == RES_STRINGS, reviewTab = tab == RES_REVIEW, syncTab = tab == RES_SYNC;
+    // Sync review tab: a checkbox strip above the list ("Show only strings that don't fit" +
+    // "Show only Options-tree mismatches", stacked).
+    int listY = y, listH = h;
+    if (syncTab) {
+        m_chkSyncFit.MoveWindow(M, y, left - 2 * M, S(20));
+        m_chkSyncTree.MoveWindow(M, y + S(22), left - 2 * M, S(20));
+        listY = y + S(46); listH = h - S(46);
+    }
+    m_chkSyncFit.ShowWindow(syncTab ? SW_SHOW : SW_HIDE);
+    m_chkSyncTree.ShowWindow(syncTab ? SW_SHOW : SW_HIDE);
+    m_list.MoveWindow(0, listY, left, listH);
     bool previewTab = dlgTab || untransTab || strTab || reviewTab || syncTab;   // tabs that render a string preview / mock-up
     const int resH = S(150), resGap = S(6);             // research write-up under the render
     // the picker combo serves both Dialogs (dialog list) and Menus (menu-resource list)
@@ -1056,29 +1083,50 @@ void MainFrame::PopulateList() {
         // text (RowText's col==3 already returns row.evidence for every tab); `lang`/`syncDecisionIdx`
         // are RES_SYNC-only (see Row's comment).
         if (m_txSync) {
-            std::vector<size_t> idxs;
-            for (size_t i = 0; i < m_txSync->decisions.size(); ++i)
-                if (m_txSync->decisions[i].kind != txsync::TxDecision::Protected) idxs.push_back(i);
-            std::sort(idxs.begin(), idxs.end(), [this](size_t a, size_t b) {
-                const auto& da = m_txSync->decisions[a]; const auto& db = m_txSync->decisions[b];
-                if (da.lang != db.lang) return da.lang < db.lang;
-                if (da.res != db.res) return da.res < db.res;
-                return da.msgctxt < db.msgctxt;
-            });
-            for (size_t i : idxs) {
-                const auto& d = m_txSync->decisions[i];
-                Row row{ d.msgctxt, d.msgid, d.res };
-                row.lang = d.lang;
-                row.syncDecisionIdx = (int)i;
-                if (d.kind == txsync::TxDecision::TxNew) {
-                    row.evidence = L"New";
-                } else if (d.kind == txsync::TxDecision::TxWins) {
-                    row.evidence = L"Conflict: '" + CString(CA2W(d.upstreamStr.c_str(), CP_UTF8)) +
-                                   L"' \x2192 '" + CString(CA2W(d.txStr.c_str(), CP_UTF8)) + L"'";
-                } else {   // Discarded
-                    row.evidence = L"Discarded: bad placeholders";
+            if (m_syncFitFilter && !m_syncFitScanned) EnsureSyncFitScan();
+            bool anyFilter = m_syncFitFilter || m_treeFilter;
+            if (m_treeFilter) {
+                EnsureCatMismatch();
+                for (const auto& m : m_catMismatch) {
+                    Row row{ m.finding.msgctxt, m.finding.msgid, RES_STRINGS };
+                    row.lang = m.lang;
+                    row.evidence = CString(CA2W(m.finding.message.c_str(), CP_UTF8));
+                    row.catValue = CString(CA2W(m.finding.translated.c_str(), CP_UTF8));
+                    row.hasCatValue = true;
+                    m_rows.push_back(std::move(row));
                 }
-                m_rows.push_back(std::move(row));
+            }
+            if (m_syncFitFilter || !anyFilter) {
+                std::vector<size_t> idxs;
+                for (size_t i = 0; i < m_txSync->decisions.size(); ++i)
+                    if (m_txSync->decisions[i].kind != txsync::TxDecision::Protected) idxs.push_back(i);
+                std::sort(idxs.begin(), idxs.end(), [this](size_t a, size_t b) {
+                    const auto& da = m_txSync->decisions[a]; const auto& db = m_txSync->decisions[b];
+                    if (da.lang != db.lang) return da.lang < db.lang;
+                    if (da.res != db.res) return da.res < db.res;
+                    return da.msgctxt < db.msgctxt;
+                });
+                for (size_t i : idxs) {
+                    const auto& d = m_txSync->decisions[i];
+                    // "Show only strings that don't fit": fit only applies to DIALOG strings (res==0); a
+                    // cross-language reviewer can't judge translation correctness, only layout fit.
+                    if (m_syncFitFilter) {
+                        if (d.res != 0) continue;
+                        if (m_syncFitBad.count(d.lang + "\x1f" + d.msgctxt + "\x1f" + d.msgid) == 0) continue;
+                    }
+                    Row row{ d.msgctxt, d.msgid, d.res };
+                    row.lang = d.lang;
+                    row.syncDecisionIdx = (int)i;
+                    if (d.kind == txsync::TxDecision::TxNew) {
+                        row.evidence = L"New";
+                    } else if (d.kind == txsync::TxDecision::TxWins) {
+                        row.evidence = L"Conflict: '" + CString(CA2W(d.upstreamStr.c_str(), CP_UTF8)) +
+                                       L"' \x2192 '" + CString(CA2W(d.txStr.c_str(), CP_UTF8)) + L"'";
+                    } else {   // Discarded
+                        row.evidence = L"Discarded: bad placeholders";
+                    }
+                    m_rows.push_back(std::move(row));
+                }
             }
         }
     } else {   // RES_STRINGS = every string; RES_UNTRANS = empty translations (+ ones you just filled,
@@ -1101,7 +1149,15 @@ void MainFrame::PopulateList() {
         SetStatus(s);
     } else if (tab == RES_SYNC) {
         if (!m_txSync) SetStatus(L"Run File > Transifex sync first.");
-        else {
+        else if (m_syncFitFilter && (m_syncFitRunning || !m_syncFitScanned)) {
+            SetStatus(L"Computing fit for sync review\x2026");
+        } else if (m_treeFilter) {
+            CString s; s.Format(L"Sync review: %zu Options-tree mismatch(es).", m_catMismatch.size());
+            SetStatus(s);
+        } else if (m_syncFitFilter) {
+            CString s; s.Format(L"Sync review: %zu string(s) that don't fit.", m_rows.size());
+            SetStatus(s);
+        } else {
             CString s; s.Format(L"Sync review: %zu changed string(s) across all languages.", m_rows.size());
             SetStatus(s);
         }
@@ -1117,13 +1173,14 @@ CString MainFrame::RowText(int i, int col) {
         // context with it ("ja  ·  IDD_...") rather than a separate Lang column (a reordered
         // SetColumnOrderArray column mis-painted under this list's owner-draw at some DPIs). Every
         // other tab is single-language, so no prefix.
-        if (row.syncDecisionIdx >= 0 && !row.lang.empty())
+        if (!row.lang.empty())
             return CString(CA2W(row.lang.c_str(), CP_UTF8)) + L"  \x00b7  " +
                    CString(CA2W(row.msgctxt.c_str(), CP_UTF8));
         return CA2W(row.msgctxt.c_str(), CP_UTF8);
     }
     if (col == 1) return CA2W(row.msgid.c_str(), CP_UTF8);
     if (col == 3) return row.evidence;
+    if (row.hasCatValue) return row.catValue;
     // RES_SYNC's Translation column is the sync decision's MERGED value (txStr for TxNew/TxWins,
     // upstreamStr for Discarded) -- a snapshot from the last Transifex sync run, not a live lookup in
     // m_po (which holds only the CURRENTLY LOADED language, whereas sync rows span every language).
@@ -1679,6 +1736,9 @@ void MainFrame::NavigateToString(const CString& lang, const std::string& msgctxt
 // the (modal) dialog closing, feeding the "Sync review" tab and "Propose Transifex sync PR...".
 void MainFrame::SetTxSyncResult(const txsync::TxSyncResult& result, const std::string& owner,
                                 const std::string& repo, const std::string& branch) {
+    if (m_syncFitThread.joinable()) m_syncFitThread.join();   // a PREVIOUS result's fit scan finished
+    m_syncFitScanned = false; m_syncFitRunning = false; m_syncFitBad.clear();   // stale cache -> invalidate
+    m_catScanned = false; m_catMismatch.clear();
     m_txSync = result;
     m_txSyncOwner = owner; m_txSyncRepo = repo; m_txSyncBranch = branch;
     if (m_tabs.GetCurSel() == RES_SYNC) PopulateList();   // live-refresh if already on the tab
@@ -3229,6 +3289,123 @@ LRESULT MainFrame::OnFitScanDone(WPARAM wp, LPARAM) {
     return 0;
 }
 
+// Sync review tab: "Show only strings that don't fit". Unlike EnsureFitScan (one language, m_lang's
+// live m_po), this scans EVERY language present in m_txSync's dialog (res==0) decisions: each
+// decision's MERGED translation (txStr for TxNew/TxWins, upstreamStr for Discarded — mirrors
+// PopulateList's RES_SYNC row text) is overlaid onto that language's SNAPSHOTTED upstream dialogs.po
+// bytes (m_txSync->upstreamPoBytes), then rendered/measured off-screen exactly like EnsureFitScan's
+// worker. Only dialog strings can ever fail this filter (menu/string-table rows have no layout to
+// measure), so non-dialog decisions are skipped entirely.
+void MainFrame::EnsureSyncFitScan() {
+    if (!m_txSync || m_syncFitScanned || m_syncFitRunning) return;
+    if (m_syncFitThread.joinable()) m_syncFitThread.join();   // a PREVIOUS m_txSync's scan finished
+    m_syncFitRunning = true;
+    SetStatus(L"Computing fit for sync review\x2026");
+
+    // Snapshot everything the worker needs by VALUE — see EnsureFitScan's comment for why (it must
+    // never touch `this`/MainFrame members after this point).
+    struct SyncFitWorkItem { std::string lang, msgctxt, msgid, merged; };
+    std::vector<SyncFitWorkItem> work;
+    for (const auto& d : m_txSync->decisions) {
+        if (d.kind == txsync::TxDecision::Protected) continue;   // never applied; TxSyncDlg reviews these
+        if (d.res != 0) continue;                                 // fit only applies to dialog strings
+        const std::string& merged = (d.kind == txsync::TxDecision::Discarded) ? d.upstreamStr : d.txStr;
+        work.push_back({ d.lang, d.msgctxt, d.msgid, merged });
+    }
+    std::map<std::string, std::string> poBytesByLang;   // lang -> its dialogs.po snapshot (only if fetched)
+    for (const auto& w : work) {
+        if (poBytesByLang.count(w.lang)) continue;
+        std::string path = std::string(config::PO_DIR) + "/mpc-hc." + w.lang + "." +
+                           std::string(config::RESOURCES[0]) + ".po";   // RES_DIALOGS
+        auto it = m_txSync->upstreamPoBytes.find(path);
+        if (it != m_txSync->upstreamPoBytes.end()) poBytesByLang[w.lang] = it->second;
+    }
+    ControlIndex idxCopy = Idx();
+    std::vector<RcDialog> rcCopy = m_preview.RcDialogs();
+    bool useRcCopy = m_preview.UsingRc();
+    CString neutralDll = m_bundle.neutral_dll;
+    HWND hwnd = GetSafeHwnd();
+
+    m_syncFitThread = std::thread([hwnd, idxCopy, rcCopy, useRcCopy, neutralDll,
+                                   work = std::move(work), poBytesByLang = std::move(poBytesByLang)]() {
+        std::map<std::string, long long> ctx2dlg;   // language-independent: msgctxt -> owning dialog id
+        for (const auto& r : idxCopy.dialogs()) ctx2dlg[r.msgctxt] = r.dialog;
+
+        std::map<std::string, std::vector<const SyncFitWorkItem*>> byLang;
+        for (const auto& w : work) byLang[w.lang].push_back(&w);
+
+        auto* bad = new std::set<std::string>;
+        for (const auto& [lang, items] : byLang) {
+            auto pbIt = poBytesByLang.find(lang);
+            if (pbIt == poBytesByLang.end()) continue;   // no upstream snapshot for this language -- skip
+
+            PoFile po = PoFile::parse_bytes(pbIt->second);
+            std::set<std::pair<std::string, std::string>> decisionKeys;
+            std::set<long long> dialogIds;
+            for (const auto* w : items) {
+                decisionKeys.insert({ w->msgctxt, w->msgid });
+                for (auto& e : po.entries)   // overlay this decision's MERGED value onto the snapshot
+                    if (e.msgctxt == w->msgctxt && e.msgid == w->msgid) { e.msgstr = w->merged; break; }
+                if (auto dit = ctx2dlg.find(w->msgctxt); dit != ctx2dlg.end()) dialogIds.insert(dit->second);
+            }
+            if (dialogIds.empty()) continue;
+
+            CWnd host;
+            host.CreateEx(0, AfxRegisterWndClass(0, nullptr, nullptr, nullptr), L"",
+                         WS_POPUP, 0, 0, 10, 10, nullptr, nullptr);
+            LivePreview lp;
+            lp.LoadNeutralDll(neutralDll);
+            lp.SetTargetLang(CString(CA2W(lang.c_str(), CP_UTF8)));
+            if (useRcCopy && !rcCopy.empty()) lp.SetRcDialogs(rcCopy);
+
+            for (long long dialogId : dialogIds) {
+                HWND dlg = lp.RenderDialog(dialogId, &host, idxCopy, po);
+                if (dlg) {
+                    std::vector<ReviewFlag> flags;
+                    AppendFitFlags(flags, dialogId, lp.MeasureFit(dlg, dialogId, idxCopy));
+                    for (auto& f : flags)
+                        if (decisionKeys.count({ f.msgctxt, f.msgid }))
+                            bad->insert(lang + "\x1f" + f.msgctxt + "\x1f" + f.msgid);
+                    lp.DestroyPreview();
+                }
+            }
+        }
+        if (!::PostMessage(hwnd, WM_APP_SYNCFIT_DONE, (WPARAM)bad, 0)) delete bad;
+    });
+}
+
+// UI thread: install the sync-fit scan result; refresh the Sync review tab if it's showing right now.
+LRESULT MainFrame::OnSyncFitDone(WPARAM wp, LPARAM) {
+    std::unique_ptr<std::set<std::string>> bad((std::set<std::string>*)wp);
+    if (m_syncFitThread.joinable()) m_syncFitThread.join();
+    m_syncFitRunning = false;
+    m_syncFitBad = std::move(*bad);
+    m_syncFitScanned = true;
+    if (m_tabs.GetCurSel() == RES_SYNC) PopulateList();
+    return 0;
+}
+
+// "Show only strings that don't fit" checkbox — Sync review tab only.
+void MainFrame::OnSyncFitFilterToggled() {
+    m_syncFitFilter = (m_chkSyncFit.GetCheck() == BST_CHECKED);
+    if (m_syncFitFilter) EnsureSyncFitScan();
+    if (m_tabs.GetCurSel() == RES_SYNC) PopulateList();
+}
+
+// Synchronous — analysis is pure/fast, NO thread (unlike EnsureSyncFitScan, which off-screen renders).
+void MainFrame::EnsureCatMismatch() {
+    if (!m_txSync || m_catScanned) return;
+    m_catMismatch = txsync::find_category_mismatches(*m_txSync);
+    m_catScanned = true;
+}
+
+// "Show only Options-tree mismatches" checkbox — Sync review tab only.
+void MainFrame::OnSyncTreeFilterToggled() {
+    m_treeFilter = (m_chkSyncTree.GetCheck() == BST_CHECKED);
+    if (m_treeFilter) EnsureCatMismatch();
+    if (m_tabs.GetCurSel() == RES_SYNC) PopulateList();
+}
+
 // Synchronous, UI-thread, single-dialog re-measure (post-edit) — uses the already-loaded m_preview /
 // Idx() / m_po[RES_DIALOGS], no thread/snapshot needed. Replaces this dialog's slice of the cache.
 void MainFrame::RecomputeFitForDialog(long long dialogId) {
@@ -3379,63 +3556,16 @@ void MainFrame::PopulateReviewRows() {
     // -- Options tree category consistency (RES_STRINGS only): a property-page title (IDD_PPAGE* etc.)
     // is a STRING-table entry whose msgctxt is the BARE dialog symbol and whose msgid/msgstr use "::"
     // to separate the Options tree CATEGORY from the page name ("Player::General"). Every page sharing
-    // an English category must translate that prefix IDENTICALLY, or the built player's Options tree
-    // splits into multiple branches for the same category. --
-    {
-        auto isBareDialogSymbol = [](const std::string& ctx) {
-            if (ctx.rfind("IDD_", 0) != 0 || ctx.size() <= 4) return false;
-            for (size_t i = 4; i < ctx.size(); ++i) {
-                char c = ctx[i];
-                if (!((c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9'))) return false;
-            }
-            return true;
-        };
-        struct CatEntry { std::string msgctxt, msgid, englishCat, gotCat; };
-        std::vector<CatEntry> withCat;   // msgstr HAS "::" -- category successfully split off
-        for (const auto& e : m_po[RES_STRINGS].entries) {
-            if (e.msgstr.empty() || dismissed(e.msgctxt, e.msgid)) continue;
-            if (!isBareDialogSymbol(e.msgctxt)) continue;
-            size_t sep = e.msgid.find("::");
-            if (sep == std::string::npos) continue;   // not a page-title entry
-            std::string englishCat = e.msgid.substr(0, sep);
-            size_t gotSep = e.msgstr.find("::");
-            if (gotSep == std::string::npos) {
-                Row row{ e.msgctxt, e.msgid, RES_STRINGS };
-                row.flag = Row::Flag::Category;
-                row.evidence.Format(L"the \"::\" category separator is missing (the Options tree needs "
-                                     L"\"%s::<page>\")", (LPCWSTR)CString(CA2W(englishCat.c_str(), CP_UTF8)));
-                category.push_back(row);
-                continue;
-            }
-            withCat.push_back({ e.msgctxt, e.msgid, englishCat, e.msgstr.substr(0, gotSep) });
-        }
-        // Group by English category; flag every entry in a group whose translated categories disagree.
-        std::map<std::string, std::vector<size_t>> byEnglishCat;   // englishCat -> indices into withCat
-        for (size_t i = 0; i < withCat.size(); ++i) byEnglishCat[withCat[i].englishCat].push_back(i);
-        for (const auto& [englishCat, idxs] : byEnglishCat) {
-            std::vector<std::string> variants;   // distinct translated categories, first-seen order
-            for (size_t i : idxs) {
-                const std::string& got = withCat[i].gotCat;
-                if (std::find(variants.begin(), variants.end(), got) == variants.end())
-                    variants.push_back(got);
-            }
-            if (variants.size() <= 1) continue;   // this language agrees -- nothing to flag
-            CString variantList;
-            for (size_t v = 0; v < variants.size(); ++v) {
-                if (v) variantList += L" / ";
-                variantList += L"\"" + CString(CA2W(variants[v].c_str(), CP_UTF8)) + L"\"";
-            }
-            CString evidence;
-            evidence.Format(L"category \"%s\" is translated %zu different ways here: %s",
-                             (LPCWSTR)CString(CA2W(englishCat.c_str(), CP_UTF8)), variants.size(),
-                             (LPCWSTR)variantList);
-            for (size_t i : idxs) {
-                Row row{ withCat[i].msgctxt, withCat[i].msgid, RES_STRINGS };
-                row.flag = Row::Flag::Category;
-                row.evidence = evidence;
-                category.push_back(row);
-            }
-        }
+    // an English category must translate that prefix IDENTICALLY (else the Options tree splits into
+    // multiple branches for the same category), and no two DIFFERENT English categories may translate
+    // to the SAME parent (else their branches merge / a node goes missing). Shared with the Sync review
+    // tab's tree-mismatch filter and the propose/update-branch blocking gate -- see validate.h. --
+    for (const auto& f : validate::analyze_category_tree(m_po[RES_STRINGS])) {
+        if (dismissed(f.msgctxt, f.msgid)) continue;
+        Row row{ f.msgctxt, f.msgid, RES_STRINGS };
+        row.flag = Row::Flag::Category;
+        row.evidence = CString(CA2W(f.message.c_str(), CP_UTF8));
+        category.push_back(row);
     }
     // -- fit, from cache (may be empty/not-yet-computed; EnsureFitScan already kicked off elsewhere —
     //    this function must not itself block or start scans) --
@@ -4804,6 +4934,35 @@ void MainFrame::OnProposeTxSyncPr() {
         std::string spliced = PoFile::splice(base, poEdits, "Transifex sync review (Studio)");
         if (editIt != edits.end()) editIt->content = spliced;
         else if (spliced != base) edits.push_back({ path, spliced });
+    }
+
+    {
+        std::vector<txsync::CategoryMismatch> mism;
+        for (const auto& e : edits) {
+            const std::string& p = e.repo_path;
+            const std::string suf = ".strings.po";
+            if (p.size() < suf.size() || p.compare(p.size()-suf.size(), suf.size(), suf) != 0) continue;
+            // lang between "mpc-hc." and ".strings.po"
+            size_t a = p.rfind("mpc-hc."); if (a==std::string::npos) continue; a += 7;
+            size_t b = p.rfind(".strings.po");
+            std::string lang = p.substr(a, b-a);
+            PoFile po = PoFile::parse_bytes(e.content);
+            for (auto& f : validate::analyze_category_tree(po)) mism.push_back({ lang, f });
+        }
+        if (!mism.empty()) {
+            CString rep = L"This sync can't be proposed — the Options tree would break (missing / merged "
+                          L"nodes). Fix these in the translation source, then re-run:\n";
+            int shown = 0;
+            for (const auto& m : mism) {
+                if (shown++ >= 25) { rep += L"\n…and more."; break; }
+                rep += L"\n• " + CString(CA2W(m.lang.c_str(), CP_UTF8)) + L"  " +
+                       CString(CA2W(m.finding.msgctxt.c_str(), CP_UTF8)) + L": " +
+                       CString(CA2W(m.finding.message.c_str(), CP_UTF8));
+            }
+            rep += L"\n\nUse the \"Show only Options-tree mismatches\" filter on the Sync review tab to inspect them.";
+            MessageBox(rep, L"Cannot propose — Options-tree mismatch", MB_ICONERROR);
+            return;
+        }
     }
 
     if (edits.empty()) {

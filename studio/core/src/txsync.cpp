@@ -4,6 +4,7 @@
 #include "mpctrans/po.h"
 #include "mpctrans/validate.h"
 
+#include <algorithm>
 #include <atomic>
 #include <mutex>
 #include <thread>
@@ -124,6 +125,39 @@ std::vector<github::FileEdit> tx_build_edits(const std::map<std::string, std::st
         std::string spliced = PoFile::splice(it->second, edits, kTranslatorCredit);
         if (spliced != it->second) out.push_back({ path, spliced });
     }
+    return out;
+}
+
+std::vector<CategoryMismatch> find_category_mismatches(const TxSyncResult& result) {
+    std::vector<CategoryMismatch> out;
+
+    // group non-Protected STRINGS (res==2) decisions by lang, preserving first-seen language order.
+    std::map<std::string, std::vector<const TxDecision*>> byLang;
+    std::vector<std::string> langOrder;
+    for (const auto& d : result.decisions) {
+        if (d.res != 2 || d.kind == TxDecision::Protected) continue;
+        auto& v = byLang[d.lang];
+        if (v.empty() && std::find(langOrder.begin(), langOrder.end(), d.lang) == langOrder.end())
+            langOrder.push_back(d.lang);
+        v.push_back(&d);
+    }
+
+    for (const auto& lang : langOrder) {
+        std::string path = std::string(cfg::PO_DIR) + "/mpc-hc." + lang + "." + cfg::RESOURCES[2] + ".po";
+        auto it = result.upstreamPoBytes.find(path);
+        if (it == result.upstreamPoBytes.end()) continue;
+
+        PoFile po = PoFile::parse_bytes(it->second);
+        for (const auto* d : byLang[lang]) {
+            const std::string& merged = (d->kind == TxDecision::Discarded) ? d->upstreamStr : d->txStr;
+            for (auto& e : po.entries) {
+                if (e.msgctxt == d->msgctxt && e.msgid == d->msgid) { e.msgstr = merged; break; }
+            }
+        }
+        for (auto& f : validate::analyze_category_tree(po))
+            out.push_back({ lang, f });
+    }
+
     return out;
 }
 

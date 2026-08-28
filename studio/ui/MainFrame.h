@@ -253,6 +253,9 @@ protected:
     afx_msg void OnTransifexSync();                            // File > Transifex sync... -> TxSyncDlg
     afx_msg void OnProposeTxSyncPr();                           // File > Propose Transifex sync PR...
     afx_msg void OnUpdateTxSyncPr(CCmdUI* pCmdUI);              // enabled only once m_txSync is set
+    afx_msg LRESULT OnSyncFitDone(WPARAM, LPARAM);              // background Sync-review cross-language fit scan completed
+    afx_msg void OnSyncFitFilterToggled();                      // "Show only strings that don't fit" checkbox — Sync review tab
+    afx_msg void OnSyncTreeFilterToggled();                     // "Show only Options-tree mismatches" checkbox — Sync review tab
     DECLARE_MESSAGE_MAP()
 
 private:
@@ -273,6 +276,9 @@ private:
         // SelectRow's language-switch re-selection matches on this after a repopulate.
         std::string lang;
         int syncDecisionIdx = -1;
+        // RES_SYNC tree-filter rows only: an Options-tree CategoryFinding has no sync decision index
+        // (it isn't a decision at all), so its translation text is carried directly on the row.
+        CString catValue; bool hasCatValue = false;
     };
     // Per-language cache entry the fit worker produces and PopulateReviewRows() reads; kept separate
     // from Row because Row is transient/tab-specific while this persists across tab switches.
@@ -310,6 +316,8 @@ private:
     void ReloadFrameMenu();                         // rebuild the File/View menu for the current theme
     void PopulateList();
     void EnsureFitScan();                 // kick off the background scan for m_lang if not cached
+    void EnsureSyncFitScan();             // background cross-language fit scan over m_txSync's dialog decisions
+    void EnsureCatMismatch();             // synchronous Options-tree consistency scan over m_txSync (pure/fast)
     void PopulateReviewRows();             // build m_rows for tab==RES_REVIEW from validate:: + m_fitCache
     void RecomputeFitForDialog(long long dialogId);  // synchronous, single-dialog re-measure (post-edit)
     void RefreshListRow(int item);
@@ -571,6 +579,26 @@ private:
     bool               m_fitScanRunning = false;
     int                m_fitScanDone = 0, m_fitScanTotal = 0;          // progress
     std::set<std::tuple<std::wstring, std::string, std::string>> m_dismissed;  // (lang, ctx, msgid)
+
+    // Sync review tab: "Show only strings that don't fit" — a background cross-language fit scan over
+    // m_txSync's dialog (res==0) decisions, overlaying each decision's MERGED translation onto its
+    // language's upstream .po bytes (from m_txSync->upstreamPoBytes) and off-screen-rendering/measuring
+    // exactly like EnsureFitScan, but across every language in the sync result rather than just m_lang.
+    CButton m_chkSyncFit;              // "Show only strings that don't fit" — Sync review tab only
+    bool m_syncFitFilter = false;      // checkbox state
+    bool m_syncFitScanned = false;     // scan completed for the current m_txSync
+    bool m_syncFitRunning = false;
+    std::set<std::string> m_syncFitBad; // composite keys "<lang>\x1f<msgctxt>\x1f<msgid>" that DON'T fit (dialogs only)
+    std::thread m_syncFitThread;
+
+    // Sync review tab: "Show only Options-tree mismatches" — flags a translated property-page title
+    // whose Options-tree parent disagrees with its siblings or collides with a different category's
+    // parent (see validate::analyze_category_tree / txsync::find_category_mismatches). Synchronous —
+    // the analysis is pure/fast over already-fetched .po bytes, no background thread needed.
+    CButton m_chkSyncTree;                              // "Show only Options-tree mismatches" — Sync tab
+    bool m_treeFilter = false;
+    bool m_catScanned = false;                          // m_catMismatch computed for current m_txSync
+    std::vector<mpctrans::txsync::CategoryMismatch> m_catMismatch;
 
     // Research corrections ("Suggest fix…", see SuggestFixDlg + mpctrans::corrections). A per-session
     // overlay so an accepted correction shows immediately in ShowResearch/SelectRow without waiting on

@@ -6,6 +6,8 @@
 #include "MainFrame.h"
 #include "mpctrans/config.h"
 #include "mpctrans/github.h"
+#include "mpctrans/po.h"
+#include "mpctrans/validate.h"
 
 #include <algorithm>
 #include <commctrl.h>
@@ -533,6 +535,35 @@ void TxSyncDlg::OnUpdateBranchClicked() {
     if (!m_haveResult) return;
     std::vector<github::FileEdit> edits = txsync::tx_build_edits(m_result.upstreamPoBytes, m_result);
     if (edits.empty()) { AfxMessageBox(L"No changes selected to apply.", MB_ICONINFORMATION); return; }
+
+    {
+        std::vector<txsync::CategoryMismatch> mism;
+        for (const auto& e : edits) {
+            const std::string& p = e.repo_path;
+            const std::string suf = ".strings.po";
+            if (p.size() < suf.size() || p.compare(p.size()-suf.size(), suf.size(), suf) != 0) continue;
+            // lang between "mpc-hc." and ".strings.po"
+            size_t a = p.rfind("mpc-hc."); if (a==std::string::npos) continue; a += 7;
+            size_t b = p.rfind(".strings.po");
+            std::string lang = p.substr(a, b-a);
+            PoFile po = PoFile::parse_bytes(e.content);
+            for (auto& f : validate::analyze_category_tree(po)) mism.push_back({ lang, f });
+        }
+        if (!mism.empty()) {
+            CString rep = L"This branch can't be updated — the Options tree would break (missing / merged "
+                          L"nodes). Fix these in the translation source, then re-run:\n";
+            int shown = 0;
+            for (const auto& m : mism) {
+                if (shown++ >= 25) { rep += L"\n…and more."; break; }
+                rep += L"\n• " + CString(CA2W(m.lang.c_str(), CP_UTF8)) + L"  " +
+                       CString(CA2W(m.finding.msgctxt.c_str(), CP_UTF8)) + L": " +
+                       CString(CA2W(m.finding.message.c_str(), CP_UTF8));
+            }
+            rep += L"\n\nUse the \"Show only Options-tree mismatches\" filter on the Sync review tab to inspect them.";
+            MessageBox(rep, L"Cannot update branch — Options-tree mismatch", MB_ICONERROR);
+            return;
+        }
+    }
 
     // m_txOwner/m_txRepo/m_txBranch, not the live combo selection -- see their comment in TxSyncDlg.h:
     // this must match what m_result was actually computed against.

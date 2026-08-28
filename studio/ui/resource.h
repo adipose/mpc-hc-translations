@@ -39,6 +39,8 @@
 #define IDC_BTN_SUGGESTFIX   1014
 #define IDC_BTN_DISMISS      1015
 #define IDC_BTN_MENU_PREVIEW 1016
+#define IDC_SYNC_FIT_FILTER  1017
+#define IDC_SYNC_TREE_FILTER 1018
 
 // "Suggest a correction" modal (SuggestFixDlg) — an empty DIALOGEX template (Studio.rc); every
 // control is created programmatically in OnInitDialog, same style as EditPanel.

@@ -64,4 +64,20 @@ bool has_error(const std::vector<Finding>&);
 // Inline warnings for the edit panel: run per-entry rules on the string currently being edited.
 std::vector<Finding> check_entry(const std::string& ctx, const std::string& msgid, const std::string& msgstr);
 
+enum class CatDefect { MissingSeparator, Disagreement, Collision };
+struct CategoryFinding {
+    std::string msgctxt, msgid;
+    CatDefect defect;
+    std::string message;     // human-readable evidence
+    std::string translated;  // the entry's full msgstr (for display)
+};
+// Options-tree consistency over a language's STRINGS .po. A property-page title is a string-table
+// entry whose msgctxt is a BARE dialog symbol (IDD_ + [A-Z0-9]*) and whose msgid is the English tree
+// path. Each becomes a tree node: parent = msgid before "::" (or the whole msgid for a standalone
+// top-level page like "External Filters"); the translated parent is msgstr before "::" (or the whole
+// msgstr). Flags: MissingSeparator (msgid has "::" but msgstr doesn't), Disagreement (one English
+// parent -> several translated parents; branch splits), Collision (one translated parent <- several
+// English parents; branches merge / a node goes missing).
+std::vector<CategoryFinding> analyze_category_tree(const PoFile& strings);
+
 } // namespace mpctrans::validate
