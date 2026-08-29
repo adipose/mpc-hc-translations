@@ -94,6 +94,7 @@ BEGIN_MESSAGE_MAP(TxSyncDlg, CDialog)
     ON_NOTIFY(LVN_ITEMCHANGED, IDC_TXSYNC_LIST, OnListItemChanged)
     ON_BN_CLICKED(IDC_TXSYNC_BTN_UPDATE, OnUpdateBranchClicked)
     ON_BN_CLICKED(IDC_TXSYNC_BTN_PR, OnProposePrClicked)
+    ON_BN_CLICKED(IDC_TXSYNC_BTN_REFRESH, OnRefreshPrClicked)
     ON_CBN_SELCHANGE(IDC_TXSYNC_FORK, OnForkChanged)
     ON_CBN_SELCHANGE(IDC_TXSYNC_BRANCH, OnBranchChanged)
     ON_MESSAGE(WM_APP_TXSYNC_PROGRESS, OnComputeProgress)
@@ -163,13 +164,15 @@ BOOL TxSyncDlg::OnInitDialog() {
 
     m_btnUpdateBranch.Create(L"Update Transifex branch", ST | WS_TABSTOP, z, this, IDC_TXSYNC_BTN_UPDATE);
     m_btnProposePr.Create(L"Propose upstream PR…", ST | WS_TABSTOP, z, this, IDC_TXSYNC_BTN_PR);
+    m_btnRefreshPr.Create(L"Refresh open PR…", ST | WS_TABSTOP, z, this, IDC_TXSYNC_BTN_REFRESH);
     m_btnClose.Create(L"Close", ST | WS_TABSTOP | BS_DEFPUSHBUTTON, z, this, IDCANCEL);
     m_btnUpdateBranch.EnableWindow(FALSE);   // enabled once the background compute lands (OnComputeDone)
     m_btnProposePr.EnableWindow(FALSE);
+    m_btnRefreshPr.EnableWindow(FALSE);
 
     for (CWnd* w : std::initializer_list<CWnd*>{ &m_status, &m_lblFork, &m_forkCombo, &m_lblBranch,
              &m_branchCombo, &m_progressText, &m_showProtected, &m_btnUpdateBranch, &m_btnProposePr,
-             &m_btnClose })
+             &m_btnRefreshPr, &m_btnClose })
         w->SetFont(&m_font);
     m_list.SetFont(&m_font);
     Theme::ApplyToChildren(GetSafeHwnd());
@@ -259,6 +262,7 @@ void TxSyncDlg::Layout() {
     m_btnClose.MoveWindow(rc.Width() - M - btnW, by, btnW, btnH);
     m_btnProposePr.MoveWindow(rc.Width() - M - 2 * btnW - S(8), by, btnW, btnH);
     m_btnUpdateBranch.MoveWindow(rc.Width() - M - 3 * btnW - S(16), by, btnW, btnH);
+    m_btnRefreshPr.MoveWindow(rc.Width() - M - 4 * btnW - S(24), by, btnW, btnH);
 }
 
 LRESULT TxSyncDlg::OnComputeProgress(WPARAM done, LPARAM total) {
@@ -301,6 +305,7 @@ LRESULT TxSyncDlg::OnComputeDone(WPARAM wp, LPARAM) {
         m_progressText.SetWindowText(hint);
     }
     m_btnProposePr.EnableWindow(TRUE);
+    m_btnRefreshPr.EnableWindow(TRUE);
     RebuildRows();
     RepopulateList();
     RefreshStatusText();
@@ -349,7 +354,7 @@ void TxSyncDlg::SetBusy(bool busy) {
     m_forkCombo.EnableWindow(!busy);
     m_branchCombo.EnableWindow(!busy);
     // Re-enabling is OnComputeDone's job (it re-applies the owner-gate) -- SetBusy only ever tightens.
-    if (busy) { m_btnUpdateBranch.EnableWindow(FALSE); m_btnProposePr.EnableWindow(FALSE); }
+    if (busy) { m_btnUpdateBranch.EnableWindow(FALSE); m_btnProposePr.EnableWindow(FALSE); m_btnRefreshPr.EnableWindow(FALSE); }
 }
 
 // Plain recompute (branch changed, same fork -- no branch-list refetch needed): used directly by
@@ -627,5 +632,62 @@ void TxSyncDlg::OnProposePrClicked() {
     } catch (const std::exception& ex) {
         MessageBox(L"Propose PR failed:\n" + CString(CA2W(ex.what(), CP_UTF8)),
                   L"Propose upstream PR", MB_ICONERROR);
+    }
+}
+
+// Updates the OPEN sync PR's branch in place with any new valid translations, instead of opening a
+// brand-new PR -- so the review window accumulates translations rather than restarting each time.
+// Translations that would break the Options tree are held back (reverted to the develop-base value)
+// by tx_build_edits_validated rather than blocking the whole refresh.
+void TxSyncDlg::OnRefreshPrClicked() {
+    if (!m_haveResult) return;
+    auto tok = EnsureGithubToken(this);
+    if (!tok) return;
+    std::string login = github::whoami(*tok);
+    // Find the open sync PR branch on the user's fork of upstream.
+    std::vector<std::string> branches = github::list_branches(*tok, login, config::UPSTREAM_REPO);
+    std::vector<std::string> sync;
+    for (auto& b : branches) if (b.rfind("transifex-sync-", 0) == 0) sync.push_back(b);
+    if (sync.empty()) {
+        MessageBox(L"No open Transifex-sync PR branch (transifex-sync-*) found on " +
+                   CString(CA2W(login.c_str(), CP_UTF8)) + L"/" + CString(config::UPSTREAM_REPO) +
+                   L".\n\nUse “Propose upstream PR…” to open one first.",
+                   L"Refresh open PR", MB_ICONINFORMATION);
+        return;
+    }
+    std::sort(sync.begin(), sync.end());          // "<prefix>-YYYYMMDD-HHMM" sorts chronologically
+    std::string branch = sync.back();             // newest
+    std::vector<txsync::HeldTranslation> held;
+    std::vector<github::FileEdit> edits = txsync::tx_build_edits_validated(m_result, held);
+    if (edits.empty()) {
+        CString m; m.Format(L"Nothing new to add to %s.", (LPCWSTR)CString(CA2W(branch.c_str(), CP_UTF8)));
+        if (!held.empty()) { CString h; h.Format(L"\n\n%zu translation(s) were held back (would break the Options tree).", held.size()); m += h; }
+        MessageBox(m, L"Refresh open PR", MB_ICONINFORMATION);
+        return;
+    }
+    CString msg; msg.Format(L"Update PR branch %s on %s/%s with %d changed file(s)?%s\n\n"
+                            L"The open pull request will pick up the new translations automatically.",
+        (LPCWSTR)CString(CA2W(branch.c_str(), CP_UTF8)), (LPCWSTR)CString(CA2W(login.c_str(), CP_UTF8)),
+        (LPCWSTR)CString(config::UPSTREAM_REPO), (int)edits.size(),
+        held.empty() ? L"" : L"  (some translations held back — see next.)");
+    if (!held.empty()) {
+        CString h; int shown = 0;
+        for (auto& x : held) { if (shown++ >= 20) { h += L"\n  …and more."; break; }
+            h += L"\n  • " + CString(CA2W(x.lang.c_str(),CP_UTF8)) + L" " +
+                 CString(CA2W(x.msgctxt.c_str(),CP_UTF8)) + L" — " + CString(CA2W(x.reason.c_str(),CP_UTF8)); }
+        msg += L"\n\nHeld back:" + h;
+    }
+    if (MessageBox(msg, L"Refresh open PR", MB_YESNO | MB_ICONQUESTION) != IDYES) return;
+    try {
+        CWaitCursor wait;
+        std::string sha = github::update_transifex_branch(*tok, login, config::UPSTREAM_REPO, branch, edits,
+            "Refresh Transifex sync (Studio)");
+        MessageBox(L"Refreshed " + CString(CA2W(branch.c_str(), CP_UTF8)) + L".\n\nNew commit: " +
+                   CString(CA2W(sha.c_str(), CP_UTF8)) + L"\n\nThe open PR now reflects the new translations.",
+                   L"Refresh open PR", MB_ICONINFORMATION);
+    } catch (const std::exception& ex) {
+        MessageBox(L"Refresh failed:\n" + CString(CA2W(ex.what(), CP_UTF8)) +
+                   L"\n\n(If the branch moved since this dialog computed, close and reopen Transifex sync to recompute, then retry.)",
+                   L"Refresh open PR", MB_ICONERROR);
     }
 }

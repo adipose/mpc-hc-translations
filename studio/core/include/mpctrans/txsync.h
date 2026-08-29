@@ -76,4 +76,13 @@ struct CategoryMismatch { std::string lang; validate::CategoryFinding finding; }
 // decision's merged value overlaid: txStr for TxNew/TxWins, upstreamStr for Discarded).
 std::vector<CategoryMismatch> find_category_mismatches(const TxSyncResult& result);
 
+struct HeldTranslation { std::string lang, msgctxt, msgid, reason; };
+// Like tx_build_edits, but for refreshing an OPEN sync PR: any translation that would break the
+// Options tree (analyze_category_tree finds a defect in the resulting strings.po) is HELD BACK --
+// reverted to the develop-base value -- so one bad late translation never stalls the good ones.
+// Placeholder-invalid translations are already Discarded (not applied) by tx_build_edits. Reports
+// every held string in `held`. Returns the FULL-file edits safe to push to the PR branch.
+std::vector<github::FileEdit> tx_build_edits_validated(const TxSyncResult& result,
+                                                       std::vector<HeldTranslation>& held);
+
 } // namespace mpctrans::txsync

@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <atomic>
 #include <mutex>
+#include <set>
 #include <thread>
+#include <utility>
 
 namespace mpctrans::txsync {
 
@@ -158,6 +160,58 @@ std::vector<CategoryMismatch> find_category_mismatches(const TxSyncResult& resul
             out.push_back({ lang, f });
     }
 
+    return out;
+}
+
+std::vector<github::FileEdit> tx_build_edits_validated(const TxSyncResult& result,
+                                                       std::vector<HeldTranslation>& held) {
+    auto edits = tx_build_edits(result.upstreamPoBytes, result);
+    std::vector<github::FileEdit> out;
+    for (auto& e : edits) {
+        const std::string suf = ".strings.po";
+        bool isStrings = e.repo_path.size() >= suf.size() &&
+                         e.repo_path.compare(e.repo_path.size()-suf.size(), suf.size(), suf) == 0;
+        if (!isStrings) { out.push_back(e); continue; }
+        PoFile po = PoFile::parse_bytes(e.content);
+        auto findings = validate::analyze_category_tree(po);
+        if (findings.empty()) { out.push_back(e); continue; }
+
+        // lang between "mpc-hc." and ".strings.po"
+        size_t a = e.repo_path.rfind("mpc-hc."); size_t b = e.repo_path.rfind(".strings.po");
+        std::string lang = (a==std::string::npos) ? "" : e.repo_path.substr(a+7, b-(a+7));
+
+        auto baseIt = result.upstreamPoBytes.find(e.repo_path);
+        if (baseIt == result.upstreamPoBytes.end()) {          // no base to repair from -> hold whole file
+            for (auto& f : findings) held.push_back({ lang, f.msgctxt, f.msgid, "held (no base to repair)" });
+            continue;   // drop the file
+        }
+        PoFile base = PoFile::parse_bytes(baseIt->second);
+        std::set<std::pair<std::string,std::string>> flagged;
+        for (auto& f : findings) flagged.insert({ f.msgctxt, f.msgid });
+
+        // The good changes = entries whose msgstr differs from base AND aren't flagged.
+        std::vector<PoEntry> keep;
+        for (auto& ent : po.entries) {
+            if (ent.msgid.empty()) continue;   // header
+            const PoEntry* be = base.find(ent.msgctxt, ent.msgid);
+            std::string baseStr = be ? be->msgstr : std::string();
+            if (ent.msgstr == baseStr) continue;                  // unchanged vs base
+            if (flagged.count({ ent.msgctxt, ent.msgid })) {      // the breaker -> hold it
+                held.push_back({ lang, ent.msgctxt, ent.msgid, "held: would break the Options tree" });
+                continue;
+            }
+            keep.push_back(PoEntry{ ent.msgctxt, ent.msgid, ent.msgstr, {} });
+        }
+        std::string repaired = PoFile::splice(baseIt->second, keep, "Transifex sync refresh (Studio)");
+        // Verify the repair actually cleared the tree defect (e.g. a residual PRE-EXISTING defect on
+        // develop base can't be fixed here -> hold the whole file, never ship a tree-breaking strings.po).
+        if (!validate::analyze_category_tree(PoFile::parse_bytes(repaired)).empty()) {
+            for (auto& f : findings) held.push_back({ lang, f.msgctxt, f.msgid, "held whole file (residual tree defect)" });
+            continue;   // drop the file
+        }
+        if (repaired == baseIt->second) continue;   // nothing good left to push -> drop the file
+        out.push_back(github::FileEdit{ e.repo_path, repaired });
+    }
     return out;
 }
 

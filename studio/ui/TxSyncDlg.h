@@ -33,6 +33,7 @@ protected:
     afx_msg void OnListItemChanged(NMHDR*, LRESULT*);   // checkbox state -> m_result row (LVIF_STATE)
     afx_msg void OnUpdateBranchClicked();
     afx_msg void OnProposePrClicked();
+    afx_msg void OnRefreshPrClicked();
     afx_msg void OnForkChanged();     // fork combo -> refetch that fork's branches, then recompute
     afx_msg void OnBranchChanged();   // branch combo (same fork) -> recompute only
     afx_msg LRESULT OnComputeProgress(WPARAM done, LPARAM total);
@@ -85,4 +86,5 @@ private:
     CListCtrl m_list;
     CButton   m_showProtected;
     CButton   m_btnUpdateBranch, m_btnProposePr, m_btnClose;
+    CButton   m_btnRefreshPr;
 };
