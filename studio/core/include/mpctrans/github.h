@@ -113,6 +113,17 @@ std::string update_transifex_branch(const Token&, const std::string& owner, cons
                                     const std::string& branch, const std::vector<FileEdit>& edits,
                                     const std::string& message);
 
+// Rebase-style update of a sync-PR branch: create ONE commit whose SOLE parent is upstream develop
+// HEAD (tree = develop's tree + `edits`), then FORCE-update `owner`/`repo`@`branch` to it. Unlike
+// update_transifex_branch — a two-parent MERGE commit, right for the long-lived transifex staging
+// branch that accumulates develop over time — this keeps a refreshed PR branch a single clean commit
+// atop CURRENT develop, so the PR's history/commits are just the translation change, never entangled
+// upstream merges. Force is required: the old branch HEAD is not an ancestor of the rebased commit.
+// Returns the new commit sha.
+std::string rebase_pr_branch(const Token&, const std::string& owner, const std::string& repo,
+                             const std::string& branch, const std::vector<FileEdit>& edits,
+                             const std::string& message);
+
 // ---- Transifex sync: fork/branch discovery (TxSyncDlg's picker) ----
 
 // "owner/repo" for every fork of UPSTREAM_OWNER/UPSTREAM_REPO (GET .../forks, single page — 100 is

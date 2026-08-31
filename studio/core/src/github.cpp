@@ -443,6 +443,50 @@ std::string update_transifex_branch(const Token& t, const std::string& owner, co
     return commitSha;
 }
 
+std::string rebase_pr_branch(const Token& t, const std::string& owner, const std::string& repo,
+                             const std::string& branch, const std::vector<FileEdit>& edits,
+                             const std::string& message) {
+    if (edits.empty()) throw std::runtime_error("github: no edits to commit");
+    const std::string up = std::string(cfg::UPSTREAM_OWNER) + "/" + cfg::UPSTREAM_REPO;
+    const std::string tx = owner + "/" + repo;
+
+    // upstream develop HEAD + its tree -- the SINGLE parent + base_tree, so the rebased branch is
+    // "current develop, plus these translation files" and nothing else.
+    json upRef = api(t, L"GET", "/repos/" + up + "/git/ref/heads/" + cfg::UPSTREAM_BRANCH);
+    std::string upHeadSha = upRef.at("object").at("sha").get<std::string>();
+    std::string upTreeSha = api(t, L"GET", "/repos/" + up + "/git/commits/" + upHeadSha)
+                                .at("tree").at("sha").get<std::string>();
+
+    // blobs + tree in the target repo (the fork shares upstream's object network, so upHeadSha is a
+    // valid parent even though the commit is created here -- same as update_transifex_branch).
+    json tree_items = json::array();
+    for (const auto& e : edits) {
+        json blob = {{"content", base64(e.content)}, {"encoding", "base64"}};
+        std::string blob_sha = api(t, L"POST", "/repos/" + tx + "/git/blobs", &blob)
+                                   .at("sha").get<std::string>();
+        tree_items.push_back({{"path", e.repo_path}, {"mode", "100644"},
+                              {"type", "blob"}, {"sha", blob_sha}});
+    }
+    json tree_req = {{"base_tree", upTreeSha}, {"tree", tree_items}};
+    std::string treeSha = api(t, L"POST", "/repos/" + tx + "/git/trees", &tree_req)
+                              .at("sha").get<std::string>();
+
+    // SINGLE parent = develop HEAD -> a rebase, not a merge (contrast update_transifex_branch's two
+    // parents). The PR branch becomes one clean commit atop current develop.
+    json commit_req = {{"message", message}, {"tree", treeSha},
+                       {"parents", json::array({ upHeadSha })}};
+    std::string commitSha = api(t, L"POST", "/repos/" + tx + "/git/commits", &commit_req)
+                                .at("sha").get<std::string>();
+
+    // FORCE: the previous branch HEAD is not an ancestor of the rebased commit. This is the user's own
+    // fork's bot-maintained sync branch, so a force-update (GitHub shows the PR as "force-pushed") is
+    // the intended, clean-history behaviour.
+    json patch = {{"sha", commitSha}, {"force", true}};
+    api(t, L"PATCH", "/repos/" + tx + "/git/refs/heads/" + branch, &patch);
+
+    return commitSha;
+}
+
 // ---- fork/branch discovery ----
 
 std::vector<std::string> list_forks(const Token& t) {
@@ -498,6 +542,7 @@ std::string RawSession::fetch(const std::string&) { throw std::logic_error("gith
 std::string open_pr(const Token&, const std::string&, const std::string&, const std::string&, const std::string&, const std::vector<FileEdit>&, const std::string&, const std::string&) { throw std::logic_error("github: Windows only"); }
 std::string open_translation_pr(const Token&, const std::string&, const std::vector<FileEdit>&, const std::string&, const std::string&) { throw std::logic_error("github: Windows only"); }
 std::string update_transifex_branch(const Token&, const std::string&, const std::string&, const std::string&, const std::vector<FileEdit>&, const std::string&) { throw std::logic_error("github: Windows only"); }
+std::string rebase_pr_branch(const Token&, const std::string&, const std::string&, const std::string&, const std::vector<FileEdit>&, const std::string&) { throw std::logic_error("github: Windows only"); }
 std::vector<std::string> list_forks(const Token&) { return {}; }
 std::vector<std::string> list_branches(const Token&, const std::string&, const std::string&) { return {}; }
 } // namespace mpctrans::github

@@ -680,7 +680,7 @@ void TxSyncDlg::OnRefreshPrClicked() {
     if (MessageBox(msg, L"Refresh open PR", MB_YESNO | MB_ICONQUESTION) != IDYES) return;
     try {
         CWaitCursor wait;
-        std::string sha = github::update_transifex_branch(*tok, login, config::UPSTREAM_REPO, branch, edits,
+        std::string sha = github::rebase_pr_branch(*tok, login, config::UPSTREAM_REPO, branch, edits,
             "Refresh Transifex sync (Studio)");
         MessageBox(L"Refreshed " + CString(CA2W(branch.c_str(), CP_UTF8)) + L".\n\nNew commit: " +
                    CString(CA2W(sha.c_str(), CP_UTF8)) + L"\n\nThe open PR now reflects the new translations.",
