@@ -173,44 +173,45 @@ std::vector<github::FileEdit> tx_build_edits_validated(const TxSyncResult& resul
                          e.repo_path.compare(e.repo_path.size()-suf.size(), suf.size(), suf) == 0;
         if (!isStrings) { out.push_back(e); continue; }
         PoFile po = PoFile::parse_bytes(e.content);
-        auto findings = validate::analyze_category_tree(po);
-        if (findings.empty()) { out.push_back(e); continue; }
+        auto merged = validate::analyze_category_tree(po);
+        if (merged.empty()) { out.push_back(e); continue; }   // clean merge -> ship as-is
 
         // lang between "mpc-hc." and ".strings.po"
         size_t a = e.repo_path.rfind("mpc-hc."); size_t b = e.repo_path.rfind(".strings.po");
         std::string lang = (a==std::string::npos) ? "" : e.repo_path.substr(a+7, b-(a+7));
 
         auto baseIt = result.upstreamPoBytes.find(e.repo_path);
-        if (baseIt == result.upstreamPoBytes.end()) {          // no base to repair from -> hold whole file
-            for (auto& f : findings) held.push_back({ lang, f.msgctxt, f.msgid, "held (no base to repair)" });
-            continue;   // drop the file
-        }
+        if (baseIt == result.upstreamPoBytes.end()) { out.push_back(e); continue; }   // can't classify -> ship (NEVER drop)
         PoFile base = PoFile::parse_bytes(baseIt->second);
-        std::set<std::pair<std::string,std::string>> flagged;
-        for (auto& f : findings) flagged.insert({ f.msgctxt, f.msgid });
 
-        // The good changes = entries whose msgstr differs from base AND aren't flagged.
+        // INVARIANT: a refresh must never REMOVE translations. Dropping a file drops it back to the
+        // develop tree (the commit's base_tree), silently wiping every translation the PR carried --
+        // the bug tsubasanouta caught. So we only ever revert the SPECIFIC strings whose NEW value
+        // breaks a tree that develop had CLEAN; a defect that already exists on develop (base) is
+        // develop's problem, shipped as-is with its translation intact, never a reason to hold.
+        std::set<std::pair<std::string,std::string>> baseFlagged;
+        for (auto& f : validate::analyze_category_tree(base)) baseFlagged.insert({ f.msgctxt, f.msgid });
+        std::set<std::pair<std::string,std::string>> newlyFlagged;
+        for (auto& f : merged)
+            if (!baseFlagged.count({ f.msgctxt, f.msgid })) newlyFlagged.insert({ f.msgctxt, f.msgid });
+
+        if (newlyFlagged.empty()) { out.push_back(e); continue; }   // only pre-existing defects -> ship full merge
+
+        // Revert ONLY the newly-breaking strings to base; keep every other translation.
         std::vector<PoEntry> keep;
         for (auto& ent : po.entries) {
             if (ent.msgid.empty()) continue;   // header
             const PoEntry* be = base.find(ent.msgctxt, ent.msgid);
             std::string baseStr = be ? be->msgstr : std::string();
             if (ent.msgstr == baseStr) continue;                  // unchanged vs base
-            if (flagged.count({ ent.msgctxt, ent.msgid })) {      // the breaker -> hold it
-                held.push_back({ lang, ent.msgctxt, ent.msgid, "held: would break the Options tree" });
+            if (newlyFlagged.count({ ent.msgctxt, ent.msgid })) { // the NEW breaker -> hold just this string
+                held.push_back({ lang, ent.msgctxt, ent.msgid, "held: would newly break the Options tree" });
                 continue;
             }
             keep.push_back(PoEntry{ ent.msgctxt, ent.msgid, ent.msgstr, {} });
         }
         std::string repaired = PoFile::splice(baseIt->second, keep, "Transifex sync refresh (Studio)");
-        // Verify the repair actually cleared the tree defect (e.g. a residual PRE-EXISTING defect on
-        // develop base can't be fixed here -> hold the whole file, never ship a tree-breaking strings.po).
-        if (!validate::analyze_category_tree(PoFile::parse_bytes(repaired)).empty()) {
-            for (auto& f : findings) held.push_back({ lang, f.msgctxt, f.msgid, "held whole file (residual tree defect)" });
-            continue;   // drop the file
-        }
-        if (repaired == baseIt->second) continue;   // nothing good left to push -> drop the file
-        out.push_back(github::FileEdit{ e.repo_path, repaired });
+        out.push_back(github::FileEdit{ e.repo_path, repaired });   // always ship -- keeps all non-breaking translations
     }
     return out;
 }

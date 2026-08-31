@@ -84,3 +84,6 @@ drafts.json
 
 # --- Local bundle-build output (assembled by build_local.ps1; zip is *.zip above) ---
 /bundle/
+# --- txsync CLI build outputs ---
+studio/cli/obj/
+studio/cli/*.exe
