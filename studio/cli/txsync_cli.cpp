@@ -11,6 +11,7 @@
 
 #include "mpctrans/config.h"
 #include "mpctrans/github.h"
+#include "mpctrans/txapi.h"
 #include "mpctrans/txsync.h"
 
 #include <algorithm>
@@ -30,13 +31,23 @@ namespace {
 
 void print_usage() {
     std::fprintf(stderr,
-        "usage: txsync_cli refresh       [--po-dir DIR] [--dry-run] [--tx-owner O] [--tx-repo R] [--tx-branch B]\n"
-        "       txsync_cli update-branch [--po-dir DIR] [--dry-run] [--tx-owner O] [--tx-repo R] [--tx-branch B]\n"
+        "usage: txsync_cli refresh            [--po-dir DIR] [--dry-run] [--tx-owner O] [--tx-repo R] [--tx-branch B]\n"
+        "       txsync_cli update-branch      [--po-dir DIR] [--dry-run] [--tx-owner O] [--tx-repo R] [--tx-branch B] [--push-transifex]\n"
+        "       txsync_cli push-to-transifex  [--po-dir DIR] [--dry-run] [--tx-owner O] [--tx-repo R] [--tx-branch B]\n"
         "\n"
-        "refresh       updates the open transifex-sync-* PR branch (rebase onto develop, validated top-up).\n"
-        "update-branch pushes the merge to the Transifex staging branch itself: a merge commit whose tree is\n"
-        "              CURRENT develop + the merged .po files -- so the branch matches develop on everything\n"
-        "              except the translations (mirrors the GUI's \"Update Transifex branch\").\n");
+        "refresh            updates the open transifex-sync-* PR branch (rebase onto develop, validated top-up).\n"
+        "update-branch      pushes the merge to the Transifex staging branch itself: a merge commit whose tree is\n"
+        "                   CURRENT develop + the merged .po files -- so the branch matches develop on everything\n"
+        "                   except the translations (mirrors the GUI's \"Update Transifex branch\").\n"
+        "                   --push-transifex reverse-pushes upstream-newer translations INTO Transifex first (see\n"
+        "                   push-to-transifex below) so this merge doesn't turn around and revert them.\n"
+        "push-to-transifex  reverse sync: pushes upstream develop's translations INTO the live Transifex DB\n"
+        "                   wherever upstream should win over what Transifex currently has. Transifex's GitHub\n"
+        "                   integration is one-way (DB -> the transifex branch), so this is what keeps a\n"
+        "                   translator's PR merged into develop from being reverted by the next sync. Prints\n"
+        "                   the plan (push / keep-transifex / notes, with reasons) to stdout; with --dry-run,\n"
+        "                   stops before applying it. Transifex token: Credential Manager, else env\n"
+        "                   TRANSIFEX_TOKEN, else env TRANSIFEX.\n");
 }
 
 // Mirrors MainFrame::PopulateLanguages's glob exactly (studio/ui/MainFrame.cpp): every
@@ -59,6 +70,28 @@ std::vector<std::string> enumerate_languages(const fs::path& poDir) {
     std::sort(langs.begin(), langs.end());
     langs.erase(std::unique(langs.begin(), langs.end()), langs.end());
     return langs;
+}
+
+// Transifex token: stored Credential Manager entry first, else TRANSIFEX_TOKEN, else TRANSIFEX --
+// same layered fallback as the GitHub token above, so this can run unattended in a scheduled job.
+std::optional<txapi::Token> load_transifex_token() {
+    std::optional<txapi::Token> t = txapi::load_token();
+    if (!t) { if (const char* env = std::getenv("TRANSIFEX_TOKEN")) t = txapi::Token{ env }; }
+    if (!t) { if (const char* env = std::getenv("TRANSIFEX"))       t = txapi::Token{ env }; }
+    return t;
+}
+
+void print_reverse_push_plan(const txsync::ReversePushPlan& plan) {
+    std::printf("push: %zu\n", plan.push.size());
+    for (auto& it : plan.push)
+        std::printf("  %s  %s  %s  -- %s\n", it.lang.c_str(), config::RESOURCES[it.res],
+                    it.msgctxt.c_str(), it.reason.c_str());
+    std::printf("keep transifex: %zu\n", plan.keepTransifex.size());
+    for (auto& it : plan.keepTransifex)
+        std::printf("  %s  %s  %s  -- %s\n", it.lang.c_str(), config::RESOURCES[it.res],
+                    it.msgctxt.c_str(), it.reason.c_str());
+    std::printf("notes: %zu\n", plan.notes.size());
+    for (auto& n : plan.notes) std::printf("  %s\n", n.c_str());
 }
 
 int cmd_refresh(int argc, char** argv) {
@@ -174,6 +207,7 @@ int cmd_refresh(int argc, char** argv) {
 int cmd_update_branch(int argc, char** argv) {
     std::string poDir = "po";
     bool dryRun = false;
+    bool pushTransifex = false;
     std::string txOwner = config::TRANSIFEX_OWNER;
     std::string txRepo  = config::TRANSIFEX_REPO;
     std::string txBranch = config::TRANSIFEX_BRANCH;
@@ -184,11 +218,12 @@ int cmd_update_branch(int argc, char** argv) {
             if (i + 1 >= argc) throw std::runtime_error(std::string(flag) + " needs an argument");
             return argv[++i];
         };
-        if (a == "--po-dir")          poDir = next("--po-dir");
-        else if (a == "--dry-run")    dryRun = true;
-        else if (a == "--tx-owner")   txOwner = next("--tx-owner");
-        else if (a == "--tx-repo")    txRepo = next("--tx-repo");
-        else if (a == "--tx-branch")  txBranch = next("--tx-branch");
+        if (a == "--po-dir")               poDir = next("--po-dir");
+        else if (a == "--dry-run")         dryRun = true;
+        else if (a == "--tx-owner")        txOwner = next("--tx-owner");
+        else if (a == "--tx-repo")         txRepo = next("--tx-repo");
+        else if (a == "--tx-branch")       txBranch = next("--tx-branch");
+        else if (a == "--push-transifex")  pushTransifex = true;
         else if (a == "--help" || a == "-h") { print_usage(); std::exit(0); }
         else throw std::runtime_error("unknown option: " + a);
     }
@@ -231,6 +266,33 @@ int cmd_update_branch(int argc, char** argv) {
     txsync::TxSyncResult result = txsync::tx_compute(fetchUpstream, fetchTx, languages, progress);
     std::fprintf(stderr, "\n");
 
+    // --push-transifex: reverse-push upstream-newer translations INTO Transifex FIRST, so the
+    // include-flags it flips take effect in the merge built just below (tx_build_edits) instead of
+    // this same pass reverting what was just pushed.
+    if (pushTransifex) {
+        std::optional<txapi::Token> txTok = load_transifex_token();
+        if (!txTok)
+            throw std::runtime_error("no Transifex token: sign in once via the Studio GUI, "
+                                     "or set TRANSIFEX_TOKEN (or TRANSIFEX)");
+        auto listTx = [&](int res, const std::string& lang) {
+            return txapi::list_translations(*txTok, res, lang);
+        };
+        auto blameDates = [&](const std::string& path) {
+            return github::blame_line_dates(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO,
+                                            config::UPSTREAM_BRANCH, path);
+        };
+        std::fprintf(stderr, "planning reverse push to Transifex ...\n");
+        txsync::ReversePushPlan plan = txsync::tx_reverse_push_plan(result, listTx, blameDates);
+        print_reverse_push_plan(plan);
+        if (!dryRun && !plan.push.empty()) {
+            txsync::tx_apply_reverse_push(*txTok, plan,
+                [](const txsync::ReversePushItem& it, bool ok, const std::string& msg) {
+                    std::fprintf(stderr, "  %s %s  %s  %s -- %s\n", ok ? "OK" : "FAIL", it.lang.c_str(),
+                                config::RESOURCES[it.res], it.msgctxt.c_str(), msg.c_str());
+                });
+        }
+    }
+
     std::vector<github::FileEdit> edits = txsync::tx_build_edits(result.upstreamPoBytes, result);
 
     std::printf("target: %s/%s@%s\n", txOwner.c_str(), txRepo.c_str(), txBranch.c_str());
@@ -252,6 +314,101 @@ int cmd_update_branch(int argc, char** argv) {
     return 0;
 }
 
+// Reverse sync: pushes upstream develop's translations INTO the live Transifex DB wherever upstream
+// should win over what Transifex currently has -- see mpctrans::txsync::tx_reverse_push_plan's
+// doc comment for why (Transifex's GitHub integration is one-way DB->branch, so this is the only
+// way a translator's PR merged into develop survives the next Transifex-DB sync).
+int cmd_push_to_transifex(int argc, char** argv) {
+    std::string poDir = "po";
+    bool dryRun = false;
+    std::string txOwner = config::TRANSIFEX_OWNER;
+    std::string txRepo  = config::TRANSIFEX_REPO;
+    std::string txBranch = config::TRANSIFEX_BRANCH;
+
+    for (int i = 0; i < argc; ++i) {
+        std::string a = argv[i];
+        auto next = [&](const char* flag) -> std::string {
+            if (i + 1 >= argc) throw std::runtime_error(std::string(flag) + " needs an argument");
+            return argv[++i];
+        };
+        if (a == "--po-dir")          poDir = next("--po-dir");
+        else if (a == "--dry-run")    dryRun = true;
+        else if (a == "--tx-owner")   txOwner = next("--tx-owner");
+        else if (a == "--tx-repo")    txRepo = next("--tx-repo");
+        else if (a == "--tx-branch")  txBranch = next("--tx-branch");
+        else if (a == "--help" || a == "-h") { print_usage(); std::exit(0); }
+        else throw std::runtime_error("unknown option: " + a);
+    }
+
+    std::vector<std::string> languages = enumerate_languages(poDir);
+    if (languages.empty()) {
+        std::fprintf(stderr,
+            "error: no languages found under po-dir '%s' (expected mpc-hc.<lang>.dialogs.po files)\n",
+            poDir.c_str());
+        return 2;
+    }
+    std::fprintf(stderr, "found %zu language(s) under %s\n", languages.size(), poDir.c_str());
+
+    std::optional<github::Token> tok = github::load_token();
+    if (!tok) {
+        if (const char* env = std::getenv("GITHUB_TOKEN"))
+            tok = github::Token{ env };
+    }
+    if (!tok)
+        throw std::runtime_error("no GitHub token: sign in once via the Studio GUI, or set GITHUB_TOKEN");
+
+    std::optional<txapi::Token> txTok = load_transifex_token();
+    if (!txTok)
+        throw std::runtime_error("no Transifex token: sign in once via the Studio GUI, "
+                                 "or set TRANSIFEX_TOKEN (or TRANSIFEX)");
+
+    std::string login = github::whoami(*tok);
+    std::fprintf(stderr, "signed in as %s\n", login.c_str());
+
+    auto fetchUpstream = [&](const std::string& path) {
+        return github::fetch_latest(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO,
+                                    config::UPSTREAM_BRANCH, path);
+    };
+    auto fetchTx = [&](const std::string& path) {
+        return github::fetch_latest(*tok, txOwner, txRepo, txBranch, path);
+    };
+    auto progress = [](int done, int total) {
+        std::fprintf(stderr, "  fetching %d/%d\r", done, total);
+    };
+    std::fprintf(stderr, "computing sync against %s/%s@%s ...\n", txOwner.c_str(), txRepo.c_str(), txBranch.c_str());
+    txsync::TxSyncResult result = txsync::tx_compute(fetchUpstream, fetchTx, languages, progress);
+    std::fprintf(stderr, "\n");
+
+    auto listTx = [&](int res, const std::string& lang) {
+        return txapi::list_translations(*txTok, res, lang);
+    };
+    auto blameDates = [&](const std::string& path) {
+        return github::blame_line_dates(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO,
+                                        config::UPSTREAM_BRANCH, path);
+    };
+    std::fprintf(stderr, "planning reverse push to Transifex ...\n");
+    txsync::ReversePushPlan plan = txsync::tx_reverse_push_plan(result, listTx, blameDates);
+    print_reverse_push_plan(plan);
+
+    if (dryRun) {
+        std::fprintf(stderr, "dry-run: stopping before push\n");
+        return 0;
+    }
+    if (plan.push.empty()) {
+        std::printf("nothing to push\n");
+        return 0;
+    }
+
+    int failCount = 0;
+    txsync::tx_apply_reverse_push(*txTok, plan,
+        [&](const txsync::ReversePushItem& it, bool ok, const std::string& msg) {
+            std::printf("  %s %s  %s  %s -- %s\n", ok ? "OK" : "FAIL", it.lang.c_str(),
+                        config::RESOURCES[it.res], it.msgctxt.c_str(), msg.c_str());
+            if (!ok) ++failCount;
+        });
+    return failCount ? 1 : 0;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -260,8 +417,9 @@ int main(int argc, char** argv) {
     if (sub == "--help" || sub == "-h") { print_usage(); return 0; }
 
     try {
-        if (sub == "refresh")       return cmd_refresh(argc - 2, argv + 2);
-        if (sub == "update-branch") return cmd_update_branch(argc - 2, argv + 2);
+        if (sub == "refresh")            return cmd_refresh(argc - 2, argv + 2);
+        if (sub == "update-branch")      return cmd_update_branch(argc - 2, argv + 2);
+        if (sub == "push-to-transifex")  return cmd_push_to_transifex(argc - 2, argv + 2);
         print_usage(); return 2;
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "error: %s\n", ex.what());

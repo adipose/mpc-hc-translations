@@ -289,4 +289,63 @@ std::string PoFile::splice(const std::string& original_bytes, const std::vector<
     return po.reconstruct();   // byte-exact for unchanged entries => minimal diff
 }
 
+// ---------- msgstr_line ----------
+// Re-scans the raw bytes line-by-line (rather than reusing parse_bytes's block splitter) so the
+// returned line number is a real 1-based offset into `bytes` -- what GitHub's blame API indexes by.
+// Matching is done on the ESCAPED (raw quoted-line) form via escape_po, the same representation
+// parse_entry_block's read_field unescapes from -- so this stays consistent with the parser without
+// re-deriving it. msgctxt is assumed never wrapped (true of every .po this tool touches); msgid
+// wraps are handled by concatenating continuation lines exactly like read_field does.
+int msgstr_line(const std::string& bytes, const std::string& msgctxt, const std::string& msgid) {
+    std::vector<std::string> lines;
+    { size_t s = 0;
+      for (size_t i = 0; i < bytes.size(); ++i)
+          if (bytes[i] == '\n') { lines.push_back(bytes.substr(s, i - s)); s = i + 1; }
+      if (s < bytes.size()) lines.push_back(bytes.substr(s));
+    }
+    auto strip_cr = [](std::string s) { if (!s.empty() && s.back() == '\r') s.pop_back(); return s; };
+
+    const std::string escCtx = escape_po(msgctxt);
+    const std::string escId  = escape_po(msgid);
+
+    size_t n = lines.size(), i = 0;
+    while (i < n) {
+        while (i < n && strip_cr(lines[i]).empty()) ++i;   // skip blank separator line(s)
+        if (i >= n) break;
+
+        bool haveCtx = false, haveId = false;
+        std::string blockCtx, blockId;
+        size_t msgstrLine = 0;
+        size_t j = i;
+        while (j < n) {
+            std::string line = strip_cr(lines[j]);
+            if (line.empty()) break;   // end of this entry's block
+            if (!haveId && !haveCtx && line.rfind("msgctxt \"", 0) == 0) {
+                blockCtx = extract_quoted(line);
+                haveCtx = true;
+                ++j; continue;
+            }
+            if (!haveId && line.rfind("msgid \"", 0) == 0) {
+                blockId = extract_quoted(line);
+                haveId = true;
+                ++j;
+                while (j < n) {   // wrapped continuation lines: bare quoted strings
+                    std::string cl = strip_cr(lines[j]);
+                    if (!cl.empty() && cl[0] == '"') { blockId += extract_quoted(cl); ++j; }
+                    else break;
+                }
+                continue;
+            }
+            if (msgstrLine == 0 && line.rfind("msgstr", 0) == 0) msgstrLine = j + 1;   // 1-based
+            ++j;
+        }
+        if (haveId && msgstrLine != 0) {
+            std::string ctxCmp = haveCtx ? blockCtx : std::string();
+            if (ctxCmp == escCtx && blockId == escId) return (int)msgstrLine;
+        }
+        i = (j > i) ? j : i + 1;   // advance past this block (guards zero-progress on odd input)
+    }
+    return -1;
+}
+
 } // namespace mpctrans

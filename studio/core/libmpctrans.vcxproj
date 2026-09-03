@@ -51,6 +51,7 @@
     <ClInclude Include="include\mpctrans\confidence.h" />
     <ClInclude Include="include\mpctrans\data_update.h" />
     <ClInclude Include="include\mpctrans\txsync.h" />
+    <ClInclude Include="include\mpctrans\txapi.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\po.cpp" />
@@ -67,6 +68,7 @@
     <ClCompile Include="src\confidence.cpp" />
     <ClCompile Include="src\data_update.cpp" />
     <ClCompile Include="src\txsync.cpp" />
+    <ClCompile Include="src\txapi.cpp" />
     <ClCompile Include="thirdparty\sqlite3.c">
       <PreprocessorDefinitions>SQLITE_OMIT_LOAD_EXTENSION;SQLITE_THREADSAFE=0;SQLITE_DEFAULT_MEMSTATUS=0;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>

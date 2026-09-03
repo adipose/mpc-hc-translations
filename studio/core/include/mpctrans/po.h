@@ -57,4 +57,11 @@ std::string escape_po(const std::string& s);    // \\  \"  \n  \t  \r
 std::string unescape_po(const std::string& s);
 std::string wrap_po(const std::string& keyword, const std::string& value, int width = 78);
 
+// 1-based line number of the `msgstr` line for the (msgctxt,msgid) entry in raw PO `bytes`, or -1
+// if that entry isn't found. Used by the reverse-push flow (mpctrans::txsync::tx_reverse_push_plan)
+// to look up a GitHub blame date for a translation: the line a `git blame` would attribute to
+// whoever last touched that entry's value. LF-based line counting; CRLF is tolerated (a trailing
+// '\r' is stripped only for content comparison, never affecting the line count itself).
+int msgstr_line(const std::string& bytes, const std::string& msgctxt, const std::string& msgid);
+
 } // namespace mpctrans

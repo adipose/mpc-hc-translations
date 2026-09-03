@@ -518,6 +518,47 @@ std::vector<std::string> list_branches(const Token& t, const std::string& owner,
     return out;
 }
 
+// ---- reverse-push: GraphQL blame ----
+
+std::map<int, LineBlame> blame_line_dates(const Token& t, const std::string& owner, const std::string& repo,
+                                          const std::string& branch, const std::string& repo_path) {
+    std::map<int, LineBlame> out;
+    try {
+        static const char* kQuery =
+            "query($o:String!,$r:String!,$e:String!,$p:String!){ repository(owner:$o,name:$r){ "
+            "object(expression:$e){ ... on Commit { blame(path:$p){ ranges{ startingLine endingLine "
+            "commit{ committedDate oid message } } } } } } }";
+        json body = { { "query", kQuery },
+                     { "variables", { { "o", owner }, { "r", repo }, { "e", branch }, { "p", repo_path } } } };
+        std::vector<std::string> h = { "Accept: application/vnd.github+json", "Content-Type: application/json" };
+        if (!t.access_token.empty()) h.push_back("Authorization: Bearer " + t.access_token);
+        HttpResponse r = https_request(L"POST", "https://api.github.com/graphql", h, body.dump());
+        if (r.status != 200) return out;
+        json j = json::parse(r.body, nullptr, /*allow_exceptions=*/false);
+        if (!j.is_object()) return out;
+        json ranges = j["data"]["repository"]["object"]["blame"]["ranges"];
+        if (!ranges.is_array()) return out;
+        for (const auto& rg : ranges) {
+            if (!rg.is_object()) continue;
+            int a = rg.value("startingLine", 0), b = rg.value("endingLine", 0);
+            LineBlame lb;
+            if (rg.contains("commit") && rg["commit"].is_object()) {
+                const json& c = rg["commit"];
+                lb.date = c.value("committedDate", std::string());
+                lb.sha = c.value("oid", std::string());
+                std::string msg = c.value("message", std::string());
+                size_t nl = msg.find('\n');                 // first line only
+                lb.message = (nl == std::string::npos) ? msg : msg.substr(0, nl);
+            }
+            if (a <= 0 || b < a || lb.date.empty()) continue;
+            for (int line = a; line <= b; ++line) out[line] = lb;
+        }
+    } catch (const std::exception&) {
+        return {};
+    }
+    return out;
+}
+
 } // namespace mpctrans::github
 
 #else // !_WIN32 — keep non-Windows builds (validators/gates) linking
@@ -545,6 +586,7 @@ std::string update_transifex_branch(const Token&, const std::string&, const std:
 std::string rebase_pr_branch(const Token&, const std::string&, const std::string&, const std::string&, const std::vector<FileEdit>&, const std::string&) { throw std::logic_error("github: Windows only"); }
 std::vector<std::string> list_forks(const Token&) { return {}; }
 std::vector<std::string> list_branches(const Token&, const std::string&, const std::string&) { return {}; }
+std::map<int, LineBlame> blame_line_dates(const Token&, const std::string&, const std::string&, const std::string&, const std::string&) { return {}; }
 } // namespace mpctrans::github
 
 #endif

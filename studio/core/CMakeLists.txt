@@ -24,6 +24,8 @@ add_library(mpctrans STATIC
     src/suggestion_store.cpp  # M2 persistent AI-suggestion store (ai-suggestions.sqlite); stub off-Windows
     src/confidence.cpp     # M3 confidence scoring (cross-model agreement + back-translation drift); portable
     src/data_update.cpp    # in-app data refresh: diff+apply dist/data-manifest.json; stub off-Windows
+    src/txsync.cpp         # Transifex <-> upstream merge/reverse-push planning; portable
+    src/txapi.cpp          # Transifex REST API v3 client (WinHTTP); stub off-Windows
     thirdparty/sqlite3.c  # vendored amalgamation (see thirdparty/README.md)
 )
 target_include_directories(mpctrans PUBLIC include)
@@ -35,7 +37,9 @@ target_include_directories(mpctrans PUBLIC thirdparty)
 set_property(SOURCE thirdparty/sqlite3.c APPEND PROPERTY COMPILE_DEFINITIONS
     SQLITE_OMIT_LOAD_EXTENSION SQLITE_THREADSAFE=0 SQLITE_DEFAULT_MEMSTATUS=0)
 if(WIN32)
-    target_link_libraries(mpctrans PUBLIC winhttp shell32 ole32 bcrypt)   # bcrypt: data_update's sha256
+    # bcrypt: data_update's sha256; advapi32/crypt32: CredWriteW/CredReadW/CredDeleteW (github.cpp's
+    # and txapi.cpp's token stores) -- not always pulled in by the MSVC/CMake default lib set.
+    target_link_libraries(mpctrans PUBLIC winhttp shell32 ole32 bcrypt advapi32 crypt32)
 endif()
 
 enable_testing()
@@ -151,6 +155,13 @@ add_test(NAME ai_client COMMAND ai_client_test)
 add_executable(confidence_test tests/confidence_test.cpp)
 target_link_libraries(confidence_test PRIVATE mpctrans)
 add_test(NAME confidence COMMAND confidence_test)
+
+add_executable(tx_reverse_push_test tests/tx_reverse_push_test.cpp)
+target_link_libraries(tx_reverse_push_test PRIVATE mpctrans)
+# Pure planning logic over hand-built TxSyncResult + fake listTx/blameDates lambdas -- no network,
+# so it runs on any platform (mirrors ai_client_test/confidence_test's split from the Windows-only
+# github_smoke/suggestion_store tests below).
+add_test(NAME tx_reverse_push COMMAND tx_reverse_push_test)
 
 if(WIN32)
     add_executable(suggestion_store_test tests/suggestion_store_test.cpp)

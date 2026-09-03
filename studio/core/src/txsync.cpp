@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <atomic>
+#include <cctype>
 #include <mutex>
 #include <set>
 #include <thread>
@@ -14,6 +15,22 @@
 namespace mpctrans::txsync {
 
 namespace cfg = mpctrans::config;
+
+namespace {
+// True if `message` (a blame commit's first line) matches any of config::TX_SYNC_COMMIT_MARKERS,
+// case-insensitively -- i.e. the blamed line was landed by a Transifex-sync commit, not authored by
+// a translator, so its date is not evidence of "upstream is newer" (see tx_reverse_push_plan).
+bool is_tx_sync_commit(const std::string& message) {
+    std::string lower = message;
+    for (auto& c : lower) c = (char)std::tolower((unsigned char)c);
+    for (const auto& marker : cfg::TX_SYNC_COMMIT_MARKERS) {
+        std::string m = marker;
+        for (auto& c : m) c = (char)std::tolower((unsigned char)c);
+        if (!m.empty() && lower.find(m) != std::string::npos) return true;
+    }
+    return false;
+}
+} // namespace
 
 // Credits the merged msgstr blocks to a synthetic "translator" (there's no single human author for a
 // bulk sync) — PoFile::splice only bumps PO-Revision-Date/Last-Translator/# Translators: when at least
@@ -214,6 +231,141 @@ std::vector<github::FileEdit> tx_build_edits_validated(const TxSyncResult& resul
         out.push_back(github::FileEdit{ e.repo_path, repaired });   // always ship -- keeps all non-breaking translations
     }
     return out;
+}
+
+// ---- reverse push: Studio -> Transifex ----
+
+ReversePushPlan tx_reverse_push_plan(TxSyncResult& result,
+    const std::function<std::vector<txapi::Translation>(int res, const std::string& lang)>& listTx,
+    const std::function<std::map<int, github::LineBlame>(const std::string& repo_path)>& blameDates) {
+    ReversePushPlan plan;
+
+    // Group decision INDICES by (lang,res) -- listTx is consulted once per group, and we mutate
+    // result.decisions[i].include in place (can't do that through a copied TxDecision).
+    std::map<std::pair<std::string, int>, std::vector<size_t>> groups;
+    for (size_t i = 0; i < result.decisions.size(); ++i) {
+        const auto& d = result.decisions[i];
+        if (d.kind != TxDecision::Protected && d.kind != TxDecision::TxWins) continue;   // TxNew/Discarded: nothing
+        groups[{ d.lang, d.res }].push_back(i);
+    }
+
+    std::map<std::string, std::map<int, github::LineBlame>> blameCache;   // repo_path -> line->blame (lazy, once each)
+    auto getBlame = [&](const std::string& path) -> const std::map<int, github::LineBlame>& {
+        auto it = blameCache.find(path);
+        if (it == blameCache.end()) it = blameCache.emplace(path, blameDates(path)).first;
+        return it->second;
+    };
+
+    for (auto& [key, idxs] : groups) {
+        const std::string& lang = key.first;
+        int res = key.second;
+        std::vector<txapi::Translation> txList = listTx(res, lang);
+        if (txList.empty()) {
+            plan.notes.push_back("language " + lang + " not in Transifex");
+            continue;
+        }
+        // Keyed on context+"\x1f"+source (== .po msgctxt+msgid), NOT context alone -- msgctxt is not
+        // globally unique (e.g. sk's dialogs .po has two different strings both under
+        // IDD_GOTO_DLG_IDC_STATIC), so a context-only join silently collapses distinct rows onto
+        // whichever happened to be inserted last.
+        auto joinKey = [](const std::string& ctx, const std::string& msgid) { return ctx + "\x1f" + msgid; };
+        std::map<std::string, const txapi::Translation*> byKey;
+        for (auto& t : txList) byKey[joinKey(t.context, t.source)] = &t;
+
+        std::string path = std::string(cfg::PO_DIR) + "/mpc-hc." + lang + "." + cfg::RESOURCES[res] + ".po";
+
+        // Both non-empty and differing (TxWins as computed, or a Protected row Transifex has since
+        // filled in with something other than upstream's value): resolve via blame-line evidence.
+        auto resolveConflict = [&](TxDecision& d, const txapi::Translation& t) {
+            if (t.value == d.upstreamStr) { d.include = false; return; }   // DB already agrees w/ upstream
+
+            const auto& blame = getBlame(path);
+            int line = -1;
+            auto pb = result.upstreamPoBytes.find(path);
+            if (pb != result.upstreamPoBytes.end()) line = msgstr_line(pb->second, d.msgctxt, d.msgid);
+            const github::LineBlame* lb = nullptr;
+            if (line > 0) { auto it = blame.find(line); if (it != blame.end()) lb = &it->second; }
+
+            // A blame commit whose message names a Transifex sync landed this line by MERGING/
+            // REBASING Transifex's state onto develop -- committedDate is when that sync ran, not
+            // when the translation was authored, and the VALUE it carried was Transifex's state AT
+            // that time (which may be older than the live DB). Neither the date nor the fact upstream
+            // "has" a value at that line is evidence upstream should win here -- keep Transifex's.
+            if (lb && !lb->date.empty() && is_tx_sync_commit(lb->message)) {
+                std::string sha7 = lb->sha.substr(0, std::min<size_t>(7, lb->sha.size()));
+                plan.keepTransifex.push_back({ d.lang, d.res, d.msgctxt, d.msgid, d.upstreamStr, t.value, t.id,
+                    "upstream line from a Transifex-sync commit " + sha7 + " '" + lb->message + "'" });
+                return;   // include NOT flipped -- this isn't "upstream is newer" evidence
+            }
+
+            std::string upDate = lb ? lb->date : std::string();
+            const std::string& txDate = t.datetime_translated;
+
+            if (!upDate.empty() && !txDate.empty() && upDate > txDate) {   // ISO-8601 UTC: lexicographic == chronological
+                std::string sha7 = lb ? lb->sha.substr(0, std::min<size_t>(7, lb->sha.size())) : std::string();
+                std::string audit = lb ? (" (" + sha7 + " '" + lb->message + "')") : std::string();
+                plan.push.push_back({ d.lang, d.res, d.msgctxt, d.msgid, d.upstreamStr, t.value, t.id,
+                                      "upstream newer: " + upDate + " > " + txDate + audit });
+                d.include = false;
+            } else {
+                std::string reason = (!upDate.empty() && !txDate.empty())
+                                    ? "transifex newer" : "no date -- transifex wins (conservative)";
+                plan.keepTransifex.push_back({ d.lang, d.res, d.msgctxt, d.msgid, d.upstreamStr, t.value, t.id, reason });
+            }
+        };
+
+        for (size_t i : idxs) {
+            TxDecision& d = result.decisions[i];
+            auto it = byKey.find(joinKey(d.msgctxt, d.msgid));
+            if (it == byKey.end()) {
+                plan.notes.push_back("no Transifex row for " + lang + " " + d.msgctxt);
+                continue;
+            }
+            const txapi::Translation& t = *it->second;
+
+            if (d.kind == TxDecision::Protected) {
+                if (t.value.empty()) {
+                    plan.push.push_back({ d.lang, d.res, d.msgctxt, d.msgid, d.upstreamStr, t.value, t.id, "transifex empty" });
+                    continue;
+                }
+                if (t.value == d.upstreamStr) continue;   // DB caught up since tx_compute ran -- nothing to do
+                resolveConflict(d, t);                    // translated to something ELSE since -- treat as a conflict
+                continue;
+            }
+            // TxWins
+            resolveConflict(d, t);
+        }
+    }
+    return plan;
+}
+
+void tx_apply_reverse_push(const txapi::Token& tok, const ReversePushPlan& plan,
+    const std::function<void(const ReversePushItem&, bool ok, const std::string& msg)>& report) {
+    // list_translations is expensive -- cache it per (res,lang), not per item.
+    std::map<std::pair<int, std::string>, std::vector<txapi::Translation>> cache;
+
+    for (const auto& item : plan.push) {
+        auto key = std::make_pair(item.res, item.lang);
+        auto it = cache.find(key);
+        if (it == cache.end())
+            it = cache.emplace(key, txapi::list_translations(tok, item.res, item.lang)).first;
+
+        // Same (context, source msgid) join as tx_reverse_push_plan -- context alone can collide.
+        const txapi::Translation* cur = nullptr;
+        for (auto& t : it->second)
+            if (t.context == item.msgctxt && t.source == item.msgid) { cur = &t; break; }
+        if (!cur) { if (report) report(item, false, "no longer present in Transifex"); continue; }
+        if (cur->value != item.txStr) {
+            if (report) report(item, false, "DB changed to '" + cur->value + "'");
+            continue;
+        }
+        try {
+            txapi::patch_translation(tok, item.txId, item.upstreamStr);
+            if (report) report(item, true, "pushed");
+        } catch (const std::exception& e) {
+            if (report) report(item, false, e.what());
+        }
+    }
 }
 
 } // namespace mpctrans::txsync

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "mpctrans/github.h"
+#include "mpctrans/txapi.h"
 #include "mpctrans/validate.h"
 
 // Transifex -> upstream translation sync — C++ port of tools/transifex_sync.py (read that file's
@@ -84,5 +85,44 @@ struct HeldTranslation { std::string lang, msgctxt, msgid, reason; };
 // every held string in `held`. Returns the FULL-file edits safe to push to the PR branch.
 std::vector<github::FileEdit> tx_build_edits_validated(const TxSyncResult& result,
                                                        std::vector<HeldTranslation>& held);
+
+// ---- reverse push: Studio -> Transifex ----
+//
+// Transifex's GitHub integration is ONE-WAY (DB -> the fork's `transifex` branch), so a translation
+// that reaches upstream develop via a translator's PR gets reverted by the NEXT sync ("Transifex
+// wins" on a TxWins/Protected conflict) unless the live Transifex DB is updated too. This plans (and
+// applies) exactly that: pushing upstream develop's value into Transifex via its REST API wherever
+// upstream should win, and flipping the corresponding TxDecision's `include` off so the SAME sync
+// pass's merge doesn't turn around and revert it back onto disk.
+
+struct ReversePushItem {
+    std::string lang; int res;
+    std::string msgctxt, msgid, upstreamStr, txStr, txId, reason;
+};
+struct ReversePushPlan {
+    std::vector<ReversePushItem> push;           // upstream should overwrite Transifex
+    std::vector<ReversePushItem> keepTransifex;  // Transifex's value wins (or no evidence either way)
+    std::vector<std::string> notes;              // e.g. "language <lang> not in Transifex"
+};
+
+// Decides what upstream develop should push INTO Transifex so the two agree, consulting the LIVE DB
+// via `listTx` (called at most once per (res,lang) group present in result.decisions) and per-file
+// blame line evidence via `blameDates` (repo_path -> line->github::LineBlame map; may come back empty
+// -- treated as "no evidence", never as an error). A blame line whose commit message matches
+// config::TX_SYNC_COMMIT_MARKERS is a Transifex-sync commit, not a translator's edit -- its date is
+// ignored and the row is kept as Transifex's (see the .cpp for the full rule). MUTATES `result`: a
+// TxWins decision that loses to a newer (non-sync) upstream value, or that Transifex's live DB
+// already agrees with, gets `include = false` so tx_build_edits/tx_build_edits_validated's merge
+// keeps upstream's value instead of reverting it.
+ReversePushPlan tx_reverse_push_plan(TxSyncResult& result,
+    const std::function<std::vector<txapi::Translation>(int res, const std::string& lang)>& listTx,
+    const std::function<std::map<int, github::LineBlame>(const std::string& repo_path)>& blameDates);
+
+// Applies `plan.push`: PATCHes each item's Transifex value to upstreamStr, exact-match-guarded on
+// txStr (list_translations is re-checked once per (res,lang) group so concurrent DB edits are never
+// clobbered -- an item whose live value no longer equals what the plan saw is skipped, not forced).
+// `report(item, ok, msg)` fires once per item ("pushed", a skip reason, or the PATCH failure).
+void tx_apply_reverse_push(const txapi::Token&, const ReversePushPlan&,
+    const std::function<void(const ReversePushItem&, bool ok, const std::string& msg)>& report);
 
 } // namespace mpctrans::txsync

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #pragma once
 #include <functional>
+#include <map>
 #include <optional>
 #include <string>
 #include <vector>
@@ -137,5 +138,22 @@ std::vector<std::string> list_forks(const Token&);
 // Branch names for `owner`/`repo` (GET .../branches, single page). Empty on any failure — the caller
 // (TxSyncDlg) falls back to TRANSIFEX_BRANCH when this comes back empty, same posture as list_forks.
 std::vector<std::string> list_branches(const Token&, const std::string& owner, const std::string& repo);
+
+// ---- reverse-push (mpctrans::txsync's tx_reverse_push_plan): age evidence for conflict resolution ----
+
+// The commit that last touched one blamed line: `date` alone can't distinguish "a translator edited
+// this line" from "a Transifex-sync merge/rebase landed it" -- the latter's committedDate is when the
+// sync ran, not when the translation was authored, and its VALUE is whatever Transifex held at sync
+// time (which may be older than the live DB). `sha`/`message` let the caller recognize and exclude
+// sync commits (see config::TX_SYNC_COMMIT_MARKERS) rather than treating their date as evidence.
+struct LineBlame { std::string date, sha, message; };
+
+// 1-based line -> blame info for every line of `repo_path` at `branch`, via the GraphQL blame API
+// (one POST to https://api.github.com/graphql). Used to tell whether an upstream-develop translation
+// is newer than the Transifex DB's value when the two disagree. Empty map on any failure (bad/missing
+// token, network error, path not found, unexpected response shape) — the caller treats "no date"
+// conservatively (keeps the Transifex value rather than guessing).
+std::map<int, LineBlame> blame_line_dates(const Token&, const std::string& owner, const std::string& repo,
+                                          const std::string& branch, const std::string& repo_path);
 
 } // namespace mpctrans::github
