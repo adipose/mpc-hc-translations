@@ -170,6 +170,16 @@ int cmd_refresh(int argc, char** argv) {
     }
     std::sort(sync.begin(), sync.end());   // "<prefix>-YYYYMMDD-HHMM" sorts chronologically
     std::string branch = sync.back();      // newest
+    // The newest branch may belong to an already-MERGED sync PR (branches outlive their PRs); topping
+    // it up would land on a dead branch. Refuse unless upstream has an OPEN PR headed by it.
+    int prNum = github::open_pr_number(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO, login, branch);
+    if (prNum == 0) {
+        std::fprintf(stderr, "error: no OPEN pull request on %s/%s for %s:%s (merged or closed?) -- "
+                             "propose a new sync PR instead\n",
+                     config::UPSTREAM_OWNER, config::UPSTREAM_REPO, login.c_str(), branch.c_str());
+        return 3;
+    }
+    std::fprintf(stderr, "open PR #%d for %s\n", prNum, branch.c_str());
 
     // 6. Validated edits (bad-for-Options-tree translations held back rather than blocking the rest).
     std::vector<txsync::HeldTranslation> held;

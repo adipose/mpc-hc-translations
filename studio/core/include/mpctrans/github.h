@@ -139,6 +139,12 @@ std::vector<std::string> list_forks(const Token&);
 // (TxSyncDlg) falls back to TRANSIFEX_BRANCH when this comes back empty, same posture as list_forks.
 std::vector<std::string> list_branches(const Token&, const std::string& owner, const std::string& repo);
 
+// Number of the OPEN pull request in `owner`/`repo` whose head is `headOwner`:`branch`, or 0 if
+// there is none (merged/closed/never opened, or the query failed). The refresh flows use this so a
+// top-up never lands on the dead branch of an already-merged sync PR.
+int open_pr_number(const Token&, const std::string& owner, const std::string& repo,
+                   const std::string& headOwner, const std::string& branch);
+
 // ---- reverse-push (mpctrans::txsync's tx_reverse_push_plan): age evidence for conflict resolution ----
 
 // The commit that last touched one blamed line: `date` alone can't distinguish "a translator edited

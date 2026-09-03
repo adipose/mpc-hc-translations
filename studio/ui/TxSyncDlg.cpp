@@ -691,6 +691,15 @@ void TxSyncDlg::OnRefreshPrClicked() {
     }
     std::sort(sync.begin(), sync.end());          // "<prefix>-YYYYMMDD-HHMM" sorts chronologically
     std::string branch = sync.back();             // newest
+    // Branches outlive their PRs: refuse to top up the dead branch of an already-merged sync PR.
+    int prNum = github::open_pr_number(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO, login, branch);
+    if (prNum == 0) {
+        MessageBox(L"No OPEN pull request found for " + CString(CA2W(branch.c_str(), CP_UTF8)) +
+                   L" on " + CString(config::UPSTREAM_OWNER) + L"/" + CString(config::UPSTREAM_REPO) +
+                   L" — it was probably merged or closed.\n\nUse “Propose upstream PR…” to open a new sync PR.",
+                   L"Refresh open PR", MB_ICONINFORMATION);
+        return;
+    }
     std::vector<txsync::HeldTranslation> held;
     std::vector<github::FileEdit> edits = txsync::tx_build_edits_validated(m_result, held);
     if (edits.empty()) {

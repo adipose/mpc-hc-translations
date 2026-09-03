@@ -1,0 +1,77 @@
+name: Transifex sync (headless)
+
+# The maintainer's sync loop, unattended: push develop-newer translations INTO Transifex, bring the
+# transifex staging branch up to current develop (translators then see new source strings), and top
+# up the open transifex-sync-* PR with newly-arrived valid translations. Every step is the same
+# txsync_cli the GUI mirrors; each step's report is uploaded as an artifact.
+#
+# Secrets: SYNC_GITHUB_TOKEN (repo scope on the fork; read on upstream) and TRANSIFEX_TOKEN.
+# The upstream submodule is NOT cloned -- the CLI only needs the language list, which is derived from
+# the PO directory listing via the API.
+
+on:
+  schedule:
+    - cron: '17 6 * * *'        # daily, 06:17 UTC
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Plan only -- push nothing (adds --dry-run to every step)'
+        type: boolean
+        default: false
+
+concurrency:
+  group: transifex-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      GITHUB_TOKEN: ${{ secrets.SYNC_GITHUB_TOKEN }}
+      TRANSIFEX_TOKEN: ${{ secrets.TRANSIFEX_TOKEN }}
+      DRY: ${{ inputs.dry_run == true && '--dry-run' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: microsoft/setup-msbuild@v2
+
+      - name: Build libmpctrans + txsync_cli
+        shell: pwsh
+        run: |
+          msbuild studio/Studio.sln /t:libmpctrans /p:Configuration=Release /p:Platform=x64 /m /v:m /nologo
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          pwsh -NoProfile -File studio/cli/build_cli.ps1
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & studio/cli/txsync_cli.exe --help
+
+      - name: Language list (PO directory names via API; no submodule clone)
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.SYNC_GITHUB_TOKEN }}
+        run: |
+          New-Item -ItemType Directory -Force po | Out-Null
+          $names = gh api "repos/clsid2/mpc-hc/contents/src/mpc-hc/mpcresources/PO" --jq '.[].name'
+          foreach ($n in $names) { if ($n -like 'mpc-hc.*.dialogs.po') { New-Item -ItemType File -Force "po/$n" | Out-Null } }
+          "languages: " + (Get-ChildItem po | Measure-Object).Count
+
+      - name: Update transifex branch (reverse-push into Transifex first, then develop tree + merged POs)
+        shell: pwsh
+        run: |
+          & studio/cli/txsync_cli.exe update-branch --push-transifex --po-dir po $env:DRY 2>&1 | Tee-Object -FilePath update-branch.log
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Top up the open sync PR (skips cleanly when no PR is open)
+        shell: pwsh
+        run: |
+          & studio/cli/txsync_cli.exe refresh --po-dir po $env:DRY 2>&1 | Tee-Object -FilePath refresh.log
+          if ($LASTEXITCODE -eq 3) { "no open transifex-sync PR -- nothing to top up"; exit 0 }
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: transifex-sync-${{ github.run_number }}
+          path: '*.log'
+          if-no-files-found: ignore

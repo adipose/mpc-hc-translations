@@ -506,6 +506,17 @@ std::vector<std::string> list_forks(const Token& t) {
     return out;
 }
 
+int open_pr_number(const Token& t, const std::string& owner, const std::string& repo,
+                   const std::string& headOwner, const std::string& branch) {
+    try {
+        json j = api(t, L"GET", "/repos/" + owner + "/" + repo + "/pulls?state=open&per_page=5&head=" +
+                                headOwner + ":" + branch);
+        if (j.is_array() && !j.empty() && j[0].is_object() && j[0].contains("number") && j[0]["number"].is_number())
+            return j[0]["number"].get<int>();
+    } catch (const std::exception&) {}   // network/auth failure -> "no open PR" (callers refuse to push)
+    return 0;
+}
+
 std::vector<std::string> list_branches(const Token& t, const std::string& owner, const std::string& repo) {
     std::vector<std::string> out;
     try {
@@ -586,6 +597,7 @@ std::string update_transifex_branch(const Token&, const std::string&, const std:
 std::string rebase_pr_branch(const Token&, const std::string&, const std::string&, const std::string&, const std::vector<FileEdit>&, const std::string&) { throw std::logic_error("github: Windows only"); }
 std::vector<std::string> list_forks(const Token&) { return {}; }
 std::vector<std::string> list_branches(const Token&, const std::string&, const std::string&) { return {}; }
+int open_pr_number(const Token&, const std::string&, const std::string&, const std::string&, const std::string&) { return 0; }
 std::map<int, LineBlame> blame_line_dates(const Token&, const std::string&, const std::string&, const std::string&, const std::string&) { return {}; }
 } // namespace mpctrans::github
 
