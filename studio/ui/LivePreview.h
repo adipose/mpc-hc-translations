@@ -2,6 +2,8 @@
 #pragma once
 #include <afxwin.h>
 #include <functional>
+#include <string>
+#include <utility>
 #include <vector>
 #include "mpctrans/control_index.h"
 #include "mpctrans/po.h"
@@ -118,6 +120,13 @@ public:
     // gap between one control's right edge and the next's left edge is small (~20px at 96 DPI,
     // DPI-scaled) — each chain of 2+ becomes a group; singletons have grouped=false.
     std::vector<FitMeasurement> MeasureFit(HWND dlg, long long dialogId, const mpctrans::ControlIndex& idx);
+
+    // One combo OPTION's fit against its combo's CLOSED field (the part that clips — the dropdown list
+    // can be wider, but the selected item renders in the field). availablePx = combo client width minus
+    // the drop button (SM_CXVSCROLL) and ~8px edges/indent (mirrors DetectOverflow's Button margin rule).
+    struct ComboFitMeasurement { std::string msgctxt; long long controlId = -1; int renderedPx = 0, availablePx = 0; };
+    std::vector<ComboFitMeasurement> MeasureComboFit(HWND dlg, long long comboCtrlId,
+        const std::vector<std::pair<std::string, CString>>& options);   // (msgctxt, translated text)
 
     // Re-measure arbitrary replacement `text` against a SPECIFIC control's CURRENT font + client rect
     // (the control must still exist in the currently rendered dialog) — used to re-check an AI-proposed

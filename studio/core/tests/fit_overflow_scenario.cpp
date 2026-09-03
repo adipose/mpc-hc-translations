@@ -58,6 +58,39 @@ static bool overflows(HWND ctrl, int* outRendered = nullptr, int* outAvail = nul
     return sz.cx > avail && avail > 0;
 }
 
+// ---- combo-box OPTION fit: verbatim port of LivePreview::MeasureComboFit's rule (studio/ui/
+// LivePreview.cpp) -- unlike overflows() above, this measures an arbitrary CANDIDATE option string
+// against the combo's CLOSED field, not the control's own live text (a combo's real options are filled
+// at runtime in C++, so there is nothing to WM_GETTEXT from in the app either -- see combo_groups()'s
+// comment in studio/ui/MainFrame.cpp). No mnemonic stripping -- combo items have none. availablePx =
+// client width minus the drop button (SM_CXVSCROLL) and ~8px edges/indent (mirrors DetectOverflow's
+// Button margin rule -- see the clsid2/mpc-hc#4141 "Zwykła pozaekranowa powierzchnia" upstream report). ----
+static bool comboOptionFits(HWND combo, const wchar_t* text, int* outRendered = nullptr, int* outAvail = nullptr) {
+    RECT rc; ::GetClientRect(combo, &rc);
+    int avail = (rc.right - rc.left) - ::GetSystemMetrics(SM_CXVSCROLL) - 8;
+    HDC dc = ::GetDC(combo);
+    HFONT f = (HFONT)::SendMessage(combo, WM_GETFONT, 0, 0);
+    HGDIOBJ old = f ? ::SelectObject(dc, f) : nullptr;
+    SIZE sz{}; ::GetTextExtentPoint32W(dc, text, (int)wcslen(text), &sz);
+    if (old) ::SelectObject(dc, old);
+    ::ReleaseDC(combo, dc);
+    if (outRendered) *outRendered = sz.cx;
+    if (outAvail) *outAvail = avail;
+    return sz.cx > avail && avail > 0;
+}
+static void checkCombo(const char* what, HWND combo, const wchar_t* text, bool wantOverflow) {
+    int rendered = 0, avail = 0;
+    bool got = comboOptionFits(combo, text, &rendered, &avail);
+    std::printf("  %-46s rendered %dpx vs avail %dpx -> %s\n", what, rendered, avail,
+                got ? "OVERFLOW" : "FIT");
+    if (got == wantOverflow) {
+        std::printf("    PASS (expected %s)\n", wantOverflow ? "OVERFLOW" : "FIT");
+    } else {
+        std::printf("    FAIL (expected %s)\n", wantOverflow ? "OVERFLOW" : "FIT");
+        ++fails;
+    }
+}
+
 static void banner(const char* title) { std::printf("\n== %s ==\n", title); }
 static void check(const char* what, HWND ctrl, bool wantOverflow) {
     int rendered = 0, avail = 0;
@@ -113,12 +146,16 @@ int main() {
                                        L"Zus\xE4tzliche Renderer-Einstellungen sind im Wiedergabe-Men\xFC verf\xFCgbar",
                                        WS_CHILD | SS_LEFT,
                                        10, 70, 90, 14, host, nullptr, hInst, nullptr);
-    if (!btnShort || !btnLong || !stcShort || !stcLong) {
+    // CBS_DROPDOWNLIST: a closed-field combo (Options-page style, e.g. IDC_DX_SURFACE) -- the case from
+    // clsid2/mpc-hc#4141 (Polish IDS_PPAGE_OUTPUT_SURF_OFFSCREEN clipped in the closed field).
+    HWND combo = ::CreateWindowExW(0, L"COMBOBOX", L"", WS_CHILD | CBS_DROPDOWNLIST,
+                                   10, 90, 150, 200, host, nullptr, hInst, nullptr);
+    if (!btnShort || !btnLong || !stcShort || !stcLong || !combo) {
         std::printf("SKIP: control creation failed (err %lu)\n", ::GetLastError());
         ::DestroyWindow(host);
         return 0;
     }
-    for (HWND c : { btnShort, btnLong, stcShort, stcLong })
+    for (HWND c : { btnShort, btnLong, stcShort, stcLong, combo })
         ::SendMessageW(c, WM_SETFONT, (WPARAM)font, FALSE);
 
     banner("Button (~60px wide, -8px border allowance)");
@@ -128,6 +165,14 @@ int main() {
     banner("Static SS_LEFT (~90px wide, no border allowance)");
     check("short text \"Common\"", stcShort, /*wantOverflow=*/false);
     check("long text \"Zus\xC3\xA4tzliche Renderer-Einstellungen ...\"", stcLong, /*wantOverflow=*/true);
+
+    // upstream clsid2/mpc-hc#4141: a Polish combo option clipped by its combo's CLOSED field -- a
+    // "too long" class DetectOverflow/MeasureFit can't see (they only measure Buttons/single-line
+    // Statics). LivePreview::MeasureComboFit (and comboOptionFits() above) is the fix.
+    banner("ComboBox CBS_DROPDOWNLIST option (~150px wide, minus SM_CXVSCROLL + 8px)");
+    checkCombo("short option \"2D\"", combo, L"2D", /*wantOverflow=*/false);
+    checkCombo("long option \"Zwyk\xC5\x82" "a pozaekranowa powierzchnia\" (PL, #4141)", combo,
+               L"Zwyk\x0142" L"a pozaekranowa powierzchnia", /*wantOverflow=*/true);
 
     std::printf("\n(In the app this is LivePreview::MeasureFit over every rendered dialog control;\n"
                 " the Review tab's fit scan and the Sync-review 'doesn't fit' filter surface exactly these.)\n");

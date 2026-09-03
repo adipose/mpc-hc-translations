@@ -951,6 +951,30 @@ LivePreview::TextFit LivePreview::MeasureControlText(HWND ctrl, const CString& t
     return fit;
 }
 
+// One combo OPTION's fit against its combo's CLOSED field. Unlike MeasureFit (which reads the LIVE
+// text already substituted into a rendered control), this measures arbitrary candidate strings — the
+// combo's real items are filled at runtime in C++ (see combo_groups()'s comment in MainFrame.cpp), so
+// there is no live control text to read; the caller supplies each option's translated text directly.
+// No mnemonic stripping — combo items have none (unlike Button/Static captions).
+std::vector<LivePreview::ComboFitMeasurement> LivePreview::MeasureComboFit(HWND dlg, long long comboCtrlId,
+        const std::vector<std::pair<std::string, CString>>& options) {
+    std::vector<ComboFitMeasurement> out;
+    HWND ctrl = ::GetDlgItem(dlg, (int)comboCtrlId);
+    if (!ctrl) return out;
+    RECT rc; ::GetClientRect(ctrl, &rc);
+    int avail = (rc.right - rc.left) - ::GetSystemMetrics(SM_CXVSCROLL) - 8;
+    HDC dc = ::GetDC(ctrl);
+    HFONT f = (HFONT)::SendMessage(ctrl, WM_GETFONT, 0, 0);
+    HGDIOBJ old = f ? ::SelectObject(dc, f) : nullptr;
+    for (const auto& [msgctxt, text] : options) {
+        SIZE sz{}; ::GetTextExtentPoint32W(dc, text, text.GetLength(), &sz);
+        out.push_back({ msgctxt, comboCtrlId, (int)sz.cx, avail });
+    }
+    if (old) ::SelectObject(dc, old);
+    ::ReleaseDC(ctrl, dc);
+    return out;
+}
+
 // Single-line, width-constrained fit measurement for every translatable control in the CURRENTLY
 // RENDERED dialog `dlg` — see the header comment for the full scope/grouping rules.
 std::vector<LivePreview::FitMeasurement> LivePreview::MeasureFit(HWND dlg, long long dialogId,

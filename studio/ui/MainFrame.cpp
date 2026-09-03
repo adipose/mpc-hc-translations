@@ -1108,10 +1108,12 @@ void MainFrame::PopulateList() {
                 });
                 for (size_t i : idxs) {
                     const auto& d = m_txSync->decisions[i];
-                    // "Show only strings that don't fit": fit only applies to DIALOG strings (res==0); a
+                    // "Show only strings that don't fit": fit only applies to DIALOG strings (res==0) and
+                    // combo-option strings (res==RES_STRINGS, e.g. IDS_PPAGE_OUTPUT_SURF_*) -- a
                     // cross-language reviewer can't judge translation correctness, only layout fit.
+                    // Membership in m_syncFitBad (not res alone) still decides which of those rows show.
                     if (m_syncFitFilter) {
-                        if (d.res != 0) continue;
+                        if (d.res != 0 && d.res != RES_STRINGS) continue;
                         if (m_syncFitBad.count(d.lang + "\x1f" + d.msgctxt + "\x1f" + d.msgid) == 0) continue;
                     }
                     Row row{ d.msgctxt, d.msgid, d.res };
@@ -2796,28 +2798,43 @@ long long MainFrame::TooltipDialog(const std::string& ctx, CString& ctlEnglish) 
 // so the RC dialog template can't tell us that e.g. IDS_TIME_ON_SEEKBAR_* live in IDC_TIMEONSEEKBAR on
 // IDD_PPAGETHEME. This table -- generated from upstream's PPage*.cpp -- maps each option-list combo to
 // its (dialog, control, ordered items). Keep in sync with upstream if a page's combo changes.
+//
+// `dropdownWidened`: whether upstream widens the combo's dropped list to its longest item
+// (CorrectComboListWidth / SetDroppedWidth in the page's OnInitDialog, or PlayerListCtrl for the
+// Advanced page's in-list combo). Upstream's convention -- cf. PPageTheme.cpp "the longest option is
+// wider than the combo field" -- is that an option clipping in the CLOSED field is acceptable as long
+// as the dropdown shows it in full. So the fit scan (AppendComboFitFlags) only flags UNWIDENED combos,
+// where a long option is unreadable everywhere. Audited against clsid2/mpc-hc develop 2026-09-02; the
+// three `false` entries below are the ones missing the call (see upstream #4141's follow-up) -- flip
+// them to true once that lands.
 namespace {
-struct ComboGroup { const char* idd; const char* combo; std::vector<const char*> items; };
+struct ComboGroup { const char* idd; const char* combo; bool dropdownWidened; std::vector<const char*> items; };
 const std::vector<ComboGroup>& combo_groups() {
     static const std::vector<ComboGroup> t = {
-        {"IDD_PPAGECAPTURE",  "IDC_COMBO6", {"IDS_PPAGE_CAPTURE_FG0","IDS_PPAGE_CAPTURE_FG1","IDS_PPAGE_CAPTURE_FG2"}},
-        {"IDD_PPAGECAPTURE",  "IDC_COMBO7", {"IDS_PPAGE_CAPTURE_SFG0","IDS_PPAGE_CAPTURE_SFG1","IDS_PPAGE_CAPTURE_SFG2"}},
-        {"IDD_PPAGEOUTPUT",   "IDC_AUDRND_COMBO", {"IDS_PPAGE_OUTPUT_SYS_DEF","IDS_PPAGE_OUTPUT_AUD_INTERNAL_REND",
+        {"IDD_PPAGECAPTURE",  "IDC_COMBO6", true,  {"IDS_PPAGE_CAPTURE_FG0","IDS_PPAGE_CAPTURE_FG1","IDS_PPAGE_CAPTURE_FG2"}},
+        {"IDD_PPAGECAPTURE",  "IDC_COMBO7", true,  {"IDS_PPAGE_CAPTURE_SFG0","IDS_PPAGE_CAPTURE_SFG1","IDS_PPAGE_CAPTURE_SFG2"}},
+        {"IDD_PPAGEOUTPUT",   "IDC_AUDRND_COMBO", true, {"IDS_PPAGE_OUTPUT_SYS_DEF","IDS_PPAGE_OUTPUT_AUD_INTERNAL_REND",
             "IDS_PPAGE_OUTPUT_AUD_MPC_REND","IDS_PPAGE_OUTPUT_AUD_NULL_COMP","IDS_PPAGE_OUTPUT_AUD_NULL_UNCOMP"}},
-        {"IDD_PPAGEOUTPUT",   "IDC_DX9RESIZER_COMBO", {"IDS_PPAGE_OUTPUT_RESIZE_NN","IDS_PPAGE_OUTPUT_RESIZER_BILIN",
+        {"IDD_PPAGEOUTPUT",   "IDC_DX9RESIZER_COMBO", false, {"IDS_PPAGE_OUTPUT_RESIZE_NN","IDS_PPAGE_OUTPUT_RESIZER_BILIN",
             "IDS_PPAGE_OUTPUT_RESIZER_BIL_PS","IDS_PPAGE_OUTPUT_RESIZER_BICUB1","IDS_PPAGE_OUTPUT_RESIZER_BICUB2","IDS_PPAGE_OUTPUT_RESIZER_BICUB3"}},
-        {"IDD_PPAGEOUTPUT",   "IDC_DX_SURFACE", {"IDS_PPAGE_OUTPUT_SURF_OFFSCREEN","IDS_PPAGE_OUTPUT_SURF_2D","IDS_PPAGE_OUTPUT_SURF_3D"}},
-        {"IDD_PPAGEPLAYBACK", "IDC_COMBO1", {"IDS_ZOOM_25","IDS_ZOOM_50","IDS_ZOOM_100","IDS_ZOOM_200","IDS_ZOOM_AUTOFIT"}},
-        {"IDD_PPAGEPLAYBACK", "IDC_COMBO2", {"IDS_AFTER_PLAYBACK_DO_NOTHING","IDS_AFTER_PLAYBACK_PLAY_NEXT","IDS_AFTER_PLAYBACK_REWIND",
+        {"IDD_PPAGEOUTPUT",   "IDC_DX_SURFACE", true, {"IDS_PPAGE_OUTPUT_SURF_OFFSCREEN","IDS_PPAGE_OUTPUT_SURF_2D","IDS_PPAGE_OUTPUT_SURF_3D"}},
+        // The post-July-2026 renderer-settings dialog hosts the same combos under a new IDD (upstream
+        // moved them off IDD_PPAGEOUTPUT); same control symbols, so both generations of the RC resolve.
+        // The combo-option clipping reported in upstream #4141 lives here (surface: widened -> face-only).
+        {"IDD_PPAGEVIDEORENDERER", "IDC_DX9RESIZER_COMBO", false, {"IDS_PPAGE_OUTPUT_RESIZE_NN","IDS_PPAGE_OUTPUT_RESIZER_BILIN",
+            "IDS_PPAGE_OUTPUT_RESIZER_BIL_PS","IDS_PPAGE_OUTPUT_RESIZER_BICUB1","IDS_PPAGE_OUTPUT_RESIZER_BICUB2","IDS_PPAGE_OUTPUT_RESIZER_BICUB3"}},
+        {"IDD_PPAGEVIDEORENDERER", "IDC_DX_SURFACE", true, {"IDS_PPAGE_OUTPUT_SURF_OFFSCREEN","IDS_PPAGE_OUTPUT_SURF_2D","IDS_PPAGE_OUTPUT_SURF_3D"}},
+        {"IDD_PPAGEPLAYBACK", "IDC_COMBO1", true,  {"IDS_ZOOM_25","IDS_ZOOM_50","IDS_ZOOM_100","IDS_ZOOM_200","IDS_ZOOM_AUTOFIT"}},
+        {"IDD_PPAGEPLAYBACK", "IDC_COMBO2", true,  {"IDS_AFTER_PLAYBACK_DO_NOTHING","IDS_AFTER_PLAYBACK_PLAY_NEXT","IDS_AFTER_PLAYBACK_REWIND",
             "IDS_AFTER_PLAYBACK_MONITOROFF","IDS_AFTER_PLAYBACK_CLOSE","IDS_AFTER_PLAYBACK_EXIT"}},
-        {"IDD_PPAGEPLAYBACK", "IDC_COMBO3", {"IDS_PLAY_LOOPMODE_FILE","IDS_PLAY_LOOPMODE_PLAYLIST"}},
-        {"IDD_PPAGEPLAYBACK", "IDC_COMBO4", {"IDS_VERTICAL_ALIGN_VIDEO_MIDDLE","IDS_VERTICAL_ALIGN_VIDEO_TOP","IDS_VERTICAL_ALIGN_VIDEO_BOTTOM"}},
-        {"IDD_PPAGETHEME",    "IDC_COMBO1", {"IDS_THEMEMODE_DARK","IDS_THEMEMODE_LIGHT","IDS_THEMEMODE_WINDOWS"}},
-        {"IDD_PPAGETHEME",    "IDC_COMBO3", {"IDS_TIME_TOOLTIP_ABOVE","IDS_TIME_TOOLTIP_BELOW"}},
-        {"IDD_PPAGETHEME",    "IDC_TIMEONSEEKBAR", {"IDS_TIME_ON_SEEKBAR_NEVER","IDS_TIME_ON_SEEKBAR_ALWAYS","IDS_TIME_ON_SEEKBAR_WHEN_STATUSBAR_HIDDEN"}},
-        {"IDD_PPAGETWEAKS",   "IDC_COMBO4", {"IDS_FASTSEEK_LATEST","IDS_FASTSEEK_NEAREST"}},
-        {"IDD_PPAGEADVANCED", "IDC_COMBO1", {"IDS_STARTUP_PRESET_REMEMBER","IDS_AG_VIEW_MINIMAL","IDS_AG_VIEW_COMPACT","IDS_AG_VIEW_NORMAL","IDS_AG_VIEW_CUSTOM"}},
-        {"IDD_PPAGEFULLSCREEN","IDC_COMBO2", {"IDS_PPAGEFULLSCREEN_SHOWNEVER","IDS_PPAGEFULLSCREEN_SHOWMOVED","IDS_PPAGEFULLSCREEN_SHOHHOVERED"}},
+        {"IDD_PPAGEPLAYBACK", "IDC_COMBO3", true,  {"IDS_PLAY_LOOPMODE_FILE","IDS_PLAY_LOOPMODE_PLAYLIST"}},
+        {"IDD_PPAGEPLAYBACK", "IDC_COMBO4", true,  {"IDS_VERTICAL_ALIGN_VIDEO_MIDDLE","IDS_VERTICAL_ALIGN_VIDEO_TOP","IDS_VERTICAL_ALIGN_VIDEO_BOTTOM"}},
+        {"IDD_PPAGETHEME",    "IDC_COMBO1", false, {"IDS_THEMEMODE_DARK","IDS_THEMEMODE_LIGHT","IDS_THEMEMODE_WINDOWS"}},
+        {"IDD_PPAGETHEME",    "IDC_COMBO3", false, {"IDS_TIME_TOOLTIP_ABOVE","IDS_TIME_TOOLTIP_BELOW"}},
+        {"IDD_PPAGETHEME",    "IDC_TIMEONSEEKBAR", true, {"IDS_TIME_ON_SEEKBAR_NEVER","IDS_TIME_ON_SEEKBAR_ALWAYS","IDS_TIME_ON_SEEKBAR_WHEN_STATUSBAR_HIDDEN"}},
+        {"IDD_PPAGETWEAKS",   "IDC_COMBO4", false, {"IDS_FASTSEEK_LATEST","IDS_FASTSEEK_NEAREST"}},
+        {"IDD_PPAGEADVANCED", "IDC_COMBO1", true,  {"IDS_STARTUP_PRESET_REMEMBER","IDS_AG_VIEW_MINIMAL","IDS_AG_VIEW_COMPACT","IDS_AG_VIEW_NORMAL","IDS_AG_VIEW_CUSTOM"}},
+        {"IDD_PPAGEFULLSCREEN","IDC_COMBO2", true, {"IDS_PPAGEFULLSCREEN_SHOWNEVER","IDS_PPAGEFULLSCREEN_SHOWMOVED","IDS_PPAGEFULLSCREEN_SHOHHOVERED"}},
     };
     return t;
 }
@@ -3154,6 +3171,11 @@ void MainFrame::CommitEdit(const CString& msgstr) {
     // Targeted flag refresh: only this cell's deterministic (non-fit) status can have changed, and
     // only its OWN dialog's fit measurements (if any) can have changed. (`row` is still valid here —
     // it must stay so; PopulateReviewRows(), which invalidates it via m_rows.clear(), runs last.)
+    // KNOWN LIMITATION: this covers dialog-caption (RES_DIALOGS) edits only. A combo-option IDS_*
+    // string (see combo_groups()/AppendComboFitFlags) doesn't map to a dialog via DialogForString --
+    // it's a plain string-table entry, not a dialog-template control -- so editing one leaves its combo
+    // fit flag stale here; it only refreshes on the next full EnsureFitScan/EnsureSyncFitScan. Acceptable:
+    // no recompute path is implemented for the combo-option case.
     long long dlg = DialogForString(row.msgctxt, row.msgid);
     if (dlg >= 0) RecomputeFitForDialog(dlg);
     if (m_tabs.GetCurSel() == RES_REVIEW) PopulateReviewRows();   // cheap: reads caches, no rendering
@@ -3205,6 +3227,63 @@ void MainFrame::AppendFitFlags(std::vector<ReviewFlag>& out, long long dialogId,
     }
 }
 
+// Combo-option counterpart to AppendFitFlags: combo dropdowns are filled at runtime in C++ (see
+// combo_groups()'s comment above), so their option text never appears as live control text MeasureFit
+// can read -- every option in every combo_groups() group that lives on `dialogId` is measured directly
+// against its combo's CLOSED field via LivePreview::MeasureComboFit. res = RES_STRINGS: the option
+// strings are string-table entries (msgctxt IDS_*), not dialog-template control captions.
+void MainFrame::AppendComboFitFlags(std::vector<ReviewFlag>& out, long long dialogId, HWND dlg,
+                                    LivePreview& lp, const std::vector<RcDialog>& rc,
+                                    const PoFile& strings) {
+    if (!dlg) return;
+    for (const auto& g : combo_groups()) {
+        // Upstream widens this combo's dropped list to its longest item, so a long option is fully
+        // readable on click; the closed-field clip is accepted by upstream convention -- not a defect
+        // to flag. Only unwidened combos (unreadable everywhere) get measured. See the table comment.
+        if (g.dropdownWidened) continue;
+        const RcDialog* d = nullptr;
+        for (const auto& cand : rc) if (cand.sym == g.idd) { d = &cand; break; }
+        if (!d || d->id != dialogId) continue;
+        long long comboId = -1;
+        for (const auto& c : d->controls) if (c.sym == g.combo) { comboId = c.id; break; }
+        if (comboId < 0) continue;
+
+        std::vector<std::pair<std::string, CString>> options;   // (msgctxt, translated text)
+        std::map<std::string, std::string> msgidByCtx;          // msgctxt -> msgid (for evidence)
+        for (const char* item : g.items) {
+            const PoEntry* found = nullptr;
+            for (const auto& e : strings.entries)
+                if (e.msgctxt == item) { found = &e; break; }
+            if (!found) continue;   // no string-table entry for this item -- skip
+            std::string text = !found->msgstr.empty() ? found->msgstr : found->msgid;
+            options.push_back({ found->msgctxt, CString(CA2W(text.c_str(), CP_UTF8)) });
+            msgidByCtx[found->msgctxt] = found->msgid;
+        }
+        if (options.empty()) continue;
+
+        for (const auto& m : lp.MeasureComboFit(dlg, comboId, options)) {
+            if (m.availablePx <= 0) continue;
+            int rendered = m.renderedPx, avail = m.availablePx;
+            double ratio = (double)rendered / avail;
+            Row::Flag kind;
+            if (rendered > avail) kind = Row::Flag::FitHard;
+            else if (ratio >= 0.90) kind = Row::Flag::FitTight;
+            else continue;   // fits comfortably -- not flagged
+            CString evidence;
+            if (kind == Row::Flag::FitHard)
+                evidence.Format(L"combo option overflows by %dpx (%hs)", rendered - avail, g.combo);
+            else
+                evidence.Format(L"tight: combo option %d%% of field (%hs)", (int)(ratio * 100), g.combo);
+            ReviewFlag rf;
+            rf.msgctxt = m.msgctxt; rf.msgid = msgidByCtx[m.msgctxt];
+            rf.kind = kind; rf.evidence = evidence;
+            rf.dialog = dialogId; rf.controlId = m.controlId; rf.overflowPx = rendered - avail;
+            rf.res = RES_STRINGS;
+            out.push_back(std::move(rf));
+        }
+    }
+}
+
 // Kick off a background fit scan for the current language (if not already cached/running). Renders
 // every dialog OFFSCREEN on a dedicated worker thread and measures each translatable Button/
 // single-line-Static's text against its control, flagging hard overflow / tight fits.
@@ -3221,13 +3300,14 @@ void MainFrame::EnsureFitScan() {
     std::vector<RcDialog> rcCopy = m_preview.RcDialogs();
     bool useRcCopy = m_preview.UsingRc();
     PoFile poCopy = m_po[RES_DIALOGS];
+    PoFile stringsCopy = m_po[RES_STRINGS];   // combo-option text lives in the string table
     CString neutralDll = m_bundle.neutral_dll;
     std::wstring langKey(m_lang);
     std::set<long long> dialogIds;
     for (const auto& r : idxCopy.dialogs()) dialogIds.insert(r.dialog);
     HWND hwnd = GetSafeHwnd();
 
-    m_fitThread = std::thread([hwnd, idxCopy, rcCopy, useRcCopy, poCopy, neutralDll, langKey, dialogIds]() {
+    m_fitThread = std::thread([hwnd, idxCopy, rcCopy, useRcCopy, poCopy, stringsCopy, neutralDll, langKey, dialogIds]() {
         // Off-screen render technique: a WS_POPUP host window that is NEVER shown (ShowWindow(SW_SHOW)
         // is never called on it). A WS_CHILD's on-screen visibility is gated by its whole ancestor
         // chain, so a child of a never-shown parent never paints/flashes — even though RenderDialog
@@ -3256,6 +3336,7 @@ void MainFrame::EnsureFitScan() {
             HWND dlg = lp.RenderDialog(dialogId, &host, idxCopy, poCopy);
             if (dlg) {
                 AppendFitFlags(result->flags, dialogId, lp.MeasureFit(dlg, dialogId, idxCopy));
+                AppendComboFitFlags(result->flags, dialogId, dlg, lp, rcCopy, stringsCopy);
                 lp.DestroyPreview();
             }
             ++doneCount;
@@ -3305,12 +3386,13 @@ void MainFrame::EnsureSyncFitScan() {
     // Snapshot everything the worker needs by VALUE — see EnsureFitScan's comment for why (it must
     // never touch `this`/MainFrame members after this point).
     struct SyncFitWorkItem { std::string lang, msgctxt, msgid, merged; };
-    std::vector<SyncFitWorkItem> work;
+    std::vector<SyncFitWorkItem> work;         // res==0 (dialog-caption) decisions
+    std::vector<SyncFitWorkItem> stringsWork;  // res==RES_STRINGS decisions (incl. combo options)
     for (const auto& d : m_txSync->decisions) {
         if (d.kind == txsync::TxDecision::Protected) continue;   // never applied; TxSyncDlg reviews these
-        if (d.res != 0) continue;                                 // fit only applies to dialog strings
+        if (d.res != 0 && d.res != RES_STRINGS) continue;   // fit only applies to dialog + combo-option strings
         const std::string& merged = (d.kind == txsync::TxDecision::Discarded) ? d.upstreamStr : d.txStr;
-        work.push_back({ d.lang, d.msgctxt, d.msgid, merged });
+        (d.res == 0 ? work : stringsWork).push_back({ d.lang, d.msgctxt, d.msgid, merged });
     }
     std::map<std::string, std::string> poBytesByLang;   // lang -> its dialogs.po snapshot (only if fetched)
     for (const auto& w : work) {
@@ -3320,6 +3402,17 @@ void MainFrame::EnsureSyncFitScan() {
         auto it = m_txSync->upstreamPoBytes.find(path);
         if (it != m_txSync->upstreamPoBytes.end()) poBytesByLang[w.lang] = it->second;
     }
+    // Combo-option twin of poBytesByLang: each language's strings.po snapshot (only if fetched -- a
+    // language present only via dialog decisions won't have one, and combo measurement is then skipped
+    // for it below).
+    std::map<std::string, std::string> stringsBytesByLang;
+    for (const auto& w : stringsWork) {
+        if (stringsBytesByLang.count(w.lang)) continue;
+        std::string path = std::string(config::PO_DIR) + "/mpc-hc." + w.lang + "." +
+                           std::string(config::RESOURCES[RES_STRINGS]) + ".po";
+        auto it = m_txSync->upstreamPoBytes.find(path);
+        if (it != m_txSync->upstreamPoBytes.end()) stringsBytesByLang[w.lang] = it->second;
+    }
     ControlIndex idxCopy = Idx();
     std::vector<RcDialog> rcCopy = m_preview.RcDialogs();
     bool useRcCopy = m_preview.UsingRc();
@@ -3327,12 +3420,16 @@ void MainFrame::EnsureSyncFitScan() {
     HWND hwnd = GetSafeHwnd();
 
     m_syncFitThread = std::thread([hwnd, idxCopy, rcCopy, useRcCopy, neutralDll,
-                                   work = std::move(work), poBytesByLang = std::move(poBytesByLang)]() {
+                                   work = std::move(work), poBytesByLang = std::move(poBytesByLang),
+                                   stringsWork = std::move(stringsWork),
+                                   stringsBytesByLang = std::move(stringsBytesByLang)]() {
         std::map<std::string, long long> ctx2dlg;   // language-independent: msgctxt -> owning dialog id
         for (const auto& r : idxCopy.dialogs()) ctx2dlg[r.msgctxt] = r.dialog;
 
         std::map<std::string, std::vector<const SyncFitWorkItem*>> byLang;
         for (const auto& w : work) byLang[w.lang].push_back(&w);
+        std::map<std::string, std::vector<const SyncFitWorkItem*>> stringsByLang;
+        for (const auto& w : stringsWork) stringsByLang[w.lang].push_back(&w);
 
         auto* bad = new std::set<std::string>;
         for (const auto& [lang, items] : byLang) {
@@ -3350,6 +3447,25 @@ void MainFrame::EnsureSyncFitScan() {
             }
             if (dialogIds.empty()) continue;
 
+            // Combo-option decisions for this SAME language: overlay onto its own strings.po snapshot
+            // (if fetched) so AppendComboFitFlags measures the actually-synced translation, not the
+            // checked-out one; fold their keys into decisionKeys so a matching combo flag still lands
+            // in `bad`. Only languages already in `byLang` (i.e. with a dialog decision) are scanned --
+            // a language with combo-only decisions and no dialog decision is not visited by this loop.
+            PoFile stringsPo;
+            bool haveStrings = false;
+            if (auto sbIt = stringsBytesByLang.find(lang); sbIt != stringsBytesByLang.end()) {
+                stringsPo = PoFile::parse_bytes(sbIt->second);
+                haveStrings = true;
+                if (auto sIt = stringsByLang.find(lang); sIt != stringsByLang.end()) {
+                    for (const auto* w : sIt->second) {
+                        decisionKeys.insert({ w->msgctxt, w->msgid });
+                        for (auto& e : stringsPo.entries)
+                            if (e.msgctxt == w->msgctxt && e.msgid == w->msgid) { e.msgstr = w->merged; break; }
+                    }
+                }
+            }
+
             CWnd host;
             host.CreateEx(0, AfxRegisterWndClass(0, nullptr, nullptr, nullptr), L"",
                          WS_POPUP, 0, 0, 10, 10, nullptr, nullptr);
@@ -3363,6 +3479,7 @@ void MainFrame::EnsureSyncFitScan() {
                 if (dlg) {
                     std::vector<ReviewFlag> flags;
                     AppendFitFlags(flags, dialogId, lp.MeasureFit(dlg, dialogId, idxCopy));
+                    if (haveStrings) AppendComboFitFlags(flags, dialogId, dlg, lp, rcCopy, stringsPo);
                     for (auto& f : flags)
                         if (decisionKeys.count({ f.msgctxt, f.msgid }))
                             bad->insert(lang + "\x1f" + f.msgctxt + "\x1f" + f.msgid);
@@ -3434,6 +3551,7 @@ void MainFrame::RecomputeFitForDialog(long long dialogId) {
     HWND dlg = lp.RenderDialog(dialogId, &host, Idx(), m_po[RES_DIALOGS]);
     if (!dlg) return;
     AppendFitFlags(cache, dialogId, lp.MeasureFit(dlg, dialogId, Idx()));
+    AppendComboFitFlags(cache, dialogId, dlg, lp, m_preview.RcDialogs(), m_po[RES_STRINGS]);
     lp.DestroyPreview();
 }
 
@@ -3572,7 +3690,7 @@ void MainFrame::PopulateReviewRows() {
     if (auto it = m_fitCache.find(langKey); it != m_fitCache.end()) {
         for (const auto& f : it->second) {
             if (dismissed(f.msgctxt, f.msgid)) continue;
-            Row row{ f.msgctxt, f.msgid, RES_DIALOGS };
+            Row row{ f.msgctxt, f.msgid, f.res };
             row.flag = f.kind; row.evidence = f.evidence;
             row.flagDialog = f.dialog; row.flagControlId = f.controlId;
             (f.kind == Row::Flag::FitHard ? hard : tight).push_back(row);

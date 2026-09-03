@@ -288,6 +288,8 @@ private:
         CString evidence;
         long long dialog = -1, controlId = -1;
         int overflowPx = 0;            // for sorting fit flags most-severe-first; 0 for non-fit
+        int res = 0;                   // 0 = RES_DIALOGS (control captions); combo-option flags use
+                                        // RES_STRINGS (2) — the option text lives in the string table.
     };
     // Result of a background fit scan (see EnsureFitScan). Heap-allocated by the worker, ownership
     // passed to the UI thread via WM_APP_FIT_SCAN_DONE. A private nested type (not a free struct at
@@ -299,6 +301,15 @@ private:
     // so it's safe to call from the worker thread.
     static void AppendFitFlags(std::vector<ReviewFlag>& out, long long dialogId,
                                const std::vector<LivePreview::FitMeasurement>& measurements);
+    // Combo options: measure every combo_groups() option that renders on `dialogId` against its combo's
+    // closed field, appending FitHard/FitTight ReviewFlags (same >100% / >=90% thresholds as
+    // AppendFitFlags; res = RES_STRINGS since the options are string-table entries). `rc` resolves the
+    // table's IDD_/IDC_ symbols to ids; `strings` supplies translations (msgstr, else msgid). Static +
+    // value-args so the background scan workers can call it (combo_groups() is a static const table —
+    // safe from any thread).
+    static void AppendComboFitFlags(std::vector<ReviewFlag>& out, long long dialogId, HWND dlg,
+                                    LivePreview& lp, const std::vector<mpctrans::RcDialog>& rc,
+                                    const mpctrans::PoFile& strings);
 
     void Layout();
     int  S(int v) const { return ::MulDiv(v, m_dpi, 96); }   // 96-DPI-logical px -> device px
