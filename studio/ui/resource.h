@@ -23,6 +23,7 @@
 #define ID_FILE_CHECK_DATA_UPDATE  32789
 #define ID_FILE_TXSYNC             32790
 #define ID_FILE_TXSYNC_PR          32791
+#define ID_FILE_TX_TOKEN           32792
 
 // MainFrame children
 #define IDC_LANG_COMBO       1001
@@ -49,6 +50,8 @@
 #define IDD_AI_SETTINGS      4002
 // "Transifex sync…" modal (TxSyncDlg) — same empty-DIALOGEX-template style.
 #define IDD_TXSYNC           4003
+// "Transifex token…" modal (TxTokenDlg) — same empty-DIALOGEX-template style.
+#define IDD_TXTOKEN          4004
 
 // EditPanel children
 #define IDC_EP_CONTEXT       2001
@@ -82,6 +85,12 @@
 #define IDC_TXSYNC_FORK           2208
 #define IDC_TXSYNC_BRANCH         2209
 #define IDC_TXSYNC_BTN_REFRESH    2210
+#define IDC_TXSYNC_BTN_PUSHTX     2211
+
+// TxTokenDlg children (Save/Cancel use IDOK/IDCANCEL directly, same rationale as AiSettingsDlg)
+#define IDC_TXTOKEN_KEY       2301
+#define IDC_TXTOKEN_HINT      2302
+#define IDC_TXTOKEN_CLEAR     2303
 
 // Dark-theme checkbox / radio sprite strips (Theme.cpp), copied verbatim from upstream
 // res/darktheme/checkboxes-*.png and radios-*.png — see CMPCTheme::ThemeCheckBoxes / ThemeRadios.

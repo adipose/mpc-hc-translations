@@ -18,6 +18,7 @@ BEGIN
         MENUITEM "Render from &bundle DLL",             ID_FILE_RENDERBUNDLE
         MENUITEM SEPARATOR
         MENUITEM "AI &provider...",                     ID_FILE_AI_PROVIDER
+        MENUITEM "Transifex &token...",                 ID_FILE_TX_TOKEN
         MENUITEM "Generate AI &suggestions...",         ID_FILE_GENERATE_AI
         MENUITEM "Generate AI suggestions for &ALL languages...", ID_FILE_GENERATE_AI_ALL
         MENUITEM "Export AI-prep &context for this string...",       ID_FILE_EXPORT_AI_CTX
@@ -72,6 +73,17 @@ END
 IDD_TXSYNC DIALOGEX 0, 0, 300, 200
 STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Transifex sync"
+FONT 9, "Segoe UI"
+BEGIN
+END
+
+/////////////////////////////////////////////////////////////////////////////
+// "Transifex token…" modal (TxTokenDlg.cpp). No RC controls — same empty-template, code-driven
+// style as IDD_SUGGEST_FIX / IDD_AI_SETTINGS / IDD_TXSYNC.
+
+IDD_TXTOKEN DIALOGEX 0, 0, 300, 200
+STYLE DS_SETFONT | DS_MODALFRAME | DS_CENTER | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Transifex token"
 FONT 9, "Segoe UI"
 BEGIN
 END

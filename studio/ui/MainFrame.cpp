@@ -6,6 +6,7 @@
 #include "SuggestFixDlg.h"
 #include "AiSettingsDlg.h"
 #include "TxSyncDlg.h"
+#include "TxTokenDlg.h"
 #include "mpctrans/config.h"
 #include "mpctrans/github.h"
 #include "mpctrans/fetch_cache.h"
@@ -278,6 +279,7 @@ BEGIN_MESSAGE_MAP(MainFrame, CFrameWnd)
     ON_COMMAND(ID_FILE_RENDERRC, OnRenderFromRc)
     ON_COMMAND(ID_FILE_RENDERBUNDLE, OnRenderFromBundle)
     ON_COMMAND(ID_FILE_AI_PROVIDER, OnFileAiProvider)
+    ON_COMMAND(ID_FILE_TX_TOKEN, OnFileTxToken)
     ON_COMMAND(ID_FILE_GENERATE_AI, OnGenerateAiSuggestions)
     ON_COMMAND(ID_FILE_GENERATE_AI_ALL, OnGenerateAiSuggestionsAll)
     ON_COMMAND(ID_FILE_EXPORT_AI_CTX, OnExportAiContextString)
@@ -4960,6 +4962,13 @@ LRESULT MainFrame::OnAiSuggestDone(WPARAM wp, LPARAM) {
 // no key is configured yet.
 void MainFrame::OnFileAiProvider() {
     AiSettingsDlg dlg(this);
+    dlg.DoModal();
+}
+
+// File > "Transifex token…" -- opens the same token modal TxSyncDlg's "Push to Transifex…" button
+// pops automatically (TxTokenDlg::Ensure) when no Transifex API token is stored yet.
+void MainFrame::OnFileTxToken() {
+    TxTokenDlg dlg(this);
     dlg.DoModal();
 }
 

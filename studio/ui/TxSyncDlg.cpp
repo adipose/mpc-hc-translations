@@ -4,9 +4,11 @@
 #include "resource.h"
 #include "Theme.h"
 #include "MainFrame.h"
+#include "TxTokenDlg.h"
 #include "mpctrans/config.h"
 #include "mpctrans/github.h"
 #include "mpctrans/po.h"
+#include "mpctrans/txapi.h"
 #include "mpctrans/validate.h"
 
 #include <algorithm>
@@ -25,6 +27,8 @@ using mpctrans::txsync::TxDecision;
 #define WM_APP_TXSYNC_DONE      (WM_APP + 101)
 #define WM_APP_TXSYNC_FORKS     (WM_APP + 102)   // initial fork list + resolved branch list, see OnInitDialog
 #define WM_APP_TXSYNC_BRANCHES  (WM_APP + 103)   // fork changed -> that fork's branch list, see OnForkChanged
+#define WM_APP_TXSYNC_PUSHPLAN  (WM_APP + 104)   // OnPushTxClicked's plan worker finished
+#define WM_APP_TXSYNC_PUSHDONE  (WM_APP + 105)   // OnPushPlanDone's apply worker finished
 
 namespace {
 // Heap-allocated by the worker thread, ownership passed to the UI thread via WM_APP_TXSYNC_DONE (same
@@ -49,6 +53,26 @@ struct ForksResult {
 struct BranchesResult {
     std::vector<std::string> branches;
     std::string selBranch;
+};
+// WM_APP_TXSYNC_PUSHPLAN payload: OnPushTxClicked's worker planned the reverse push. `result` is the
+// MUTATED copy of m_result the worker planned against (tx_reverse_push_plan flips include flags on
+// the decisions it resolves) -- see TxSyncDlg.h's OnPushPlanDone comment for why the UI thread copies
+// this back into m_result regardless of what the user does with `plan` next.
+struct PushPlanResult {
+    txsync::TxSyncResult result;
+    txsync::ReversePushPlan plan;
+    bool ok = true;
+    CString error;
+};
+// WM_APP_TXSYNC_PUSHDONE payload: OnPushPlanDone's apply worker (tx_apply_reverse_push) finished.
+// `pushed` counts report(item, true, ...) calls; `skippedOrFailed` holds a capped, human-readable
+// line per report(item, false, ...) call (a DB-changed-since-plan skip or a PATCH failure -- see
+// tx_apply_reverse_push's doc comment, both come back as ok=false there).
+struct PushApplyResult {
+    bool ok = true;   // false only if tx_apply_reverse_push itself threw (defensive; it doesn't today)
+    CString error;
+    int pushed = 0;
+    std::vector<CString> skippedOrFailed;
 };
 
 void SplitOwnerRepo(const std::string& s, std::string& owner, std::string& repo) {
@@ -95,12 +119,15 @@ BEGIN_MESSAGE_MAP(TxSyncDlg, CDialog)
     ON_BN_CLICKED(IDC_TXSYNC_BTN_UPDATE, OnUpdateBranchClicked)
     ON_BN_CLICKED(IDC_TXSYNC_BTN_PR, OnProposePrClicked)
     ON_BN_CLICKED(IDC_TXSYNC_BTN_REFRESH, OnRefreshPrClicked)
+    ON_BN_CLICKED(IDC_TXSYNC_BTN_PUSHTX, OnPushTxClicked)
     ON_CBN_SELCHANGE(IDC_TXSYNC_FORK, OnForkChanged)
     ON_CBN_SELCHANGE(IDC_TXSYNC_BRANCH, OnBranchChanged)
     ON_MESSAGE(WM_APP_TXSYNC_PROGRESS, OnComputeProgress)
     ON_MESSAGE(WM_APP_TXSYNC_DONE, OnComputeDone)
     ON_MESSAGE(WM_APP_TXSYNC_FORKS, OnForksDone)
     ON_MESSAGE(WM_APP_TXSYNC_BRANCHES, OnBranchesDone)
+    ON_MESSAGE(WM_APP_TXSYNC_PUSHPLAN, OnPushPlanDone)
+    ON_MESSAGE(WM_APP_TXSYNC_PUSHDONE, OnPushApplyDone)
 END_MESSAGE_MAP()
 
 TxSyncDlg::TxSyncDlg(MainFrame* mainFrame) : CDialog(IDD_TXSYNC, mainFrame), m_mainFrame(mainFrame) {}
@@ -165,14 +192,16 @@ BOOL TxSyncDlg::OnInitDialog() {
     m_btnUpdateBranch.Create(L"Update Transifex branch", ST | WS_TABSTOP, z, this, IDC_TXSYNC_BTN_UPDATE);
     m_btnProposePr.Create(L"Propose upstream PR…", ST | WS_TABSTOP, z, this, IDC_TXSYNC_BTN_PR);
     m_btnRefreshPr.Create(L"Refresh open PR…", ST | WS_TABSTOP, z, this, IDC_TXSYNC_BTN_REFRESH);
+    m_btnPushTx.Create(L"Push to Transifex…", ST | WS_TABSTOP, z, this, IDC_TXSYNC_BTN_PUSHTX);
     m_btnClose.Create(L"Close", ST | WS_TABSTOP | BS_DEFPUSHBUTTON, z, this, IDCANCEL);
     m_btnUpdateBranch.EnableWindow(FALSE);   // enabled once the background compute lands (OnComputeDone)
     m_btnProposePr.EnableWindow(FALSE);
     m_btnRefreshPr.EnableWindow(FALSE);
+    m_btnPushTx.EnableWindow(FALSE);
 
     for (CWnd* w : std::initializer_list<CWnd*>{ &m_status, &m_lblFork, &m_forkCombo, &m_lblBranch,
              &m_branchCombo, &m_progressText, &m_showProtected, &m_btnUpdateBranch, &m_btnProposePr,
-             &m_btnRefreshPr, &m_btnClose })
+             &m_btnRefreshPr, &m_btnPushTx, &m_btnClose })
         w->SetFont(&m_font);
     m_list.SetFont(&m_font);
     Theme::ApplyToChildren(GetSafeHwnd());
@@ -263,6 +292,7 @@ void TxSyncDlg::Layout() {
     m_btnProposePr.MoveWindow(rc.Width() - M - 2 * btnW - S(8), by, btnW, btnH);
     m_btnUpdateBranch.MoveWindow(rc.Width() - M - 3 * btnW - S(16), by, btnW, btnH);
     m_btnRefreshPr.MoveWindow(rc.Width() - M - 4 * btnW - S(24), by, btnW, btnH);
+    m_btnPushTx.MoveWindow(rc.Width() - M - 5 * btnW - S(32), by, btnW, btnH);
 }
 
 LRESULT TxSyncDlg::OnComputeProgress(WPARAM done, LPARAM total) {
@@ -306,6 +336,7 @@ LRESULT TxSyncDlg::OnComputeDone(WPARAM wp, LPARAM) {
     }
     m_btnProposePr.EnableWindow(TRUE);
     m_btnRefreshPr.EnableWindow(TRUE);
+    m_btnPushTx.EnableWindow(TRUE);
     RebuildRows();
     RepopulateList();
     RefreshStatusText();
@@ -354,7 +385,10 @@ void TxSyncDlg::SetBusy(bool busy) {
     m_forkCombo.EnableWindow(!busy);
     m_branchCombo.EnableWindow(!busy);
     // Re-enabling is OnComputeDone's job (it re-applies the owner-gate) -- SetBusy only ever tightens.
-    if (busy) { m_btnUpdateBranch.EnableWindow(FALSE); m_btnProposePr.EnableWindow(FALSE); m_btnRefreshPr.EnableWindow(FALSE); }
+    if (busy) {
+        m_btnUpdateBranch.EnableWindow(FALSE); m_btnProposePr.EnableWindow(FALSE);
+        m_btnRefreshPr.EnableWindow(FALSE); m_btnPushTx.EnableWindow(FALSE);
+    }
 }
 
 // Plain recompute (branch changed, same fork -- no branch-list refetch needed): used directly by
@@ -690,4 +724,154 @@ void TxSyncDlg::OnRefreshPrClicked() {
                    L"\n\n(If the branch moved since this dialog computed, close and reopen Transifex sync to recompute, then retry.)",
                    L"Refresh open PR", MB_ICONERROR);
     }
+}
+
+// Reverse sync: push upstream develop's translations INTO the live Transifex DB wherever upstream
+// should win -- see mpctrans::txsync::tx_reverse_push_plan's doc comment for why this is needed at
+// all (Transifex's GitHub integration is one-way DB->branch). Mirrors the CLI's push-to-transifex
+// subcommand (studio/cli/txsync_cli.cpp's cmd_push_to_transifex), but async: the plan alone is
+// ~(languages x resources) list_translations calls plus one blame_line_dates GraphQL call per
+// changed file, easily north of a thousand HTTP round-trips -- far too slow to run on the UI thread.
+void TxSyncDlg::OnPushTxClicked() {
+    if (!m_haveResult) return;
+    // Blame evidence needs GitHub; the plan/apply need Transifex -- both sign-ins happen up front, on
+    // the UI thread, same posture as EnsureGithubToken everywhere else in this file.
+    auto gh = EnsureGithubToken(this);
+    if (!gh) return;
+    auto tx = TxTokenDlg::Ensure(this);
+    if (!tx) return;
+
+    if (m_computeThread.joinable()) m_computeThread.join();   // defensive; disabled controls already prevent this
+    SetBusy(true);
+    m_status.SetWindowText(L"Planning Transifex push…");
+    m_progressText.SetWindowText(L"");
+
+    HWND hwnd = GetSafeHwnd();
+    txsync::TxSyncResult resultCopy = m_result;   // the worker mutates its OWN copy (include flags) --
+                                                   // never m_result directly, see PushPlanResult's comment
+    github::Token ghTok = *gh;
+    txapi::Token txTok = *tx;
+    m_computeThread = std::thread([hwnd, resultCopy = std::move(resultCopy), ghTok, txTok]() mutable {
+        auto* out = new PushPlanResult;
+        try {
+            auto listTx = [&](int res, const std::string& lang) {
+                return txapi::list_translations(txTok, res, lang);
+            };
+            auto blameDates = [&](const std::string& path) {
+                return github::blame_line_dates(ghTok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO,
+                                                config::UPSTREAM_BRANCH, path);
+            };
+            out->plan = txsync::tx_reverse_push_plan(resultCopy, listTx, blameDates);
+            out->result = std::move(resultCopy);
+        } catch (const std::exception& ex) {
+            out->ok = false; out->error = CString(CA2W(ex.what(), CP_UTF8));
+        }
+        if (!::PostMessage(hwnd, WM_APP_TXSYNC_PUSHPLAN, (WPARAM)out, 0)) delete out;   // dialog gone
+    });
+}
+
+// WM_APP_TXSYNC_PUSHPLAN: the reverse-push plan finished. On success the mutated result is copied
+// back into m_result and the list is rebuilt REGARDLESS of what the user does with the confirm
+// prompt below -- the flipped include flags are the plan's verdict on what upstream should keep
+// (see tx_reverse_push_plan's doc comment), not conditional on the push actually landing; the CLI's
+// cmd_update_branch applies them the same way before its own tx_build_edits call.
+LRESULT TxSyncDlg::OnPushPlanDone(WPARAM wp, LPARAM) {
+    std::unique_ptr<PushPlanResult> out((PushPlanResult*)wp);
+    if (m_computeThread.joinable()) m_computeThread.join();
+    SetBusy(false);
+    m_progressText.SetWindowText(L"");
+
+    if (!out->ok) {
+        RefreshStatusText();
+        MessageBox(L"Planning the Transifex push failed:\n" + out->error, L"Push to Transifex", MB_ICONERROR);
+        return 0;
+    }
+
+    m_result = std::move(out->result);
+    RebuildRows();
+    RepopulateList();
+    RefreshStatusText();
+
+    const txsync::ReversePushPlan& plan = out->plan;
+    if (plan.push.empty()) {
+        MessageBox(L"Nothing to push: Transifex already agrees with upstream.",
+                   L"Push to Transifex", MB_ICONINFORMATION);
+        return 0;
+    }
+
+    CString msg; msg.Format(L"%d translation(s) to push into Transifex, %d kept (Transifex newer / "
+                            L"sync-origin), %d note(s).\n",
+                            (int)plan.push.size(), (int)plan.keepTransifex.size(), (int)plan.notes.size());
+    int shown = 0;
+    for (const auto& it : plan.push) {
+        if (shown++ >= 15) { msg += L"\n  …and more."; break; }
+        msg += L"\n  " + CString(CA2W(it.lang.c_str(), CP_UTF8)) + L" " +
+               CString(CA2W(config::RESOURCES[it.res], CP_UTF8)) + L" " +
+               CString(CA2W(it.msgctxt.c_str(), CP_UTF8)) + L" — " + CString(CA2W(it.reason.c_str(), CP_UTF8));
+    }
+    msg += L"\n\nPush these into Transifex now?";
+    if (MessageBox(msg, L"Push to Transifex", MB_YESNO | MB_ICONQUESTION) != IDYES) return 0;
+
+    // Re-check the token rather than reusing the one captured for planning -- it's been moments, but
+    // TxTokenDlg::Ensure/Clear could in principle have run again via the File menu while this modal
+    // dialog... can't actually happen (this whole dialog is itself modal), but load_token() is cheap
+    // and this is the one write path, so check rather than assume.
+    auto tx = txapi::load_token();
+    if (!tx) {
+        MessageBox(L"No Transifex token stored — use File > Transifex token… first.",
+                   L"Push to Transifex", MB_ICONERROR);
+        return 0;
+    }
+
+    SetBusy(true);
+    m_status.SetWindowText(L"Pushing to Transifex…");
+    HWND hwnd = GetSafeHwnd();
+    txapi::Token txTok = *tx;
+    txsync::ReversePushPlan planCopy = plan;
+    m_computeThread = std::thread([hwnd, planCopy = std::move(planCopy), txTok]() mutable {
+        auto* out2 = new PushApplyResult;
+        try {
+            txsync::tx_apply_reverse_push(txTok, planCopy,
+                [&](const txsync::ReversePushItem& it, bool ok, const std::string& itMsg) {
+                    if (ok) { ++out2->pushed; return; }
+                    if (out2->skippedOrFailed.size() < 30)
+                        out2->skippedOrFailed.push_back(
+                            CString(CA2W(it.lang.c_str(), CP_UTF8)) + L" " +
+                            CString(CA2W(config::RESOURCES[it.res], CP_UTF8)) + L" " +
+                            CString(CA2W(it.msgctxt.c_str(), CP_UTF8)) + L" — " +
+                            CString(CA2W(itMsg.c_str(), CP_UTF8)));
+                });
+        } catch (const std::exception& ex) {
+            out2->ok = false; out2->error = CString(CA2W(ex.what(), CP_UTF8));
+        }
+        if (!::PostMessage(hwnd, WM_APP_TXSYNC_PUSHDONE, (WPARAM)out2, 0)) delete out2;   // dialog gone
+    });
+    return 0;
+}
+
+// WM_APP_TXSYNC_PUSHDONE: the apply worker finished -- report what actually happened in Transifex.
+// (m_result/the list were already updated back in OnPushPlanDone; nothing more to reconcile here.)
+LRESULT TxSyncDlg::OnPushApplyDone(WPARAM wp, LPARAM) {
+    std::unique_ptr<PushApplyResult> out((PushApplyResult*)wp);
+    if (m_computeThread.joinable()) m_computeThread.join();
+    SetBusy(false);
+    RefreshStatusText();
+    m_progressText.SetWindowText(L"");
+
+    if (!out->ok) {
+        MessageBox(L"Pushing to Transifex failed:\n" + out->error, L"Push to Transifex", MB_ICONERROR);
+        return 0;
+    }
+
+    CString msg; msg.Format(L"Pushed %d translation(s) to Transifex.", out->pushed);
+    if (!out->skippedOrFailed.empty()) {
+        msg += L"\n\nSkipped/failed:";
+        int shown = 0;
+        for (const auto& l : out->skippedOrFailed) {
+            if (shown++ >= 20) { msg += L"\n  …and more."; break; }
+            msg += L"\n  " + l;
+        }
+    }
+    MessageBox(msg, L"Push to Transifex", MB_ICONINFORMATION);
+    return 0;
 }

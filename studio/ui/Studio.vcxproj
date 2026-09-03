@@ -55,6 +55,7 @@
     <ClInclude Include="SuggestFixDlg.h" />
     <ClInclude Include="AiSettingsDlg.h" />
     <ClInclude Include="TxSyncDlg.h" />
+    <ClInclude Include="TxTokenDlg.h" />
     <ClInclude Include="StudioPropPageFrame.h" />
     <ClInclude Include="TreePropSheet\PropPageFrame.h" />
     <ClInclude Include="TreePropSheet\PropPageFrameDefault.h" />
@@ -71,6 +72,7 @@
     <ClCompile Include="SuggestFixDlg.cpp" />
     <ClCompile Include="AiSettingsDlg.cpp" />
     <ClCompile Include="TxSyncDlg.cpp" />
+    <ClCompile Include="TxTokenDlg.cpp" />
     <ClCompile Include="StudioPropPageFrame.cpp" />
     <ClCompile Include="TreePropSheet\PropPageFrame.cpp" />
     <ClCompile Include="TreePropSheet\PropPageFrameDefault.cpp" />

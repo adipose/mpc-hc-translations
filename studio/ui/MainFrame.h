@@ -231,6 +231,7 @@ protected:
     afx_msg void OnSuggestAiClicked();                    // EditPanel "Suggest with AI" button
     afx_msg LRESULT OnAiSuggestDone(WPARAM, LPARAM);      // background AI HTTP call completed
     afx_msg void OnFileAiProvider();                      // File > AI provider… -> AiSettingsDlg
+    afx_msg void OnFileTxToken();                          // File > Transifex token… -> TxTokenDlg
     afx_msg LRESULT OnFitScanProgress(WPARAM, LPARAM);    // background fit-scan progress
     afx_msg LRESULT OnFitScanDone(WPARAM, LPARAM);        // background fit-scan completed
     afx_msg void OnDismissClicked();                      // "Dismiss" — Review tab, acts on the selected row

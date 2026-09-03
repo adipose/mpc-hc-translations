@@ -34,12 +34,15 @@ protected:
     afx_msg void OnUpdateBranchClicked();
     afx_msg void OnProposePrClicked();
     afx_msg void OnRefreshPrClicked();
+    afx_msg void OnPushTxClicked();   // "Push to Transifex…" -- reverse-push plan + apply, async
     afx_msg void OnForkChanged();     // fork combo -> refetch that fork's branches, then recompute
     afx_msg void OnBranchChanged();   // branch combo (same fork) -> recompute only
     afx_msg LRESULT OnComputeProgress(WPARAM done, LPARAM total);
     afx_msg LRESULT OnComputeDone(WPARAM, LPARAM);
     afx_msg LRESULT OnForksDone(WPARAM, LPARAM);      // initial fork+branch list resolved -> populate both combos
     afx_msg LRESULT OnBranchesDone(WPARAM, LPARAM);   // fork changed -> that fork's branch list resolved
+    afx_msg LRESULT OnPushPlanDone(WPARAM, LPARAM);   // tx_reverse_push_plan finished on the worker
+    afx_msg LRESULT OnPushApplyDone(WPARAM, LPARAM);  // tx_apply_reverse_push finished on the worker
     DECLARE_MESSAGE_MAP()
 
 private:
@@ -87,4 +90,5 @@ private:
     CButton   m_showProtected;
     CButton   m_btnUpdateBranch, m_btnProposePr, m_btnClose;
     CButton   m_btnRefreshPr;
+    CButton   m_btnPushTx;
 };
