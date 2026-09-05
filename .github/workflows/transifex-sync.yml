@@ -55,16 +55,22 @@ jobs:
           foreach ($n in $names) { if ($n -like 'mpc-hc.*.dialogs.po') { New-Item -ItemType File -Force "po/$n" | Out-Null } }
           "languages: " + (Get-ChildItem po | Measure-Object).Count
 
+      # NOTE: build the argument list conditionally -- passing an EMPTY $env:DRY as a positional
+      # argument hands the exe a "" option (that's what broke the first two scheduled runs).
       - name: Update transifex branch (reverse-push into Transifex first, then develop tree + merged POs)
         shell: pwsh
         run: |
-          & studio/cli/txsync_cli.exe update-branch --push-transifex --po-dir po $env:DRY 2>&1 | Tee-Object -FilePath update-branch.log
+          $cliArgs = @('update-branch', '--push-transifex', '--po-dir', 'po')
+          if ($env:DRY) { $cliArgs += $env:DRY }
+          & studio/cli/txsync_cli.exe @cliArgs 2>&1 | Tee-Object -FilePath update-branch.log
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 
       - name: Top up the open sync PR (skips cleanly when no PR is open)
         shell: pwsh
         run: |
-          & studio/cli/txsync_cli.exe refresh --po-dir po $env:DRY 2>&1 | Tee-Object -FilePath refresh.log
+          $cliArgs = @('refresh', '--po-dir', 'po')
+          if ($env:DRY) { $cliArgs += $env:DRY }
+          & studio/cli/txsync_cli.exe @cliArgs 2>&1 | Tee-Object -FilePath refresh.log
           if ($LASTEXITCODE -eq 3) { "no open transifex-sync PR -- nothing to top up"; exit 0 }
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
 

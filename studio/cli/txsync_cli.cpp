@@ -103,6 +103,7 @@ int cmd_refresh(int argc, char** argv) {
 
     for (int i = 0; i < argc; ++i) {
         std::string a = argv[i];
+        if (a.empty()) continue;   // an empty argv entry (e.g. an unset $env var passed positionally) is not an option
         auto next = [&](const char* flag) -> std::string {
             if (i + 1 >= argc) throw std::runtime_error(std::string(flag) + " needs an argument");
             return argv[++i];
@@ -224,6 +225,7 @@ int cmd_update_branch(int argc, char** argv) {
 
     for (int i = 0; i < argc; ++i) {
         std::string a = argv[i];
+        if (a.empty()) continue;   // an empty argv entry (e.g. an unset $env var passed positionally) is not an option
         auto next = [&](const char* flag) -> std::string {
             if (i + 1 >= argc) throw std::runtime_error(std::string(flag) + " needs an argument");
             return argv[++i];
@@ -337,6 +339,7 @@ int cmd_push_to_transifex(int argc, char** argv) {
 
     for (int i = 0; i < argc; ++i) {
         std::string a = argv[i];
+        if (a.empty()) continue;   // an empty argv entry (e.g. an unset $env var passed positionally) is not an option
         auto next = [&](const char* flag) -> std::string {
             if (i + 1 >= argc) throw std::runtime_error(std::string(flag) + " needs an argument");
             return argv[++i];
