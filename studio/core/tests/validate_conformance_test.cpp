@@ -42,6 +42,10 @@ int main() {
     expect("fmt count",    rule_format("c", "%s of %s", "%s"),           {"format-specifiers"});
     expect("fmt order",    rule_format("c", "%s=%d", "%d=%s"),           {"format-order"});
     expect("fmt percent",  rule_format("c", "100%% done", "100%% fertig"), {});
+    // Windows env vars are literal text, not %a/%A specifiers (upstream #3138)
+    expect("fmt envvar case", rule_format("c", "Logs in %appdata%\\MPC-HC", "Jurnale in %AppData%\\MPC-HC"), {});
+    expect("fmt envvar+spec", rule_format("c", "%s in %APPDATA%", "%s in %appdata%"), {});
+    expect("fmt envvar drop", rule_format("c", "%s in %APPDATA%", "in %appdata%"), {"format-specifiers"});
     expect("fmt zoom",     rule_format("c", "50%", "%50"),               {});   // tr percentage, not a spec
     expect("fmt literal%", rule_format("c", "% of the animation", "%s animasi"), {});  // source has no spec
 

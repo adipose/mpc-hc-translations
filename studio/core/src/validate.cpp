@@ -19,9 +19,18 @@ namespace mpctrans::validate {
 static const std::regex SPEC_RE(
     R"(%%|%\d+!\w+!|%[-+0#]*\d*(?:\.\d+)?(?:hh|ll|h|l|L|z|j|t|w)?[diouxXeEfFgGaAcsp@])");
 
+// Windows environment variables ("%appdata%\MPC-HC", "%APPDATA%") are literal text, but their first
+// letter reads as a printf conversion (%a / %A -- hex float). Masked before tokenizing, identical to
+// potool's ENV_RE, so a translator who writes %AppData% instead of %appdata% is not rejected for a
+// "missing placeholder". Name must be >= 2 identifier chars, so "%s%s" / "%d%" never match. (#3138)
+static const std::regex ENV_RE(R"(%[A-Za-z_][A-Za-z0-9_]+%)");
+
 std::vector<std::string> format_specs(const std::string& s) {
+    std::string masked = s;
+    for (auto it = std::sregex_iterator(s.begin(), s.end(), ENV_RE); it != std::sregex_iterator(); ++it)
+        masked.replace(it->position(), it->length(), it->length(), ' ');
     std::vector<std::string> out;
-    for (auto it = std::sregex_iterator(s.begin(), s.end(), SPEC_RE);
+    for (auto it = std::sregex_iterator(masked.begin(), masked.end(), SPEC_RE);
          it != std::sregex_iterator(); ++it)
         out.push_back(it->str());
     return out;

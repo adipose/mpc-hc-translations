@@ -30,6 +30,10 @@ expect("fmt count",     P.rule_format("c", "%s of %s", "%s"),           ["format
 expect("fmt order",     P.rule_format("c", "%s=%d", "%d=%s"),           ["format-order"])
 expect("fmt positional",P.rule_format("c", "%1 and %2", "%2 and %1"),   [])   # reorder allowed
 expect("fmt percent",   P.rule_format("c", "100%% done", "100%% fertig"), [])
+# Windows env vars are literal text, not %a/%A specifiers (upstream #3138)
+expect("fmt envvar case",  P.rule_format("c", "Logs in %appdata%\\MPC-HC", "Jurnale in %AppData%\\MPC-HC"), [])
+expect("fmt envvar+spec",  P.rule_format("c", "%s in %APPDATA%", "%s in %appdata%"), [])
+expect("fmt envvar drop",  P.rule_format("c", "%s in %APPDATA%", "in %appdata%"), ["format-specifiers"])
 
 expect("amp ok",        P.rule_ampersand("c", "&File", "&Datei"),       [])   # no error
 expect("amp dropped",   P.rule_ampersand("c", "&File", "Datei"),        [])   # SOFT: warning, not error

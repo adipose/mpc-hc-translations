@@ -41,9 +41,15 @@ SPEC_RE = re.compile(
     r"%%|%\d+!\w+!|%[-+0#]*\d*(?:\.\d+)?(?:hh|ll|h|l|L|z|j|t|w)?[diouxXeEfFgGaAcsp@]"
 )
 POSITIONAL = re.compile(r"^%\d")
+# Windows environment variables ("%appdata%\MPC-HC", "%APPDATA%") are literal text, but their first
+# letter reads as a printf conversion (%a / %A -- hex float).  Mask them before tokenizing so a
+# translator who writes %AppData% instead of %appdata% is not rejected for a "missing placeholder".
+# Name must be >= 2 identifier chars, so "%s%s" / "%d%" never match.  (upstream #3138)
+ENV_RE = re.compile(r"%[A-Za-z_][A-Za-z0-9_]+%")
 
 def fmt_specs(s):
-    return SPEC_RE.findall(s or "")
+    s = ENV_RE.sub(lambda m: " " * len(m.group()), s or "")
+    return SPEC_RE.findall(s)
 
 def rule_format(ctx, msgid, msgstr):
     if not msgstr:
