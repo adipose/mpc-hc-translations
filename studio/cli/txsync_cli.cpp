@@ -13,6 +13,8 @@
 #include "mpctrans/github.h"
 #include "mpctrans/txapi.h"
 #include "mpctrans/txsync.h"
+#include "mpctrans/po.h"
+#include "mpctrans/validate.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -34,6 +36,10 @@ void print_usage() {
         "usage: txsync_cli refresh            [--po-dir DIR] [--dry-run] [--tx-owner O] [--tx-repo R] [--tx-branch B]\n"
         "       txsync_cli update-branch      [--po-dir DIR] [--dry-run] [--tx-owner O] [--tx-repo R] [--tx-branch B] [--push-transifex]\n"
         "       txsync_cli push-to-transifex  [--po-dir DIR] [--dry-run] [--tx-owner O] [--tx-repo R] [--tx-branch B]\n"
+        "       txsync_cli propose            [--po-dir DIR] [--dry-run] [--tx-owner O] [--tx-repo R] [--tx-branch B]\n"
+        "                                     compute the merge, run the Options-tree gate, create a fresh\n"
+        "                                     transifex-sync-<stamp> branch on your fork and print the compare\n"
+        "                                     URL (the PR itself is opened from it, e.g. with gh pr create).\n"
         "\n"
         "refresh            updates the open transifex-sync-* PR branch (rebase onto develop, validated top-up).\n"
         "update-branch      pushes the merge to the Transifex staging branch itself: a merge commit whose tree is\n"
@@ -424,6 +430,100 @@ int cmd_push_to_transifex(int argc, char** argv) {
 
 } // namespace
 
+// Mirrors MainFrame::OnProposeTxSyncPr (minus the GUI-local drafts overlay): compute the merge, refuse
+// to ship any strings.po whose Options tree is broken (the same hard gate as the GUI), then create the
+// transifex-sync-<stamp> branch on the signed-in user's fork via github::open_pr. open_pr deliberately
+// does NOT create the pull request -- it returns GitHub's compare URL; the caller (or a human) opens it.
+int cmd_propose(int argc, char** argv) {
+    std::string poDir = "po";
+    bool dryRun = false;
+    std::string txOwner = config::TRANSIFEX_OWNER;
+    std::string txRepo  = config::TRANSIFEX_REPO;
+    std::string txBranch = config::TRANSIFEX_BRANCH;
+
+    for (int i = 0; i < argc; ++i) {
+        std::string a = argv[i];
+        if (a.empty()) continue;
+        auto next = [&](const char* flag) -> std::string {
+            if (i + 1 >= argc) throw std::runtime_error(std::string(flag) + " needs an argument");
+            return argv[++i];
+        };
+        if (a == "--po-dir")               poDir = next("--po-dir");
+        else if (a == "--dry-run")         dryRun = true;
+        else if (a == "--tx-owner")        txOwner = next("--tx-owner");
+        else if (a == "--tx-repo")         txRepo = next("--tx-repo");
+        else if (a == "--tx-branch")       txBranch = next("--tx-branch");
+        else if (a == "--help" || a == "-h") { print_usage(); std::exit(0); }
+        else throw std::runtime_error("unknown option: " + a);
+    }
+
+    std::vector<std::string> languages = enumerate_languages(poDir);
+    if (languages.empty()) {
+        std::fprintf(stderr, "error: no languages found under po-dir '%s'\n", poDir.c_str());
+        return 2;
+    }
+    std::fprintf(stderr, "found %zu language(s) under %s\n", languages.size(), poDir.c_str());
+
+    std::optional<github::Token> tok = github::load_token();
+    if (!tok) { if (const char* env = std::getenv("GITHUB_TOKEN")) tok = github::Token{ env }; }
+    if (!tok) throw std::runtime_error("no GitHub token: sign in once via the Studio GUI, or set GITHUB_TOKEN");
+    std::fprintf(stderr, "signed in as %s\n", github::whoami(*tok).c_str());
+
+    auto fetchUpstream = [&](const std::string& path) {
+        return github::fetch_latest(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO, config::UPSTREAM_BRANCH, path);
+    };
+    auto fetchTx = [&](const std::string& path) { return github::fetch_latest(*tok, txOwner, txRepo, txBranch, path); };
+    auto progress = [](int done, int total) { std::fprintf(stderr, "  fetching %d/%d\r", done, total); };
+    std::fprintf(stderr, "computing sync against %s/%s@%s ...\n", txOwner.c_str(), txRepo.c_str(), txBranch.c_str());
+    txsync::TxSyncResult result = txsync::tx_compute(fetchUpstream, fetchTx, languages, progress);
+    std::fprintf(stderr, "\n");
+
+    std::vector<github::FileEdit> edits = txsync::tx_build_edits(result.upstreamPoBytes, result);
+
+    // Hard gate (same as the GUI): never ship a strings.po whose Options tree would break.
+    int gateFails = 0;
+    for (const auto& e : edits) {
+        const std::string suf = ".strings.po";
+        if (e.repo_path.size() < suf.size() || e.repo_path.compare(e.repo_path.size() - suf.size(), suf.size(), suf) != 0) continue;
+        for (const auto& f : validate::analyze_category_tree(PoFile::parse_bytes(e.content))) {
+            if (!gateFails) std::printf("GATE: Options-tree defects in files that would ship:\n");
+            std::printf("  %s  %s: %s\n", e.repo_path.c_str(), f.msgctxt.c_str(), f.message.c_str());
+            ++gateFails;
+        }
+    }
+    if (gateFails) {
+        std::fprintf(stderr, "error: %d Options-tree defect(s) -- fix them at the source (Transifex) first\n", gateFails);
+        return 4;
+    }
+
+    int nNew = 0, nWins = 0, nDiscarded = 0, nProtected = 0;
+    for (const auto& d : result.decisions) {
+        switch (d.kind) {
+            case txsync::TxDecision::TxNew:     ++nNew; break;
+            case txsync::TxDecision::TxWins:    ++nWins; break;
+            case txsync::TxDecision::Discarded: ++nDiscarded; break;
+            case txsync::TxDecision::Protected: ++nProtected; break;
+        }
+    }
+    char body[512];
+    std::snprintf(body, sizeof body,
+        "Transifex sync: %d new, %d conflicts (Transifex wins), %d discarded (bad placeholders), "
+        "%d protected upstream-only translations, %d unchanged.",
+        nNew, nWins, nDiscarded, nProtected, result.unchanged);
+
+    std::printf("changed files: %zu\n", edits.size());
+    for (auto& e : edits) std::printf("  %s\n", e.repo_path.c_str());
+    std::printf("summary: %s\n", body);
+
+    if (dryRun) { std::fprintf(stderr, "dry-run: stopping before creating the branch\n"); return 0; }
+    if (edits.empty()) { std::printf("nothing to propose\n"); return 0; }
+
+    std::string url = github::open_pr(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO, config::UPSTREAM_BRANCH,
+                                      "transifex-sync", edits, "Transifex updates", body);
+    std::printf("compare: %s\n", url.c_str());   // branch is created; the PR itself is opened from this URL
+    return 0;
+}
+
 int main(int argc, char** argv) {
     if (argc < 2) { print_usage(); return 2; }
     std::string sub = argv[1];
@@ -433,6 +533,7 @@ int main(int argc, char** argv) {
         if (sub == "refresh")            return cmd_refresh(argc - 2, argv + 2);
         if (sub == "update-branch")      return cmd_update_branch(argc - 2, argv + 2);
         if (sub == "push-to-transifex")  return cmd_push_to_transifex(argc - 2, argv + 2);
+        if (sub == "propose")            return cmd_propose(argc - 2, argv + 2);
         print_usage(); return 2;
     } catch (const std::exception& ex) {
         std::fprintf(stderr, "error: %s\n", ex.what());
