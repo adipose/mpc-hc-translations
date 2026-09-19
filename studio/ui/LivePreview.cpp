@@ -876,53 +876,18 @@ HMENU LivePreview::LoadRawMenu(long long menuId) const {
     return m_neutral ? ::LoadMenu(m_neutral, MAKEINTRESOURCE((WORD)menuId)) : nullptr;
 }
 
-// Single-line text controls whose current text is wider than their client rect.
-// The mnemonic '&' a prefix-processing control (buttons; statics without SS_NOPREFIX) draws as an
-// underline under the next letter, not as a '&' glyph — and '&&' draws as one literal '&'. Since
-// GetTextExtentPoint32W is not prefix-aware, measuring the raw window text over-counts every
-// accelerator-bearing label/button by an '&' glyph (~7px), making the fit gate falsely conservative.
-// Return the text as actually drawn so the measurement matches the rendered width.
-static std::wstring displayText(const wchar_t* s, int n, bool prefixProcessed) {
-    std::wstring o; o.reserve(n);
-    for (int r = 0; r < n; ++r) {
-        if (prefixProcessed && s[r] == L'&') {
-            if (r + 1 < n && s[r + 1] == L'&') { o.push_back(L'&'); ++r; }   // '&&' -> literal '&'
-            // else: a lone '&' is the mnemonic marker — dropped
-        } else o.push_back(s[r]);
-    }
-    return o;
-}
-// Whether the control consumes '&' as a mnemonic prefix at draw time: buttons always do; statics do
-// unless SS_NOPREFIX. (cls/style as read from the live control.)
-static bool prefixProcesses(const wchar_t* cls, LONG style) {
-    if (!_wcsicmp(cls, L"Button")) return true;
-    if (!_wcsicmp(cls, L"Static")) return !(style & SS_NOPREFIX);
-    return false;
-}
+// The fit-measuring RULES themselves (mnemonic-aware text extent vs. client rect, row/gap grouping,
+// combo-option measurement, hard/tight thresholds) now live in mpctrans::fit (studio/core/include/
+// mpctrans/fit.h + src/fit.cpp) -- the ONE source of truth shared with the headless `fitscan` CLI
+// (studio/cli/fitscan.cpp). Everything below is a thin wrapper supplying LivePreview's own state
+// (m_english, m_dlgFont) to the portable functions.
 
 std::vector<LivePreview::Overflow> LivePreview::DetectOverflow(HWND dlg) {
     std::vector<Overflow> out;
     if (!dlg) return out;
     ::EnumChildWindows(dlg, [](HWND child, LPARAM lp) -> BOOL {
         auto* out = (std::vector<Overflow>*)lp;
-        wchar_t cls[64]; ::GetClassNameW(child, cls, 64);
-        bool textual = !_wcsicmp(cls, L"Button") || !_wcsicmp(cls, L"Static");
-        LONG st = (LONG)::GetWindowLongPtr(child, GWL_STYLE);
-        if (!_wcsicmp(cls, L"Static") && ((st & SS_TYPEMASK) > SS_RIGHT)) textual = false;  // icons etc.
-        if (!textual) return TRUE;
-        wchar_t txt[512]; int n = ::GetWindowTextW(child, txt, 512);
-        if (n <= 0 || wcschr(txt, L'\n')) return TRUE;      // multi-line statics wrap; skip
-        std::wstring dt = displayText(txt, n, prefixProcesses(cls, st));   // drop the mnemonic '&'
-        HDC dc = ::GetDC(child);
-        HFONT f = (HFONT)::SendMessage(child, WM_GETFONT, 0, 0);
-        HGDIOBJ old = f ? ::SelectObject(dc, f) : nullptr;
-        SIZE sz{}; ::GetTextExtentPoint32W(dc, dt.c_str(), (int)dt.size(), &sz);
-        if (old) ::SelectObject(dc, old);
-        ::ReleaseDC(child, dc);
-        RECT rc; ::GetClientRect(child, &rc);
-        int avail = rc.right - rc.left;
-        if (!_wcsicmp(cls, L"Button")) avail -= 8;          // borders/margins
-        if (sz.cx > avail && avail > 0) out->push_back({ child });
+        if (mpctrans::fit::control_overflows(child)) out->push_back({ child });
         return TRUE;
     }, (LPARAM)&out);
     return out;
@@ -931,167 +896,28 @@ std::vector<LivePreview::Overflow> LivePreview::DetectOverflow(HWND dlg) {
 // Re-measure arbitrary replacement text against a specific control's current font + client rect.
 // Mirrors DetectOverflow's Button-padding rule; const (read-only).
 LivePreview::TextFit LivePreview::MeasureControlText(HWND ctrl, const CString& text) const {
-    TextFit fit;
-    if (!ctrl || !::IsWindow(ctrl)) return fit;
-    wchar_t cls[64]; ::GetClassNameW(ctrl, cls, 64);
-    LONG st = (LONG)::GetWindowLongPtr(ctrl, GWL_STYLE);
-    std::wstring dt = displayText(text, text.GetLength(), prefixProcesses(cls, st));   // drop the mnemonic '&'
-    HDC dc = ::GetDC(ctrl);
-    HFONT f = (HFONT)::SendMessage(ctrl, WM_GETFONT, 0, 0);
-    HGDIOBJ old = f ? ::SelectObject(dc, f) : nullptr;
-    SIZE sz{}; ::GetTextExtentPoint32W(dc, dt.c_str(), (int)dt.size(), &sz);
-    if (old) ::SelectObject(dc, old);
-    ::ReleaseDC(ctrl, dc);
-    RECT rc; ::GetClientRect(ctrl, &rc);
-    int avail = rc.right - rc.left;
-    if (!_wcsicmp(cls, L"Button")) avail -= 8;
-    fit.renderedPx = (int)sz.cx;
-    fit.availablePx = avail;
-    fit.measured = true;
-    return fit;
+    return mpctrans::fit::measure_control_text(ctrl, std::wstring((LPCWSTR)text, text.GetLength()));
 }
 
 // One combo OPTION's fit against its combo's CLOSED field. Unlike MeasureFit (which reads the LIVE
 // text already substituted into a rendered control), this measures arbitrary candidate strings — the
 // combo's real items are filled at runtime in C++ (see combo_groups()'s comment in MainFrame.cpp), so
 // there is no live control text to read; the caller supplies each option's translated text directly.
-// No mnemonic stripping — combo items have none (unlike Button/Static captions).
 std::vector<LivePreview::ComboFitMeasurement> LivePreview::MeasureComboFit(HWND dlg, long long comboCtrlId,
         const std::vector<std::pair<std::string, CString>>& options) {
-    std::vector<ComboFitMeasurement> out;
-    HWND ctrl = ::GetDlgItem(dlg, (int)comboCtrlId);
-    if (!ctrl) return out;
-    RECT rc; ::GetClientRect(ctrl, &rc);
-    int avail = (rc.right - rc.left) - ::GetSystemMetrics(SM_CXVSCROLL) - 8;
-    HDC dc = ::GetDC(ctrl);
-    HFONT f = (HFONT)::SendMessage(ctrl, WM_GETFONT, 0, 0);
-    HGDIOBJ old = f ? ::SelectObject(dc, f) : nullptr;
-    for (const auto& [msgctxt, text] : options) {
-        SIZE sz{}; ::GetTextExtentPoint32W(dc, text, text.GetLength(), &sz);
-        out.push_back({ msgctxt, comboCtrlId, (int)sz.cx, avail });
-    }
-    if (old) ::SelectObject(dc, old);
-    ::ReleaseDC(ctrl, dc);
-    return out;
+    std::vector<std::pair<std::string, std::wstring>> opts;
+    opts.reserve(options.size());
+    for (const auto& [msgctxt, text] : options)
+        opts.emplace_back(msgctxt, std::wstring((LPCWSTR)text, text.GetLength()));
+    return mpctrans::fit::measure_combo_fit(dlg, comboCtrlId, opts);
 }
 
 // Single-line, width-constrained fit measurement for every translatable control in the CURRENTLY
-// RENDERED dialog `dlg` — see the header comment for the full scope/grouping rules.
+// RENDERED dialog `dlg` — see fit.h's measure_fit for the full scope/grouping rules. Passes m_dlgFont
+// through so the multi-line-static line-height discriminator keeps its longstanding on-screen
+// behavior byte-for-byte unchanged by this refactor (fitscan's headless render has no such cached
+// font and falls back to the dialog's own WM_GETFONT instead).
 std::vector<LivePreview::FitMeasurement> LivePreview::MeasureFit(HWND dlg, long long dialogId,
                                                                   const mpctrans::ControlIndex& idx) {
-    std::vector<FitMeasurement> out;
-    if (!dlg || !::IsWindow(dlg)) return out;
-
-    HDC hdc = ::GetDC(dlg);
-    int dpi = ::GetDeviceCaps(hdc, LOGPIXELSY);
-    HGDIOBJ of = m_dlgFont ? ::SelectObject(hdc, m_dlgFont) : nullptr;
-    TEXTMETRICW tm{}; ::GetTextMetricsW(hdc, &tm);
-    if (of) ::SelectObject(hdc, of);
-    ::ReleaseDC(dlg, hdc);
-    int lineH = tm.tmHeight > 0 ? tm.tmHeight : 16;
-    int rowTolerance = ::MulDiv(4, dpi, 96);
-    int gapTolerance = ::MulDiv(20, dpi, 96);
-    const double heightRatioMax = 1.6;
-
-    struct Cand {
-        HWND hwnd; RECT rc;                  // rc in dialog-client coords
-        const mpctrans::DialogRecord* rec;
-        int renderedPx, availablePx;
-    };
-    std::vector<Cand> cands;
-
-    for (const auto& [hwnd, english] : m_english) {
-        if (!hwnd || !::IsWindow(hwnd) || !::IsChild(dlg, hwnd)) continue;   // stale-call guard
-        wchar_t cls[64]; ::GetClassNameW(hwnd, cls, 64);
-        bool isButton = !_wcsicmp(cls, L"Button");
-        bool isStatic = !_wcsicmp(cls, L"Static");
-        if (!isButton && !isStatic) continue;
-        RECT crc; ::GetClientRect(hwnd, &crc);
-        if (isStatic && (crc.bottom - crc.top) > (int)(lineH * heightRatioMax))
-            continue;   // taller than ~1 line -> multi-line/wrapping label, excluded
-
-        int ctrlId = ::GetDlgCtrlID(hwnd);
-        const mpctrans::DialogRecord* rec = idx.dialog_lookup(dialogId, (long long)ctrlId, english);
-        if (!rec) continue;   // not a translatable control per the build_index.py selection
-
-        wchar_t txt[512] = {}; int n = ::GetWindowTextW(hwnd, txt, 512);
-        LONG st = (LONG)::GetWindowLongPtr(hwnd, GWL_STYLE);
-        std::wstring dt = displayText(txt, n, prefixProcesses(cls, st));   // drop the mnemonic '&'
-        HDC dc = ::GetDC(hwnd);
-        HFONT f = (HFONT)::SendMessage(hwnd, WM_GETFONT, 0, 0);
-        HGDIOBJ oldf = f ? ::SelectObject(dc, f) : nullptr;
-        SIZE sz{}; ::GetTextExtentPoint32W(dc, dt.c_str(), (int)dt.size(), &sz);
-        if (oldf) ::SelectObject(dc, oldf);
-        ::ReleaseDC(hwnd, dc);
-
-        int avail = crc.right - crc.left;
-        if (isButton) avail -= 8;
-
-        RECT wr; ::GetWindowRect(hwnd, &wr);
-        ::MapWindowPoints(nullptr, dlg, (POINT*)&wr, 2);
-
-        cands.push_back({ hwnd, wr, rec, (int)sz.cx, avail });
-    }
-
-    std::sort(cands.begin(), cands.end(), [](const Cand& a, const Cand& b) {
-        if (a.rc.top != b.rc.top) return a.rc.top < b.rc.top;
-        return a.rc.left < b.rc.left;
-    });
-
-    // Bucket into rows by top-proximity to the row's first (topmost) member.
-    std::vector<std::vector<size_t>> rows;
-    for (size_t i = 0; i < cands.size(); ++i) {
-        if (!rows.empty() && cands[i].rc.top - cands[rows.back().front()].rc.top <= rowTolerance)
-            rows.back().push_back(i);
-        else
-            rows.push_back({ i });
-    }
-
-    auto emitSingle = [&](const Cand& c) {
-        FitMeasurement fm;
-        fm.controlId = ::GetDlgCtrlID(c.hwnd);
-        fm.controlSym = c.rec->control_sym;
-        fm.msgctxt = c.rec->msgctxt;
-        fm.msgid = c.rec->msgid;
-        fm.renderedPx = c.renderedPx;
-        fm.availablePx = c.availablePx;
-        fm.grouped = false;
-        out.push_back(std::move(fm));
-    };
-    auto emitGroup = [&](const std::vector<size_t>& row, size_t begin, size_t end) {
-        int groupRendered = 0, groupAvail = 0;
-        std::vector<std::string> ctxs;
-        for (size_t m = begin; m < end; ++m) { groupRendered += cands[row[m]].renderedPx; groupAvail += cands[row[m]].availablePx; }
-        for (size_t m = begin; m < end; ++m) ctxs.push_back(cands[row[m]].rec->msgctxt);
-        for (size_t m = begin; m < end; ++m) {
-            const Cand& c = cands[row[m]];
-            FitMeasurement fm;
-            fm.controlId = ::GetDlgCtrlID(c.hwnd);
-            fm.controlSym = c.rec->control_sym;
-            fm.msgctxt = c.rec->msgctxt;
-            fm.msgid = c.rec->msgid;
-            fm.renderedPx = c.renderedPx;
-            fm.availablePx = c.availablePx;
-            fm.grouped = true;
-            fm.groupRenderedPx = groupRendered;
-            fm.groupAvailablePx = groupAvail;
-            for (const auto& peerCtx : ctxs) if (peerCtx != fm.msgctxt) fm.groupPeers.push_back(peerCtx);
-            out.push_back(std::move(fm));
-        }
-    };
-
-    for (auto& row : rows) {
-        std::sort(row.begin(), row.end(), [&](size_t a, size_t b) { return cands[a].rc.left < cands[b].rc.left; });
-        size_t chainStart = 0;
-        for (size_t k = 1; k <= row.size(); ++k) {
-            bool breakChain = (k == row.size()) ||
-                (cands[row[k]].rc.left - cands[row[k - 1]].rc.right > gapTolerance);
-            if (!breakChain) continue;
-            size_t chainLen = k - chainStart;
-            if (chainLen >= 2) emitGroup(row, chainStart, k);
-            else               emitSingle(cands[row[chainStart]]);
-            chainStart = k;
-        }
-    }
-    return out;
+    return mpctrans::fit::measure_fit(dlg, dialogId, idx, m_english, m_dlgFont);
 }

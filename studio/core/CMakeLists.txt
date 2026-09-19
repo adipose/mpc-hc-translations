@@ -19,6 +19,7 @@ add_library(mpctrans STATIC
     src/enrichment.cpp
     src/control_index.cpp
     src/rc_dialogs.cpp     # runtime RC dialog reconstruction (rc_conformance gate)
+    src/fit.cpp            # fit-measuring rules (LivePreview + the headless fitscan CLI share this)
     src/corrections.cpp    # research-correction PR flow (data/research-corrections.jsonl overlay)
     src/ai_client.cpp      # AI-assisted translation suggestions (claude/gpt/glm/openrouter); stub off-Windows
     src/suggestion_store.cpp  # M2 persistent AI-suggestion store (ai-suggestions.sqlite); stub off-Windows
@@ -39,7 +40,11 @@ set_property(SOURCE thirdparty/sqlite3.c APPEND PROPERTY COMPILE_DEFINITIONS
 if(WIN32)
     # bcrypt: data_update's sha256; advapi32/crypt32: CredWriteW/CredReadW/CredDeleteW (github.cpp's
     # and txapi.cpp's token stores) -- not always pulled in by the MSVC/CMake default lib set.
-    target_link_libraries(mpctrans PUBLIC winhttp shell32 ole32 bcrypt advapi32 crypt32)
+    # user32/gdi32/comctl32: fit.cpp's headless rendering + GDI text measurement (CreateDialogIndirect,
+    # GetTextExtentPoint32W, RegisterClassW, ...) -- PUBLIC so every consumer (Studio via the vcxproj,
+    # fitscan.exe, fitscan_test) gets them without repeating; rc_render_test/fit_overflow_scenario below
+    # already added comctl32 themselves, which is harmless to duplicate.
+    target_link_libraries(mpctrans PUBLIC winhttp shell32 ole32 bcrypt advapi32 crypt32 user32 gdi32 comctl32)
 endif()
 
 enable_testing()
@@ -119,6 +124,16 @@ if(WIN32)
     # Win32 controls (no RC/DLL needed) and asserts short captions fit / long ones overflow.
     # SKIPs (exit 0) if window/control creation fails (e.g. session 0).
     add_test(NAME fit_overflow_scenario COMMAND fit_overflow_scenario)
+
+    add_executable(fitscan_test tests/fitscan_test.cpp)
+    target_link_libraries(fitscan_test PRIVATE mpctrans comctl32)
+    # THE FITSCAN GATE -- in-process exercise of the same core APIs studio/cli/fitscan.cpp (potool/
+    # fitscan.ps1's backend) is built from: render every dialog off-screen for pl+de and assert the
+    # known IDD_PPAGETHEME combo overflow (#4141) is flagged. SKIPs if the RC/PO submodule is missing.
+    add_test(NAME fitscan
+        COMMAND fitscan_test ${CMAKE_CURRENT_SOURCE_DIR}/../../upstream/src/mpc-hc/mpc-hc.rc
+                             ${CMAKE_CURRENT_SOURCE_DIR}/../../upstream/src/mpc-hc/resource.h
+                             ${CMAKE_CURRENT_SOURCE_DIR}/../../upstream/src/mpc-hc/mpcresources/PO)
 
     add_executable(rc_index_test tests/rc_index_test.cpp)
     target_link_libraries(rc_index_test PRIVATE mpctrans)

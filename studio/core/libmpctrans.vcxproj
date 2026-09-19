@@ -43,6 +43,7 @@
     <ClInclude Include="include\mpctrans\enrichment.h" />
     <ClInclude Include="include\mpctrans\control_index.h" />
     <ClInclude Include="include\mpctrans\rc_dialogs.h" />
+    <ClInclude Include="include\mpctrans\fit.h" />
     <ClInclude Include="include\mpctrans\drafts.h" />
     <ClInclude Include="include\mpctrans\corrections.h" />
     <ClInclude Include="include\mpctrans\http_internal.h" />
@@ -61,6 +62,7 @@
     <ClCompile Include="src\enrichment.cpp" />
     <ClCompile Include="src\control_index.cpp" />
     <ClCompile Include="src\rc_dialogs.cpp" />
+    <ClCompile Include="src\fit.cpp" />
     <ClCompile Include="src\drafts.cpp" />
     <ClCompile Include="src\corrections.cpp" />
     <ClCompile Include="src\ai_client.cpp" />

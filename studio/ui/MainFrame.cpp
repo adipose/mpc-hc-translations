@@ -16,6 +16,7 @@
 #include "mpctrans/ai_client.h"
 #include "mpctrans/suggestion_store.h"
 #include "mpctrans/data_update.h"
+#include "mpctrans/fit.h"
 
 #include <uxtheme.h>    // SetWindowTheme (strip the progress bar's visual style so our colors apply)
 #include <commctrl.h>   // SetWindowSubclass / DefSubclassProc (m_cmdHelp scroll subclass -> keep the ring aligned)
@@ -2798,48 +2799,14 @@ long long MainFrame::TooltipDialog(const std::string& ctx, CString& ctlEnglish) 
 
 // Combo dropdowns are filled at runtime in C++ (PPage*::DoDataExchange -> AddString(ResStr(IDS_...))),
 // so the RC dialog template can't tell us that e.g. IDS_TIME_ON_SEEKBAR_* live in IDC_TIMEONSEEKBAR on
-// IDD_PPAGETHEME. This table -- generated from upstream's PPage*.cpp -- maps each option-list combo to
-// its (dialog, control, ordered items). Keep in sync with upstream if a page's combo changes.
-//
-// `dropdownWidened`: whether upstream widens the combo's dropped list to its longest item
-// (CorrectComboListWidth / SetDroppedWidth in the page's OnInitDialog, or PlayerListCtrl for the
-// Advanced page's in-list combo). Upstream's convention -- cf. PPageTheme.cpp "the longest option is
-// wider than the combo field" -- is that an option clipping in the CLOSED field is acceptable as long
-// as the dropdown shows it in full. So the fit scan (AppendComboFitFlags) only flags UNWIDENED combos,
-// where a long option is unreadable everywhere. Audited against clsid2/mpc-hc develop 2026-09-02; the
-// three `false` entries below are the ones missing the call (see upstream #4141's follow-up) -- flip
-// them to true once that lands.
+// IDD_PPAGETHEME. combo_groups() -- generated from upstream's PPage*.cpp, mapping each option-list
+// combo to its (dialog, control, ordered items) -- MOVED to mpctrans::fit (studio/core/src/fit.cpp),
+// the ONE source of truth shared with the headless `fitscan` CLI; see there for the full comment
+// (including the `dropdownWidened` upstream-convention rationale). Keep in sync with upstream if a
+// page's combo changes.
 namespace {
-struct ComboGroup { const char* idd; const char* combo; bool dropdownWidened; std::vector<const char*> items; };
-const std::vector<ComboGroup>& combo_groups() {
-    static const std::vector<ComboGroup> t = {
-        {"IDD_PPAGECAPTURE",  "IDC_COMBO6", true,  {"IDS_PPAGE_CAPTURE_FG0","IDS_PPAGE_CAPTURE_FG1","IDS_PPAGE_CAPTURE_FG2"}},
-        {"IDD_PPAGECAPTURE",  "IDC_COMBO7", true,  {"IDS_PPAGE_CAPTURE_SFG0","IDS_PPAGE_CAPTURE_SFG1","IDS_PPAGE_CAPTURE_SFG2"}},
-        {"IDD_PPAGEOUTPUT",   "IDC_AUDRND_COMBO", true, {"IDS_PPAGE_OUTPUT_SYS_DEF","IDS_PPAGE_OUTPUT_AUD_INTERNAL_REND",
-            "IDS_PPAGE_OUTPUT_AUD_MPC_REND","IDS_PPAGE_OUTPUT_AUD_NULL_COMP","IDS_PPAGE_OUTPUT_AUD_NULL_UNCOMP"}},
-        {"IDD_PPAGEOUTPUT",   "IDC_DX9RESIZER_COMBO", false, {"IDS_PPAGE_OUTPUT_RESIZE_NN","IDS_PPAGE_OUTPUT_RESIZER_BILIN",
-            "IDS_PPAGE_OUTPUT_RESIZER_BIL_PS","IDS_PPAGE_OUTPUT_RESIZER_BICUB1","IDS_PPAGE_OUTPUT_RESIZER_BICUB2","IDS_PPAGE_OUTPUT_RESIZER_BICUB3"}},
-        {"IDD_PPAGEOUTPUT",   "IDC_DX_SURFACE", true, {"IDS_PPAGE_OUTPUT_SURF_OFFSCREEN","IDS_PPAGE_OUTPUT_SURF_2D","IDS_PPAGE_OUTPUT_SURF_3D"}},
-        // The post-July-2026 renderer-settings dialog hosts the same combos under a new IDD (upstream
-        // moved them off IDD_PPAGEOUTPUT); same control symbols, so both generations of the RC resolve.
-        // The combo-option clipping reported in upstream #4141 lives here (surface: widened -> face-only).
-        {"IDD_PPAGEVIDEORENDERER", "IDC_DX9RESIZER_COMBO", false, {"IDS_PPAGE_OUTPUT_RESIZE_NN","IDS_PPAGE_OUTPUT_RESIZER_BILIN",
-            "IDS_PPAGE_OUTPUT_RESIZER_BIL_PS","IDS_PPAGE_OUTPUT_RESIZER_BICUB1","IDS_PPAGE_OUTPUT_RESIZER_BICUB2","IDS_PPAGE_OUTPUT_RESIZER_BICUB3"}},
-        {"IDD_PPAGEVIDEORENDERER", "IDC_DX_SURFACE", true, {"IDS_PPAGE_OUTPUT_SURF_OFFSCREEN","IDS_PPAGE_OUTPUT_SURF_2D","IDS_PPAGE_OUTPUT_SURF_3D"}},
-        {"IDD_PPAGEPLAYBACK", "IDC_COMBO1", true,  {"IDS_ZOOM_25","IDS_ZOOM_50","IDS_ZOOM_100","IDS_ZOOM_200","IDS_ZOOM_AUTOFIT"}},
-        {"IDD_PPAGEPLAYBACK", "IDC_COMBO2", true,  {"IDS_AFTER_PLAYBACK_DO_NOTHING","IDS_AFTER_PLAYBACK_PLAY_NEXT","IDS_AFTER_PLAYBACK_REWIND",
-            "IDS_AFTER_PLAYBACK_MONITOROFF","IDS_AFTER_PLAYBACK_CLOSE","IDS_AFTER_PLAYBACK_EXIT"}},
-        {"IDD_PPAGEPLAYBACK", "IDC_COMBO3", true,  {"IDS_PLAY_LOOPMODE_FILE","IDS_PLAY_LOOPMODE_PLAYLIST"}},
-        {"IDD_PPAGEPLAYBACK", "IDC_COMBO4", true,  {"IDS_VERTICAL_ALIGN_VIDEO_MIDDLE","IDS_VERTICAL_ALIGN_VIDEO_TOP","IDS_VERTICAL_ALIGN_VIDEO_BOTTOM"}},
-        {"IDD_PPAGETHEME",    "IDC_COMBO1", false, {"IDS_THEMEMODE_DARK","IDS_THEMEMODE_LIGHT","IDS_THEMEMODE_WINDOWS"}},
-        {"IDD_PPAGETHEME",    "IDC_COMBO3", false, {"IDS_TIME_TOOLTIP_ABOVE","IDS_TIME_TOOLTIP_BELOW"}},
-        {"IDD_PPAGETHEME",    "IDC_TIMEONSEEKBAR", true, {"IDS_TIME_ON_SEEKBAR_NEVER","IDS_TIME_ON_SEEKBAR_ALWAYS","IDS_TIME_ON_SEEKBAR_WHEN_STATUSBAR_HIDDEN"}},
-        {"IDD_PPAGETWEAKS",   "IDC_COMBO4", false, {"IDS_FASTSEEK_LATEST","IDS_FASTSEEK_NEAREST"}},
-        {"IDD_PPAGEADVANCED", "IDC_COMBO1", true,  {"IDS_STARTUP_PRESET_REMEMBER","IDS_AG_VIEW_MINIMAL","IDS_AG_VIEW_COMPACT","IDS_AG_VIEW_NORMAL","IDS_AG_VIEW_CUSTOM"}},
-        {"IDD_PPAGEFULLSCREEN","IDC_COMBO2", true, {"IDS_PPAGEFULLSCREEN_SHOWNEVER","IDS_PPAGEFULLSCREEN_SHOWMOVED","IDS_PPAGEFULLSCREEN_SHOHHOVERED"}},
-    };
-    return t;
-}
+using mpctrans::fit::ComboGroup;
+using mpctrans::fit::combo_groups;
 
 // The Advanced page's list rows, in on-screen order (from upstream PPageAdvanced.cpp add*Item calls).
 // `name` is the setting's registry-key label as MPC-HC shows it in the Name column (from SettingsDefines.h
@@ -3199,12 +3166,12 @@ void MainFrame::AppendFitFlags(std::vector<ReviewFlag>& out, long long dialogId,
         bool grouped = m.grouped;
         int rendered = grouped ? m.groupRenderedPx : m.renderedPx;
         int avail    = grouped ? m.groupAvailablePx : m.availablePx;
-        if (avail <= 0) continue;
-        double ratio = (double)rendered / avail;
+        mpctrans::fit::Kind fk = mpctrans::fit::classify(rendered, avail);
         Row::Flag kind;
-        if (rendered > avail) kind = Row::Flag::FitHard;
-        else if (ratio >= 0.90) kind = Row::Flag::FitTight;
-        else continue;   // fits comfortably -- not flagged
+        if (fk == mpctrans::fit::Kind::Hard) kind = Row::Flag::FitHard;
+        else if (fk == mpctrans::fit::Kind::Tight) kind = Row::Flag::FitTight;
+        else continue;   // fits comfortably (or unmeasurable) -- not flagged
+        double ratio = (double)rendered / avail;
         CString evidence;
         if (grouped) {
             CString peers;
@@ -3264,13 +3231,13 @@ void MainFrame::AppendComboFitFlags(std::vector<ReviewFlag>& out, long long dial
         if (options.empty()) continue;
 
         for (const auto& m : lp.MeasureComboFit(dlg, comboId, options)) {
-            if (m.availablePx <= 0) continue;
             int rendered = m.renderedPx, avail = m.availablePx;
-            double ratio = (double)rendered / avail;
+            mpctrans::fit::Kind fk = mpctrans::fit::classify(rendered, avail);
             Row::Flag kind;
-            if (rendered > avail) kind = Row::Flag::FitHard;
-            else if (ratio >= 0.90) kind = Row::Flag::FitTight;
-            else continue;   // fits comfortably -- not flagged
+            if (fk == mpctrans::fit::Kind::Hard) kind = Row::Flag::FitHard;
+            else if (fk == mpctrans::fit::Kind::Tight) kind = Row::Flag::FitTight;
+            else continue;   // fits comfortably (or unmeasurable) -- not flagged
+            double ratio = (double)rendered / avail;
             CString evidence;
             if (kind == Row::Flag::FitHard)
                 evidence.Format(L"combo option overflows by %dpx (%hs)", rendered - avail, g.combo);

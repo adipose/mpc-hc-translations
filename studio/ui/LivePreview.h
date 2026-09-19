@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 #include "mpctrans/control_index.h"
+#include "mpctrans/fit.h"
 #include "mpctrans/po.h"
 #include "mpctrans/rc_dialogs.h"
 
@@ -91,47 +92,27 @@ public:
     struct Overflow { HWND ctrl; };                 // text wider than the control rect
     std::vector<Overflow> DetectOverflow(HWND dlg); // for the edit-panel warning
 
-    // One control's fit measurement for the Review Queue (see MeasureFit). `renderedPx` is the actual
-    // text extent in the control's font; `availablePx` is its client-rect width (Button: minus 8px
-    // border/margin, matching DetectOverflow). When `grouped` is true this control was chained (by
-    // geometric row-adjacency) with `groupPeers` into one span — `groupRenderedPx`/`groupAvailablePx`
-    // are the GROUP's summed totals (what actually gates hard/tight; the individual fields are still
-    // useful for the evidence text).
-    struct FitMeasurement {
-        long long controlId = -1;
-        std::string controlSym;                  // "IDC_..."
-        std::string msgctxt, msgid;               // po key (from the ControlIndex)
-        int renderedPx = 0, availablePx = 0;
-        bool grouped = false;
-        int groupRenderedPx = 0, groupAvailablePx = 0;
-        std::vector<std::string> groupPeers;      // other controls' msgctxt in this control's group
-    };
+    // One control's fit measurement for the Review Queue. Kept as a type alias so existing callers
+    // (MainFrame.cpp) keep compiling unchanged — the real definition (and the measuring logic) now
+    // lives in mpctrans::fit (studio/core/include/mpctrans/fit.h), the ONE source of truth shared with
+    // the headless `fitscan` CLI. See fit.h's Measurement doc comment for the field-by-field meaning.
+    using FitMeasurement = mpctrans::fit::Measurement;
     // Single-line, width-constrained fit measurement for every translatable control in the CURRENTLY
     // RENDERED dialog `dlg` (i.e. call immediately after RenderDialog(dialogId, ...) — this reads the
-    // live child HWNDs + m_english captured by that render, it does not re-render). Scope: Buttons
-    // (always single-line) and single-line Statics only — a Static is "single-line" when its live
-    // client-rect HEIGHT is no more than ~1.6x the dialog font's line height (taller -> it's a
-    // multi-line/wrapping label, excluded, matching the spec's "~10 DU / one 9pt line" discriminator
-    // without needing DU/RC geometry, so this works whether or not the RC source is loaded). Only
-    // controls present in `idx.dialogs()` for `dialogId` are considered (that's exactly the
-    // build_index.py-selected translatable set — anything else, e.g. decorative icons, is skipped for
-    // free). Group-aware: controls in this candidate set are bucketed into rows by close vertical
-    // alignment (control tops within ~4px at 96 DPI, DPI-scaled) then chained left-to-right where the
-    // gap between one control's right edge and the next's left edge is small (~20px at 96 DPI,
-    // DPI-scaled) — each chain of 2+ becomes a group; singletons have grouped=false.
+    // live child HWNDs + m_english captured by that render, it does not re-render). Thin wrapper over
+    // mpctrans::fit::measure_fit — see fit.h for the full scope/grouping rule.
     std::vector<FitMeasurement> MeasureFit(HWND dlg, long long dialogId, const mpctrans::ControlIndex& idx);
 
-    // One combo OPTION's fit against its combo's CLOSED field (the part that clips — the dropdown list
-    // can be wider, but the selected item renders in the field). availablePx = combo client width minus
-    // the drop button (SM_CXVSCROLL) and ~8px edges/indent (mirrors DetectOverflow's Button margin rule).
-    struct ComboFitMeasurement { std::string msgctxt; long long controlId = -1; int renderedPx = 0, availablePx = 0; };
+    // One combo OPTION's fit against its combo's CLOSED field. See mpctrans::fit::ComboMeasurement.
+    using ComboFitMeasurement = mpctrans::fit::ComboMeasurement;
+    // Thin wrapper over mpctrans::fit::measure_combo_fit — see fit.h for the full rule.
     std::vector<ComboFitMeasurement> MeasureComboFit(HWND dlg, long long comboCtrlId,
         const std::vector<std::pair<std::string, CString>>& options);   // (msgctxt, translated text)
 
     // Re-measure arbitrary replacement `text` against a SPECIFIC control's CURRENT font + client rect
     // (the control must still exist in the currently rendered dialog) — used to re-check an AI-proposed
-    // fix before offering it. Mirrors DetectOverflow's Button-padding rule.
-    struct TextFit { int renderedPx = 0, availablePx = 0; bool measured = false; };
+    // fix before offering it. Thin wrapper over mpctrans::fit::measure_control_text.
+    using TextFit = mpctrans::fit::TextFit;
     TextFit MeasureControlText(HWND ctrl, const CString& text) const;
 
     // --- menus ---
