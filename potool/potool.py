@@ -45,7 +45,11 @@ POSITIONAL = re.compile(r"^%\d")
 # letter reads as a printf conversion (%a / %A -- hex float).  Mask them before tokenizing so a
 # translator who writes %AppData% instead of %appdata% is not rejected for a "missing placeholder".
 # Name must be >= 2 identifier chars, so "%s%s" / "%d%" never match.  (upstream #3138)
-ENV_RE = re.compile(r"%[A-Za-z_][A-Za-z0-9_]+%")
+# The closing % must NOT be followed by another % or an alphanumeric: "%ld%%" (long + literal
+# percent) and "%dx%d" (two ints around an x) both contain a %<letters>% run and were being masked,
+# losing real specifiers from the msgid (de/es/tr IDS_STATSBAR_SIGNAL_FORMAT, ro
+# IDS_THUMBNAILS_INFO_HEADER).  A genuine env var is followed by a separator, punctuation or the end.
+ENV_RE = re.compile(r"%[A-Za-z_][A-Za-z0-9_]+%(?![%A-Za-z0-9])")
 
 def fmt_specs(s):
     s = ENV_RE.sub(lambda m: " " * len(m.group()), s or "")

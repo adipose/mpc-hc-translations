@@ -23,7 +23,10 @@ static const std::regex SPEC_RE(
 // letter reads as a printf conversion (%a / %A -- hex float). Masked before tokenizing, identical to
 // potool's ENV_RE, so a translator who writes %AppData% instead of %appdata% is not rejected for a
 // "missing placeholder". Name must be >= 2 identifier chars, so "%s%s" / "%d%" never match. (#3138)
-static const std::regex ENV_RE(R"(%[A-Za-z_][A-Za-z0-9_]+%)");
+// The closing % must NOT be followed by another % or an alphanumeric: "%ld%%" and "%dx%d" contain a
+// %<letters>% run and were being masked, losing real specifiers (de/es/tr IDS_STATSBAR_SIGNAL_FORMAT,
+// ro IDS_THUMBNAILS_INFO_HEADER). A genuine env var is followed by a separator, punctuation or the end.
+static const std::regex ENV_RE(R"(%[A-Za-z_][A-Za-z0-9_]+%(?![%A-Za-z0-9]))");
 
 std::vector<std::string> format_specs(const std::string& s) {
     std::string masked = s;

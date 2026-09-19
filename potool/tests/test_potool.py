@@ -34,6 +34,11 @@ expect("fmt percent",   P.rule_format("c", "100%% done", "100%% fertig"), [])
 expect("fmt envvar case",  P.rule_format("c", "Logs in %appdata%\\MPC-HC", "Jurnale in %AppData%\\MPC-HC"), [])
 expect("fmt envvar+spec",  P.rule_format("c", "%s in %APPDATA%", "%s in %appdata%"), [])
 expect("fmt envvar drop",  P.rule_format("c", "%s in %APPDATA%", "in %appdata%"), ["format-specifiers"])
+# a %<letters>% run that is really specifiers must NOT be masked (regression found by the test suite)
+expect("fmt ld%% kept",    P.rule_format("c", "Quality: %ld%%", "Qualität: %ld %%"), [])
+expect("fmt ld%% dropped", P.rule_format("c", "Quality: %ld%%", "Qualität: %%"), ["format-specifiers"])
+expect("fmt dx%d kept",    P.rule_format("c", "%dx%d", "%dx%d"), [])
+expect("fmt dx%d dropped", P.rule_format("c", "%dx%d", "%dx"), ["format-specifiers"])
 
 expect("amp ok",        P.rule_ampersand("c", "&File", "&Datei"),       [])   # no error
 expect("amp dropped",   P.rule_ampersand("c", "&File", "Datei"),        [])   # SOFT: warning, not error

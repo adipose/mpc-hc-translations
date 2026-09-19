@@ -46,6 +46,11 @@ int main() {
     expect("fmt envvar case", rule_format("c", "Logs in %appdata%\\MPC-HC", "Jurnale in %AppData%\\MPC-HC"), {});
     expect("fmt envvar+spec", rule_format("c", "%s in %APPDATA%", "%s in %appdata%"), {});
     expect("fmt envvar drop", rule_format("c", "%s in %APPDATA%", "in %appdata%"), {"format-specifiers"});
+    // a %<letters>% run that is really specifiers must NOT be masked (regression found by the test suite)
+    expect("fmt ld%% kept",    rule_format("c", "Quality: %ld%%", "Qualit\xC3\xA4t: %ld %%"), {});
+    expect("fmt ld%% dropped", rule_format("c", "Quality: %ld%%", "Qualit\xC3\xA4t: %%"), {"format-specifiers"});
+    expect("fmt dx%d kept",    rule_format("c", "%dx%d", "%dx%d"), {});
+    expect("fmt dx%d dropped", rule_format("c", "%dx%d", "%dx"), {"format-specifiers"});
     expect("fmt zoom",     rule_format("c", "50%", "%50"),               {});   // tr percentage, not a spec
     expect("fmt literal%", rule_format("c", "% of the animation", "%s animasi"), {});  // source has no spec
 
