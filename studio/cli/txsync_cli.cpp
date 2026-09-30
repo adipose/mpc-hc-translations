@@ -200,12 +200,49 @@ int cmd_refresh(int argc, char** argv) {
     for (auto& h : held)
         std::printf("  %s  %s  -- %s\n", h.lang.c_str(), h.msgctxt.c_str(), h.reason.c_str());
 
-    if (dryRun) {
-        std::fprintf(stderr, "dry-run: stopping before push\n");
-        return 0;
-    }
     if (edits.empty()) {
         std::printf("nothing new to add\n");
+        return 0;
+    }
+
+    // 7b. Skip when the PR branch already carries exactly these translations (same file set, same
+    // entries). edits is the full diff against develop, so without this an hourly run would
+    // force-push an identical rebase every time. Entries, not bytes: the serializer stamps
+    // PO-Revision-Date to the minute. Branch files are fetched by the PR head SHA (immutable URL),
+    // because the raw CDN serves a branch name stale for minutes after a push.
+    // Runs under --dry-run too, so a dry run reports what a real one would decide.
+    {
+        std::vector<std::string> prFiles = github::pr_changed_files(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO, prNum);
+        std::string headSha = github::pr_head_sha(*tok, config::UPSTREAM_OWNER, config::UPSTREAM_REPO, prNum);
+        std::vector<std::string> ours;
+        for (auto& e : edits) ours.push_back(e.repo_path);
+        std::sort(prFiles.begin(), prFiles.end());
+        std::sort(ours.begin(), ours.end());
+        bool same = !prFiles.empty() && !headSha.empty() && prFiles == ours;
+        std::string why = same ? "" : (prFiles.empty() || headSha.empty() ? "could not read the PR" : "PR file set differs");
+        auto sameEntries = [](const std::string& a, const std::string& b) {
+            PoFile pa = PoFile::parse_bytes(a), pb = PoFile::parse_bytes(b);
+            if (pa.entries.size() != pb.entries.size()) return false;
+            for (size_t k = 0; k < pa.entries.size(); ++k) {
+                const auto& x = pa.entries[k]; const auto& y = pb.entries[k];
+                if (x.msgctxt != y.msgctxt || x.msgid != y.msgid || x.msgstr != y.msgstr) return false;
+            }
+            return true;
+        };
+        for (size_t i = 0; same && i < edits.size(); ++i) {
+            auto cur = github::fetch_latest(*tok, login, config::UPSTREAM_REPO, headSha, edits[i].repo_path);
+            same = cur && sameEntries(*cur, edits[i].content);
+            if (!same) why = "translations differ: " + edits[i].repo_path + (cur ? "" : " (not on branch)");
+        }
+        std::fprintf(stderr, "branch check: PR lists %zu file(s), sync has %zu -- %s\n",
+                     prFiles.size(), ours.size(), same ? "identical, skipping push" : why.c_str());
+        if (same) {
+            std::printf("branch already holds these translations -- nothing to push\n");
+            return 0;
+        }
+    }
+    if (dryRun) {
+        std::fprintf(stderr, "dry-run: stopping before push\n");
         return 0;
     }
 

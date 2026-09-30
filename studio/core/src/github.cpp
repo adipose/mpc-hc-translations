@@ -517,6 +517,32 @@ int open_pr_number(const Token& t, const std::string& owner, const std::string& 
     return 0;
 }
 
+std::vector<std::string> pr_changed_files(const Token& t, const std::string& owner, const std::string& repo, int number) {
+    std::vector<std::string> out;
+    try {
+        for (int page = 1; page <= 30; ++page) {
+            json j = api(t, L"GET", "/repos/" + owner + "/" + repo + "/pulls/" + std::to_string(number) +
+                                    "/files?per_page=100&page=" + std::to_string(page));
+            if (!j.is_array() || j.empty()) break;
+            for (const auto& f : j)
+                if (f.is_object() && f.contains("filename") && f["filename"].is_string())
+                    out.push_back(f["filename"].get<std::string>());
+            if (j.size() < 100) break;
+        }
+    } catch (const std::exception&) { out.clear(); }
+    return out;
+}
+
+std::string pr_head_sha(const Token& t, const std::string& owner, const std::string& repo, int number) {
+    try {
+        json j = api(t, L"GET", "/repos/" + owner + "/" + repo + "/pulls/" + std::to_string(number));
+        if (j.is_object() && j.contains("head") && j["head"].is_object() && j["head"].contains("sha") &&
+            j["head"]["sha"].is_string())
+            return j["head"]["sha"].get<std::string>();
+    } catch (const std::exception&) {}
+    return {};
+}
+
 std::vector<std::string> list_branches(const Token& t, const std::string& owner, const std::string& repo) {
     // Paginate: the fork carries well over 100 branches, and "transifex-sync-*" sorts after every
     // "patchNNN", so a single page silently lost the sync branch (refresh then reported "no open
@@ -605,6 +631,8 @@ std::string rebase_pr_branch(const Token&, const std::string&, const std::string
 std::vector<std::string> list_forks(const Token&) { return {}; }
 std::vector<std::string> list_branches(const Token&, const std::string&, const std::string&) { return {}; }
 int open_pr_number(const Token&, const std::string&, const std::string&, const std::string&, const std::string&) { return 0; }
+std::vector<std::string> pr_changed_files(const Token&, const std::string&, const std::string&, int) { return {}; }
+std::string pr_head_sha(const Token&, const std::string&, const std::string&, int) { return {}; }
 std::map<int, LineBlame> blame_line_dates(const Token&, const std::string&, const std::string&, const std::string&, const std::string&) { return {}; }
 } // namespace mpctrans::github
 

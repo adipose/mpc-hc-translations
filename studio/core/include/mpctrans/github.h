@@ -145,6 +145,15 @@ std::vector<std::string> list_branches(const Token&, const std::string& owner, c
 int open_pr_number(const Token&, const std::string& owner, const std::string& repo,
                    const std::string& headOwner, const std::string& branch);
 
+// Repo-relative paths changed by pull request `number` on owner/repo (all pages). Lets a refresh
+// tell "the branch already carries exactly this" from "there is something new", so an unattended
+// hourly run does not force-push an identical rebase every time. Empty on any failure.
+std::vector<std::string> pr_changed_files(const Token&, const std::string& owner, const std::string& repo, int number);
+
+// Head commit SHA of pull request `number` (empty on failure). Fetching branch files BY SHA through
+// fetch_latest sidesteps the raw CDN's stale-by-branch-name cache (immutable URL, no staleness).
+std::string pr_head_sha(const Token&, const std::string& owner, const std::string& repo, int number);
+
 // ---- reverse-push (mpctrans::txsync's tx_reverse_push_plan): age evidence for conflict resolution ----
 
 // The commit that last touched one blamed line: `date` alone can't distinguish "a translator edited
