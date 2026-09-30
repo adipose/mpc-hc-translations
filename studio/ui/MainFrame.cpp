@@ -370,7 +370,9 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     ::SetWindowTheme(m_previewHost.GetSafeHwnd(), Theme::IsDark() ? L"DarkMode_Explorer" : L"Explorer", nullptr);
     // command-line usage list (the "command dialog"): a read-only multiline edit shown over the
     // preview when an IDS_CMD_* string is selected. Parented to the frame so OnCtlColor themes it.
-    m_cmdHelp.Create(WS_CHILD | WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | WS_VSCROLL,
+    // Same styles as the player's IDD_CMD_LINE_HELP edit: no wrapping, both scrollbars (issue #3).
+    m_cmdHelp.Create(WS_CHILD | WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | ES_AUTOHSCROLL |
+                     WS_VSCROLL | WS_HSCROLL,
                      CRect(0, 0, 10, 10), this, IDC_CMDHELP);
     m_cmdHelp.SetFont(&m_font);
     ::SetWindowSubclass(m_cmdHelp.GetSafeHwnd(), CmdHelpSubclassProc, 1, (DWORD_PTR)this);
