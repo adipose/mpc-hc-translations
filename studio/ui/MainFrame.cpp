@@ -1452,6 +1452,7 @@ void MainFrame::ShowCommandHelp(const std::string& selCtx) {
     m_cmdHelp.ShowWindow(SW_SHOW);
     CString text = L"Usage:\r\n";
     m_cmdSelStart = m_cmdSelEnd = -1;
+    std::vector<CString> switchNames;                   // text left of each entry's first tab
     for (const auto& e : m_po[RES_STRINGS].entries) {
         if (e.msgctxt.rfind("IDS_CMD_", 0) != 0) continue;
         const std::string& v = e.msgstr.empty() ? e.msgid : e.msgstr;
@@ -1459,12 +1460,32 @@ void MainFrame::ShowCommandHelp(const std::string& selCtx) {
         // Normalize THIS piece's line endings before concatenating — a global Replace over the final
         // text (the old approach) can grow/shrink the string and shift the char offsets recorded below.
         piece.Replace(L"\r\n", L"\n"); piece.Replace(L"\r", L""); piece.Replace(L"\n", L"\r\n");
+        // Mirror the player's CmdLineHelpDlg (clsid2/mpc-hc#4245): the strings carry hand-tuned "\t\t"
+        // runs that only line up on the default stops at 96 dpi. Collapse every run to ONE tab so
+        // every entry, continuation lines included, lands on the single stop measured below.
+        while (piece.Replace(L"\t\t", L"\t") > 0) {}
+        if (int tabPos = piece.Find(L'\t'); tabPos != -1) switchNames.push_back(piece.Left(tabPos));
         static const CString kSep = L"\r\n";
         int start = text.GetLength() + kSep.GetLength();
         text += kSep + piece;
         if (!selCtx.empty() && e.msgctxt == selCtx) { m_cmdSelStart = start; m_cmdSelEnd = start + piece.GetLength(); }
     }
-    m_cmdHelp.SetTabStops(92);                          // description column past the longest switch
+    // One tab stop just past the widest switch name, measured in the font the edit actually has (so
+    // it tracks the translation and the DPI), in the dialog units EM_SETTABSTOPS expects. A single
+    // stop repeats at every multiple, so an unexpectedly wide entry falls to the next one instead of
+    // pushing the column for every other line.
+    int tabStopDlu = 92;
+    if (!switchNames.empty() && m_cmdHelp.GetFont()) {
+        CClientDC dc(&m_cmdHelp);
+        CFont* old = dc.SelectObject(m_cmdHelp.GetFont());
+        int maxWidth = 0;
+        for (const auto& s : switchNames) maxWidth = max(maxWidth, (int)dc.GetTextExtent(s).cx);
+        TEXTMETRIC tm{}; dc.GetTextMetrics(&tm);
+        dc.SelectObject(old);
+        if (maxWidth > 0 && tm.tmAveCharWidth > 0)
+            tabStopDlu = MulDiv(maxWidth + 2 * tm.tmAveCharWidth, 4, tm.tmAveCharWidth);
+    }
+    m_cmdHelp.SetTabStops(tabStopDlu);
     m_cmdHelp.SetWindowText(text);
     if (m_cmdSelStart >= 0) {                           // scroll the selected entry into view
         int line = m_cmdHelp.LineFromChar(m_cmdSelStart);
