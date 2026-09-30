@@ -518,13 +518,20 @@ int open_pr_number(const Token& t, const std::string& owner, const std::string& 
 }
 
 std::vector<std::string> list_branches(const Token& t, const std::string& owner, const std::string& repo) {
+    // Paginate: the fork carries well over 100 branches, and "transifex-sync-*" sorts after every
+    // "patchNNN", so a single page silently lost the sync branch (refresh then reported "no open
+    // sync PR" on every scheduled run).
     std::vector<std::string> out;
     try {
-        json j = api(t, L"GET", "/repos/" + owner + "/" + repo + "/branches?per_page=100");
-        if (j.is_array())
+        for (int page = 1; page <= 50; ++page) {
+            json j = api(t, L"GET", "/repos/" + owner + "/" + repo + "/branches?per_page=100&page=" +
+                                    std::to_string(page));
+            if (!j.is_array() || j.empty()) break;
             for (const auto& b : j)
                 if (b.is_object() && b.contains("name") && b["name"].is_string())
                     out.push_back(b["name"].get<std::string>());
+            if (j.size() < 100) break;
+        }
     } catch (const std::exception&) {}
     return out;
 }
