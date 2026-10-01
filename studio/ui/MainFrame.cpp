@@ -362,8 +362,12 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     m_list.InsertColumn(1, L"English", LVCFMT_LEFT, S(150));
     m_list.InsertColumn(2, L"Translation", LVCFMT_LEFT, S(150));
     m_list.InsertColumn(3, L"Flag", LVCFMT_LEFT, S(220));   // Review tab only; harmless on other tabs
+    // WS_CLIPSIBLINGS: the command-help edit and the mock-up window are shown OVER this host (same
+    // rectangle). Without it the host's background paint is not clipped by those siblings, so any
+    // invalidation that reaches the host -- e.g. the edit's horizontal thumb drag, whose scroll
+    // invalidates the overlapping region -- wiped the usage text (issue #3).
     m_previewHost.Create(AfxRegisterWndClass(0, ::LoadCursor(nullptr, IDC_ARROW), Theme::windowBrush()),
-                         L"", ST | WS_BORDER | WS_CLIPCHILDREN | WS_VSCROLL | WS_HSCROLL, z, this, 0);
+                         L"", ST | WS_BORDER | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VSCROLL | WS_HSCROLL, z, this, 0);
     m_previewHost.OnScrolled = [this] { ReapplyHighlight(); };   // keep the ring synced to the scrolled child
     // The host is a custom AfxRegisterWndClass window, so Theme::ApplyToChildren (which keys on known
     // control classes) skips it -- theme its non-client scrollbars explicitly so they follow the mode.
@@ -371,8 +375,8 @@ int MainFrame::OnCreate(LPCREATESTRUCT lpcs) {
     // command-line usage list (the "command dialog"): a read-only multiline edit shown over the
     // preview when an IDS_CMD_* string is selected. Parented to the frame so OnCtlColor themes it.
     // Same styles as the player's IDD_CMD_LINE_HELP edit: no wrapping, both scrollbars (issue #3).
-    m_cmdHelp.Create(WS_CHILD | WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL | ES_AUTOHSCROLL |
-                     WS_VSCROLL | WS_HSCROLL,
+    m_cmdHelp.Create(WS_CHILD | WS_CLIPSIBLINGS | WS_BORDER | ES_MULTILINE | ES_READONLY | ES_AUTOVSCROLL |
+                     ES_AUTOHSCROLL | WS_VSCROLL | WS_HSCROLL,
                      CRect(0, 0, 10, 10), this, IDC_CMDHELP);
     m_cmdHelp.SetFont(&m_font);
     ::SetWindowSubclass(m_cmdHelp.GetSafeHwnd(), CmdHelpSubclassProc, 1, (DWORD_PTR)this);
@@ -1452,6 +1456,11 @@ void MainFrame::ShowCommandHelp(const std::string& selCtx) {
     CRect rc; m_previewHost.GetWindowRect(&rc); ScreenToClient(&rc);
     m_cmdHelp.MoveWindow(rc);
     m_cmdHelp.ShowWindow(SW_SHOW);
+    // The edit shares the preview host's rectangle and must sit ABOVE it: the host ends up on top of
+    // the z-order, and since neither clipped siblings the edit only showed because it painted last.
+    // The host carries its own horizontal scrollbar in the same place as the edit's, so dragging the
+    // "slider" reached the host, which repainted its background over the text (issue #3).
+    m_cmdHelp.SetWindowPos(&wndTop, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
     CString text = L"Usage:\r\n";
     m_cmdSelStart = m_cmdSelEnd = -1;
     std::vector<CString> switchNames;                   // text left of each entry's first tab
